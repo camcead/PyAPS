@@ -44,6 +44,7 @@ First public release of PyAPS as a standalone, installable package.
 - Dependency lists now reflect what the code imports; unused packages were removed from the extras.
 
 ### Removed
+- Obsolete conda installation guide (`doc/PyAPS_conda_install.txt`); use the installation section of the README.
 - Site-specific operational tooling, scratch/debug code and internal documents moved out of this
   repository (they were never part of the scientific pipeline).
 - Tracked symlinks to local data volumes.

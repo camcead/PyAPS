@@ -37,7 +37,7 @@ PyAPS is a Python-based platform for processing and analyzing WEAVE survey data,
 git clone https://github.com/camcead/PyAPS.git
 cd PyAPS
 
-python3 -m venv ~/pyaps-venv && source ~/pyaps-venv/bin/activate   # or a conda env, see doc/PyAPS_conda_install.txt
+python3 -m venv ~/pyaps-venv && source ~/pyaps-venv/bin/activate   # or use a conda environment
 
 python3 -m pip install -e .              # recommended: links to the source tree, finds configs/ automatically
 # python3 -m pip install .               # regular install: also set PYAPS_CONFIGDIR (see below)

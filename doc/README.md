@@ -11,5 +11,4 @@ Start here if you are new to WEAVE data: **[weave_datamodel_v8.md](weave_datamod
 | Classification, radial velocities, stellar parameters | [aps_rr.md](aps_rr.md), [aps_rvs.md](aps_rvs.md), [aps_ferre.md](aps_ferre.md) |
 | Integral-field extragalactic / Galactic analysis | [aps_ifu_prepare.md](aps_ifu_prepare.md), [aps_ifu_ExGal.md](aps_ifu_ExGal.md), [aps_ifu_Gal.md](aps_ifu_Gal.md) |
 | Core utilities and the `APSOB` class | [aps_utils.md](aps_utils.md) |
-| Install with conda | [PyAPS_conda_install.txt](PyAPS_conda_install.txt) |
 | Run and extend the tests | [TESTING.md](TESTING.md) |
