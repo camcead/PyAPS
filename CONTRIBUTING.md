@@ -18,6 +18,10 @@ pytest                              # data-dependent tests skip themselves witho
 ```
 To run the data-dependent tests point `PYAPS_TEST_DATA` at a directory containing `L1/`, `L2/`, `CAL/`, `CAT/`.
 
+## Branches
+* `main` - the latest released version. Stable; releases and tags are made from it.
+* `develop` - ongoing work. Pull requests go here.
+
 ## Making a change
 1. Fork, then create a branch from `develop`: `git switch -c my-change develop`.
 2. Keep the change focused; add or update a test when behaviour changes.
@@ -35,6 +39,6 @@ To run the data-dependent tests point `PYAPS_TEST_DATA` at a directory containin
 * Every new module should have a short docstring saying what it does and how to run it.
 
 ## Releases (maintainers)
-Update `version.txt` and `CHANGELOG.md`, merge to `develop`, tag `vMAJOR.MINOR[.PATCH]`
-(`git tag -a v2.1 -m "PyAPS 2.1" && git push origin v2.1`). The release workflow builds the
-distributions and creates the GitHub release.
+Update `version.txt` and `CHANGELOG.md` on `develop`, then merge `develop` into `main`
+(`git switch main && git merge --ff-only develop && git push`), and create the GitHub release with tag
+`vMAJOR.MINOR[.PATCH]` targeting `main`. The release workflow attaches the built distributions.

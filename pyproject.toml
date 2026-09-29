@@ -63,9 +63,9 @@ dynamic = ["version"]
 [project.urls]
 Homepage = "https://camcead.ast.cam.ac.uk"
 Repository = "https://github.com/camcead/PyAPS"
-Documentation = "https://github.com/camcead/PyAPS/tree/develop/doc"
+Documentation = "https://github.com/camcead/PyAPS/tree/main/doc"
 "Bug Tracker" = "https://github.com/camcead/PyAPS/issues"
-Changelog = "https://github.com/camcead/PyAPS/blob/develop/CHANGELOG.md"
+Changelog = "https://github.com/camcead/PyAPS/blob/main/CHANGELOG.md"
 
 [project.scripts]
 # `pip install PyAPS` then `aps-explorer --infiles ...` — the standalone-
