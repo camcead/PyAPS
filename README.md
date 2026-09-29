@@ -1,6 +1,7 @@
 # PyAPS - Python-based Advance Processing System for WEAVE
 
-[![Python](https://img.shields.io/badge/Python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-blue)](https://www.python.org/)
+[![CI](https://github.com/camcead/PyAPS/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/camcead/PyAPS/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/Python-3.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Documentation](https://img.shields.io/badge/docs-latest-brightgreen.svg)](doc/)
 
@@ -24,7 +25,7 @@ PyAPS is a Python-based platform for processing and analyzing WEAVE survey data,
 
 ### Prerequisites
 
-- Python 3.8 - 3.12 (3.11 recommended)
+- Python 3.9 - 3.12 (3.11 recommended)
 - `pip`; a Fortran compiler (`gfortran`) if a compiled dependency has no wheel for your platform
 - Git
 - [FERRE](externals/README.md) (only for the stellar-parameter module `aps_ferre`)
@@ -33,13 +34,13 @@ PyAPS is a Python-based platform for processing and analyzing WEAVE survey data,
 ### Quick Start
 
 ```bash
-git clone https://github.com/amolaeinezhad/PyAPS.git
+git clone https://github.com/camcead/PyAPS.git
 cd PyAPS
 
 python3 -m venv ~/pyaps-venv && source ~/pyaps-venv/bin/activate   # or a conda env, see doc/PyAPS_conda_install.txt
 
-python3 -m pip install -e .              # development install (links to the source tree)
-# python3 -m pip install .               # regular install
+python3 -m pip install -e .              # recommended: links to the source tree, finds configs/ automatically
+# python3 -m pip install .               # regular install: also set PYAPS_CONFIGDIR (see below)
 ```
 
 ### Choosing what to install
@@ -70,7 +71,7 @@ extra you installed is simply not needed (e.g. no database driver is required).
 |---|---|---|
 | `PYAPS_HOME` | Root of your PyAPS working tree (holds `configs/`, `externals/`, `CS/`, `PyAPS_local/`). Used to expand `${PYAPS_HOME}` in `configs/script_params.yaml` | the source checkout, else `~/PyAPS` |
 | `PYAPS_PKG_DIR` | Directory holding the `aps_*.py` modules (`${PYAPS_PKG_DIR}` in `script_params.yaml`) | set automatically |
-| `PYAPS_CONFIGDIR` | Writable directory for configuration files and interpolator caches | repo-bundled `configs/ExGal_configs` |
+| `PYAPS_CONFIGDIR` | Directory holding the instrument configuration (`ExGal_configs`) and interpolator caches. **A regular (non-editable) `pip install` does not bundle it: copy the repository's `configs/ExGal_configs` somewhere and point this variable at it.** | the checkout's `configs/ExGal_configs` (source / `pip install -e .` only) |
 | `PYAPS_DATA_DIR` | Start folder of the explorer's file browser | `$PYAPS_HOME`, then `~` |
 | `PYAPS_CS_MAIL` | Contact e-mail written into the `CS_MAIL` FITS header keyword by the RR Lyrae contributed modules (`aps_rrlew`, `aps_rrlgv`) | empty |
 | `PYAPS_TEST_DATA` | Root of real WEAVE data for the data-dependent tests (they skip when unset) | unset |
@@ -845,12 +846,14 @@ required for specific modules or features.
 
 ## Contributing
 
-We welcome contributions from the WEAVE community.
+Contributions are welcome - see [CONTRIBUTING.md](CONTRIBUTING.md) for the development setup and
+pull-request checklist, and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). Release history:
+[CHANGELOG.md](CHANGELOG.md).
 
 ## Support
 
-For issues, questions, or suggestions:
-- Open an issue on the repository
+- Bugs and questions: [GitHub issues](https://github.com/camcead/PyAPS/issues)
+- Security problems: see [SECURITY.md](SECURITY.md) (private reporting)
 - Contact: amolaei@ast.cam.ac.uk
 
 ## License

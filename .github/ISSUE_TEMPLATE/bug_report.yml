@@ -1,0 +1,40 @@
+name: Bug report
+description: Something does not work as documented
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you ran, what you expected, and what you got. Paste the full traceback.
+      placeholder: Command or code, and the output
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: PyAPS version
+      description: "Output of: python -c 'import PyAPS; print(PyAPS.__version__)'"
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Python version and operating system
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Observing mode or product
+      options:
+        - MOS
+        - mIFU
+        - LIFU
+        - Explorer only
+        - Not applicable
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: Small excerpts of file headers are fine. Please do not attach large or proprietary data.

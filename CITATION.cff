@@ -18,7 +18,9 @@ authors:
     affiliation: >-
       CAMCEAD, Institute of Astronomy, University of Cambridge
 license: MIT
-repository-code: "https://github.com/amolaeinezhad/PyAPS"
+repository-code: "https://github.com/camcead/PyAPS"
+url: "https://camcead.ast.cam.ac.uk"
+repository-artifact: "https://github.com/camcead/PyAPS/releases"
 version: "2.0"
 date-released: "2026-09-29"
 keywords:

@@ -20,7 +20,7 @@
 
 **Author:** Alireza Molaeinezhad (APS Team, IOA, Cambridge, UK)
 **Email:** amolaei_at_st.cam.ac.uk
-**GitHub:** https://github.com/amolaeinezhad/PyAPS
+**GitHub:** https://github.com/camcead/PyAPS
 **Institution:** Institute of Astronomy, University of Cambridge
 
 ---
@@ -161,7 +161,7 @@ pip install tqdm    # Progress bars
 
 1. **Clone/Download PyAPS:**
 ```bash
-git clone https://github.com/amolaeinezhad/PyAPS.git
+git clone https://github.com/camcead/PyAPS.git
 cd PyAPS
 ```
 
@@ -2235,7 +2235,7 @@ Contributions welcome! Areas needing development:
 
 ```bash
 # Clone repository
-git clone https://github.com/amolaeinezhad/PyAPS.git
+git clone https://github.com/camcead/PyAPS.git
 cd PyAPS
 
 # Create development environment
@@ -2305,7 +2305,7 @@ If you use APS MapViewer in your research, please cite:
   year = {2025},
   version = {3.0-Enhanced},
   publisher = {IOA, University of Cambridge},
-  url = {https://github.com/amolaeinezhad/PyAPS}
+  url = {https://github.com/camcead/PyAPS}
 }
 ```
 
@@ -2326,7 +2326,7 @@ MIT License
 **Author:** Alireza Molaeinezhad
 **Email:** amolaei_at_st.cam.ac.uk
 **Institution:** Institute of Astronomy, University of Cambridge
-**GitHub:** https://github.com/amolaeinezhad/PyAPS
+**GitHub:** https://github.com/camcead/PyAPS
 
 **For questions:**
 - Check this documentation first
