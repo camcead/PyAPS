@@ -27,4 +27,5 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           files: dist/*
-          generate_release_notes: true
+          # only attaches the built files; the release notes you wrote in the GitHub form are left untouched
+          generate_release_notes: false
