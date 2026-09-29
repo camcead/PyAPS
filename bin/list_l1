@@ -1,0 +1,64 @@
+#!/usr/bin/env python3
+
+"""
+    Copyright (C) 2020-2021, Alireza Molaeinezhad (IOA, Cambridge, UK)
+
+    E-mail: alireza.molaeinezhad_at_physics.ox.ac.uk
+            amolaei_at_st.cam.ac.uk
+
+    Updated versions of the software are available from my web page
+    https://github.com/amolaeinezhad/PyAPS
+    
+
+    This software is provided as is without any warranty whatsoever.
+    Permission to use, for non-commercial purposes is granted.
+    Permission to modify for personal or internal use is granted,
+    provided this copyright and disclaimer are included unchanged
+    at the beginning of the file. All other rights are reserved.
+    In particular, redistribution of the code is not allowed.
+
+"""
+
+from __future__ import absolute_import, division, print_function
+
+import os
+os.environ['OMP_NUM_THREADS'] = '1'
+import sys
+import numpy as np
+from PyAPS.aps_utils import  l1_fileinfo
+from subprocess import Popen, PIPE
+
+
+#################################################
+
+def aps_l1_info(infile):
+
+    try:
+        if not isinstance(infile, list):
+            infile = [infile]
+        assert len(infile) == 1, 'Wrong input format'
+
+        # feed the l1_fileinfo
+        l1_info_dict = l1_fileinfo(infile)
+
+        l1_info_str=""
+        for key, value in l1_info_dict.items():
+            if isinstance(value, list):
+                value = ",".join( str(e) for e in value )
+            else:
+                value = str(value)
+            l1_info_str += " "+value
+
+        print(l1_info_str)
+    except:
+        print('-1')
+
+#################################################
+
+if __name__ == '__main__':
+
+    pipe = Popen('ls -d -1 "$PWD/"**', shell=True, stdout=PIPE)
+
+    for line in pipe.stdout:
+        aps_l1_info(line.strip().decode("utf-8"))
+

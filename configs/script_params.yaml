@@ -1,0 +1,377 @@
+
+# General PARAMS
+PyAPS_DIR: '${PYAPS_PKG_DIR}'
+PyAPS_RES: '${PYAPS_HOME}/PyAPS_local/PyAPS_data/L2'
+CS_RES: '${PYAPS_HOME}/PyAPS_local/PyAPS_data/CS'
+PyAPS_CAT: '${PYAPS_HOME}/PyAPS_local/PyAPS_data/CAT'
+PyAPS_CAL: '${PYAPS_HOME}/PyAPS_local/PyAPS_data/CAL'
+PyAPS_XML: '${PYAPS_HOME}/PyAPS_local/PyAPS_data/XML'
+PyAPS_CONFIG: '${PYAPS_HOME}/configs'
+PyAPS_EXGALCONFIG: '${PYAPS_HOME}/configs/ExGal_configs'
+templates_RR: '${PYAPS_HOME}/PyAPS_local/PyAPS_templates/templates_RR'
+templates_ARC_RR: '${PYAPS_HOME}/PyAPS_local/PyAPS_templates/templates_ARC_RR'
+templates_RVS: '${PYAPS_HOME}/PyAPS_local/PyAPS_templates/templates_RVS'
+templates_FR: '${PYAPS_HOME}/PyAPS_local/PyAPS_templates/templates_FR'
+templates_ExGal: '${PYAPS_HOME}/PyAPS_local/PyAPS_templates/templates_ExGal'
+fsuffix: '.fits'
+aps_suffix: '_APS'
+kiko_script_name: 'PyAPS_bash.sh'
+slurm_script_name: 'PyAPS_slurm.sh'
+
+CS_kiko_script_name: 'CS_bash.sh'
+CS_slurm_script_name: 'CS_slurm.sh'
+
+########### VENV mode ############
+
+use_venv: 'False'
+venv_path: '$HOME/venv/bin/activate'
+
+############ MOS MODE ############
+
+# CLASS PARAMS
+join_arms_RR: 'False'
+pref_RR: 'zbest_'
+config_RR: 'weave_cls.json'
+zall_RR: 'True'
+priors_RR: 'None'
+chi2_scan_RR: 'None'
+nminima_RR: '3'
+cache_Rcsr_RR: 'False'
+debug_RR: 'False'
+overwrite_RR: 'True'
+fig_RR: 'True'
+sens_corr_RR: 'True'
+mask_gaps_RR: 'True'
+safe_mask_gaps_RR: 'True'
+tellurics_RR: 'False'
+vacuum_RR: 'True'
+fill_gap_RR: 'False'
+ntop_RR: '3'
+
+#RVS PARAMS
+join_arms_RVS: 'False'
+pref_RVS: 'rvs_'
+config_RVS: '${PYAPS_HOME}/configs/rvs_config.yaml'
+outspec_RVS: 'True'
+overwrite_RVS: 'True'
+fig_RVS: 'True'
+sens_corr_RVS: 'True'
+mask_gaps_RVS: 'True'
+safe_mask_gaps_RVS: 'True'
+tellurics_RVS: 'True'
+vacuum_RVS: 'False'
+fill_gap_RVS: 'True'
+# Device for the RVS neural-net interpolator ('cpu', 'gpu' or 'auto'). Defaults to 'cpu':
+# batch jobs normally have no GPU allocation and the model's baked-in 'cuda' device
+# would crash them; see aps_rvs.py's resolve_rvs_device()/--device.
+device_RVS: 'cpu'
+
+# FERRE PARAMS
+FERRE_EXE: '${PYAPS_HOME}/externals/ferre/bin/ferre.x'
+MOS_Gal_grid_prefix_FR: 'm'
+join_arms_FR: 'False'
+pref_FR: 'ferre_'
+outspec_FR: 'True'
+fig_FR: 'True'
+sens_corr_FR: 'True'
+mask_gaps_FR: 'True'
+safe_mask_gaps_FR: 'True'
+tellurics_FR: 'True'
+vacuum_FR: 'False'
+fill_gap_FR: 'False'
+grid_ids_FR: '1,2,3,4,5,6,7,8,9'
+mask_balmer_FR: 'True'
+use_linemasks_FR: 'False'
+linemask_FR: '${PYAPS_HOME}/configs/ferre_linemasks/mask_APS_state_20260615.csv'
+
+#EXGAL PARMS
+join_arms_ExGal: 'True'
+fig_ExGal: 'True'
+sens_corr_ExGal: 'True'
+mask_gaps_ExGal: 'True'
+safe_mask_gaps_ExGal: 'True'
+tellurics_ExGal: 'False'
+vacuum_ExGal: 'False'
+fill_gap_ExGal: 'False'
+EMIPPXF_LEVEL_ExGal: 'BIN'
+LS_RES_ExGal: 'ADAPTED'
+LS_MODE_ExGal: '1'
+RUN_PPXF: 'True'
+RUN_EMIPPXF: 'True'
+RUN_LS: 'True'
+
+
+############ IFU MODE ############
+
+IFU_templates_CLASS_PCA: '${PYAPS_HOME}/PyAPS_local/PyAPS_templates/templates_RR'
+IFU_templates_CLASS_ARC: '${PYAPS_HOME}/PyAPS_local/PyAPS_templates/templates_ARC_RR'
+IFU_RUN_PPXF: 'True'
+IFU_RUN_EMIPPXF: 'True'
+IFU_RUN_LS: 'True'
+IFU_sens_corr: 'True'
+IFU_mask_gaps: 'True'
+IFU_safe_mask_gaps: 'True'
+IFU_tellurics: 'False'
+IFU_vacuum: 'False'
+IFU_fill_gap: 'False'
+IFU_join_arms: 'True'
+IFU_fig: 'True'
+IFU_Gal_run: 'True'
+IFU_ExGal_run: 'True'
+seg2d: 'True'
+seg2d_white_src: 'weave'
+seg2d_search_gaia: 'False'
+seg2d_extract: 'True'
+seg2d_exclude_ctarg: 'True'
+seg2d_mask_stars: 'False'
+seg2d_ext_thresh: '2.5'
+seg2d_minarea: '300'
+seg2d_deblend_nthresh: '4'
+seg2d_radii_factor: '8.0'
+# seg3d: optional 3D matched-filter emission-line detection, additive to seg2d
+# (see doc/aps_ifu_prepare.md). Both default False -- 2D SExtractor remains the
+# default/only detection method unless explicitly enabled here.
+seg3d: 'False'
+# seg3d_lmin/lmax: default here is the LOWRES (LIFULR/MIFULR) blue+red
+# combined native wavelength coverage (measured from real L1 headers:
+# blue 3600-5955A, red 5820-9490A), trimmed by ~100A at each end (worse
+# flat-fielding/wavelength-solution reliability right at an arm's true
+# edge). HIGHRES (LIFUHR/MIFUHR) surveys override this via their own
+# IFU_params JSON (measured HR coverage: blue 4695-5505A, red 5930-6840A,
+# with a real gap between the two arms -- load_wavelength_range/mask_gaps
+# handles that gap automatically) -- see doc/aps_ifu_prepare.md.
+seg3d_lmin: '3700.0'
+seg3d_lmax: '9390.0'
+seg3d_threshold: '6.0'
+seg3d_spatial_bin: '4'
+seg3d_continuum_method: 'pca'
+seg3d_ivar_calibration: 'per-wave'
+seg3d_fig: 'True'
+seg3d_min_npix: '3'
+# seg3d_merge: auto-merge 'obvious' (SNR >= seg3d_merge_min_snr) 3D-only
+# candidates into the real patch table (_targets.fits) as additional type='T'
+# targets, marked with flag=3 for provenance. Requires seg2d=True and seg3d=True.
+seg3d_merge: 'False'
+seg3d_merge_min_snr: '15.0'
+# seg3d_merge_group_*: an ADDITIONAL, independent path into seg3d_merge --
+# a candidate with >= seg3d_merge_group_min_lines OTHER no-continuum-
+# counterpart candidates at the exact same detection-grid pixel (different
+# wavelengths, i.e. plausibly several lines of one source) is merged if the
+# group's COMBINED significance (quadrature sum over every member's S/N,
+# not just its strongest) clears a field-calibrated threshold floored at
+# seg3d_merge_group_min_snr (see aps_ifu_seg3d.py's merge_into_patch_table
+# / resolve_group_min_snr and doc/aps_ifu_prepare.md). Does not check
+# redshift consistency -- that is left to the Redrock pass every merged
+# target already goes through. Set seg3d_merge_group_min_lines: 'None' to
+# disable this path.
+seg3d_merge_group_min_lines: '3'
+seg3d_merge_group_min_snr: '15.0'
+seg3d_merge_group_min_n_trust: '3'
+seg3d_group_radius_px: '0.0'
+# seg3d_merge_extreme_safety_margin: THIRD independent seg3d_merge path,
+# for an extreme-S/N singleton neither the single-line ratio path nor the
+# multi-line grouping path can certify (e.g. a very high S/N candidate with
+# no corroborating line, at a field where the purity self-check never gets
+# measured with enough samples that high). Compares the candidate's S/N to
+# the single loudest fluctuation the full sign-flipped search ever produced
+# (aps_ifu_seg3d.loudest_event_snr / resolve_extreme_snr_min), requiring it
+# to clear that loudest event by this safety margin (10% by default). Set
+# to 'None' to disable this path.
+seg3d_merge_extreme_safety_margin: '1.2'
+class_patch: 'True'
+class_z_rad: '2.5'
+class_ntop: '3'
+user_patch: 'False'
+
+
+
+############ CS codes ############
+
+## SQUEZE
+SQ_RES: 'LR,HR'
+SQ_BIN: '1'
+SQ_suffix: '_SQUEZE'
+SQ_wlranges: 'None'
+SQ_targsrvys: 'None'
+SQ_targclass: 'QSO'
+SQ_wlranges: 'None'
+SQ_templates: '${PYAPS_HOME}/PyAPS_local/PyAPS_templates/templates_SQ'
+SQ_archetypes: 'None'
+SQ_fig: 'True'
+SQ_model: '${PYAPS_HOME}/PyAPS_local/PyAPS_templates/templates_SQ/BOSS_train_64plates_model.json'
+SQ_prob_cut: '0.0'
+SQ_clean_dir: 'False'
+SQ_join_arms: 'False'
+SQ_archetypes: 'None'
+SQ_zall: 'True'
+SQ_priors: 'None'
+SQ_chi2_scan: 'None'
+SQ_nminima: '3'
+SQ_cache_Rcsr: 'False'
+SQ_debug: 'False'
+SQ_overwrite: 'True'
+SQ_sens_corr: 'True'
+SQ_mask_gaps: 'True'
+SQ_safe_mask_gaps: 'True'
+SQ_tellurics: 'False'
+SQ_vacuum: 'True'
+SQ_fill_gap: 'False'
+
+
+## FESWI
+FESWI_RES: 'LR'
+FESWI_BIN: '1'
+FESWI_suffix: '_FESWI'
+FESWI_wlranges: 'None'
+FESWI_targsrvys: 'None'
+FESWI_targclass: 'STAR-CEP,STAR_EMP,STAR_FGK,STAR_RRL'
+FESWI_wlranges: 'None'
+FESWI_grid_prefix: 'm'
+FESWI_join_arms: 'False'
+FESWI_outspec: 'True'
+FESWI_fig: 'True'
+FESWI_sens_corr: 'True'
+FESWI_mask_gaps: 'True'
+FESWI_safe_mask_gaps: 'True'
+FESWI_tellurics: 'False'
+FESWI_vacuum: 'False'
+FESWI_fill_gap: 'False'
+FESWI_grid_ids: '1,2,3,4,5,6,7,8,9'
+FESWI_overwrite: 'True'
+FESWI_run_ferre: 'False'
+FESWI_path: '${PYAPS_HOME}/CS/FESWI/'
+FESWI_spectral_windows: '${PYAPS_HOME}/CS/FESWI/spectral_windows/spectral_windows-dev.json'
+FESWI_cold_blue_grid: '${PYAPS_HOME}/PyAPS_local/PyAPS_templates/templates_FESWI/grid_cold-blue.dat'
+FESWI_cold_red_grid: '${PYAPS_HOME}/PyAPS_local/PyAPS_templates/templates_FESWI/grid_cold-red.dat'
+FESWI_hot_blue_grid: '${PYAPS_HOME}/PyAPS_local/PyAPS_templates/templates_FESWI/grid_hot-blue.dat'
+FESWI_hot_red_grid: '${PYAPS_HOME}/PyAPS_local/PyAPS_templates/templates_FESWI/grid_hot-red.dat'
+FESWI_ferre_ndim: '0'
+FESWI_ferre_f_format: '0'
+FESWI_ferre_f_access: '0'
+FESWI_ferre_nthreads: '1'
+
+
+## SP_Ace
+SPACE_RES: 'LR,HR'
+SPACE_BIN: '1'
+SPACE_suffix: '_SPACE'
+SPACE_wlranges: '4915.0,6200.0 5800.0,6860.0'
+SPACE_targsrvys: 'None'
+SPACE_targclass: 'STAR_FGK,STAR_YSO'
+SPACE_wd: 'space_wd'
+SPACE_exe: '${PYAPS_HOME}/CS/SPACE/SPACE_v1.4W'
+SPACE_templates_dir: '${PYAPS_HOME}/PyAPS_local/PyAPS_templates/templates_SPACE/'
+SPACE_fig: 'True'
+SPACE_outspec: 'False'
+SPACE_overwrite: 'True'
+SPACE_error_est: 'False'
+
+
+## AMY
+AMY_RES: 'LR'
+AMY_BIN: '1'
+AMY_suffix: '_AMY'
+AMY_wlranges: '0.0,0.0 8470.0,8940.0'
+AMY_targsrvys: 'None'
+AMY_targclass: 'STAR_BA'
+AMY_exclude_region: '8470.0,8610.0 8630.0,8940.0'
+AMY_sens_corr: 'True'
+AMY_mask_gaps: 'True'
+AMY_safe_mask_gaps: 'True'
+AMY_tellurics: 'False'
+AMY_vacuum: 'False'
+AMY_fill_gap: 'False'
+AMY_join_arms: 'False'
+AMY_templates_dir: '${PYAPS_HOME}/PyAPS_local/PyAPS_templates/templates_AMY/'
+AMY_template_flux: 'template_grid.npy'
+AMY_template_wave: 'wavelength_data.dat'
+AMY_overwrite: 'True'
+AMY_progress_bar: 'True'
+
+
+## ALFA-NEAT
+AN_RES: 'LR,HR'
+AN_BIN: '1'
+AN_suffix: '_ALFA-NEAT'
+AN_wlranges: 'None'
+AN_targsrvys: 'None'
+AN_targclass: 'SKY,NEBULA'
+AN_sens_corr: 'True'
+AN_mask_gaps: 'True'
+AN_safe_mask_gaps: 'True'
+AN_tellurics: 'False'
+AN_vacuum: 'False'
+AN_fill_gap: 'False'
+AN_join_arms: 'False'
+AN_overwrite: 'True'
+AN_neat_null: '${PYAPS_HOME}/configs/neat_null.fits'
+AN_alfa_exe: '${PYAPS_HOME}/CS/ALFA_NEAT/ALFA/alfa'
+AN_neat_exe: '${PYAPS_HOME}/CS/ALFA_NEAT/NEAT/neat'
+AN_columnnames: 'alfa_neat_columnnames.json'
+
+
+## RRLGV
+RRLGV_RES: 'LR,HR'
+RRLGV_BIN: '1'
+RRLGV_suffix: '_RRLGV'
+RRLGV_wlranges: 'None'
+RRLGV_targsrvys: 'None'
+RRLGV_targclass: 'STAR_RRL'
+RRLGV_ephemfile: '${PYAPS_HOME}/CS/RRLGV/ephemerids_files/ephemerids.txt'
+RRLGV_calibrate_metal: '${PYAPS_HOME}/CS/RRLGV/metallic.txt'
+RRLGV_calibrate_liu: '${PYAPS_HOME}/CS/RRLGV/liu.txt'
+
+
+## RRLEW
+RRLEW_RES: 'LR,HR'
+RRLEW_BIN: '1'
+RRLEW_suffix: '_RRLEW'
+RRLEW_wlranges: 'None'
+RRLEW_targsrvys: 'None'
+RRLEW_targclass: 'STAR_RRL'
+RRLEW_hr_lines: '${PYAPS_HOME}/CS/RRLEW/gala_test_HR_RRLYR_list.in'
+RRLEW_lr_lines: '${PYAPS_HOME}/CS/RRLEW/gala_test_LR_RRLYR_list.in'
+
+
+
+# modifed wlranges for each mode
+LIFU_LR_BLUE: '3800.0,5950.0'
+LIFU_LR_RED: '5900.0,9280.0'
+LIFU_HR_BLUE: '4040.0,4650.0'
+LIFU_HR_GREEN: '4760.0, 5480.0'
+LIFU_HR_RED: '6050.0, 6780.0'
+
+MIFU_LR_BLUE: '3800.0,5950.0'
+MIFU_LR_RED: '5900.0,9280.0'
+MIFU_HR_BLUE: '4040.0,4650.0'
+MIFU_HR_GREEN: '4760.0, 5480.0'
+MIFU_HR_RED: '6050.0, 6780.0'
+
+MOSLIFU_LR_BLUE: '3800.0,5950.0'
+MOSLIFU_LR_RED: '5900.0,9280.0'
+MOSLIFU_HR_BLUE: '4040.0,4650.0'
+MOSLIFU_HR_GREEN: '4760.0, 5480.0'
+MOSLIFU_HR_RED: '6050.0, 6780.0'
+
+MOSMIFU_LR_BLUE: '3800.0,5950.0'
+MOSMIFU_LR_RED: '5900.0,9280.0'
+MOSMIFU_HR_BLUE: '4040.0,4650.0'
+MOSMIFU_HR_GREEN: '4760.0, 5480.0'
+MOSMIFU_HR_RED: '6050.0, 6780.0'
+
+MOS_LR_BLUE: '3800.0,5950.0'
+MOS_LR_RED: '5900.0,9280.0'
+MOS_HR_BLUE: '4040.0,4650.0'
+MOS_HR_GREEN: '4760.0, 5480.0'
+MOS_HR_RED: '6050.0, 6780.0'
+
+
+
+## As of Nov 2024, and due to the fact that arm ratios in HR mosde is still not accurate
+## Here we defined arms ratios for different resolutions
+# GR_ratio_HR: '0.83'
+# BR_ratio_HR: '0.83'
+GR_ratio_HR: '1.0'
+BR_ratio_HR: '1.0'
+GR_ratio_LR: '1.0'
+BR_ratio_LR: '1.0'

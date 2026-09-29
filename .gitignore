@@ -1,0 +1,116 @@
+# Symbolic links
+*.symlink
+
+# PyAPS templates and data directories
+# (no trailing slash: these are often symlinks to a data volume, which 'dir/' patterns miss)
+PyAPS_templates
+PyAPS_data
+PyAPS_results
+PyAPS_data_dev
+PyAPS_extra
+
+# CS (Contributed Software) directory
+# Keep directory and README but ignore everything else
+CS/*
+!CS/
+!CS/README.md
+!CS/readme.md
+
+# External dependencies directory
+# Keep directory and README but ignore everything else
+externals/*
+!externals/
+!externals/README.md
+!externals/readme.md
+
+# LSF interpolator caches (generated at run time)
+configs/ExGal_configs/lsf/*
+configs/lsf/*
+
+
+# Site-specific config copies you make (keep them out of the repo)
+configs/*_local.*
+configs/script_params_*.yaml
+
+# Local configuration directory
+PyAPS_local/*
+!PyAPS_local/
+!PyAPS_local/README.md
+!PyAPS_local/readme.md
+
+# Python compiled files
+*.py[cod]
+__pycache__/
+**/__pycache__/
+
+# Distribution / packaging
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+.eggs/
+parts/
+var/
+sdist/
+develop-eggs/
+.installed.cfg
+distribute-*.tar.gz
+MANIFEST
+
+# Testing and coverage
+.coverage
+htmlcov/
+.tox/
+.pytest_cache/
+.hypothesis/
+
+# Documentation
+doc/api/
+doc/_build/
+doc/latex/*.aux
+doc/latex/*.pdf
+doc/latex/*.log
+
+# Jupyter/IPython
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+doc/nb/.ipynb_checkpoints/
+
+# Version files
+py/PyAPS/_version.py
+
+# Editor files
+.*.swp
+*~
+.vscode/
+.idea/
+*.sublime-*
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+tmp/
+temp/
+
+# Never commit credentials
+*.env
+*.pem
+*.key
+id_rsa*
+*secret*

@@ -1,0 +1,33 @@
+{
+    "SETMODE": "MOSMIFULR21",
+    "SIGMA": 200.0,
+    "VELSCALE": "None",
+    "SSP_LIB": "popstar_total",
+    "PCA": "True",
+    "NORM_TEMP": "LIGHT",
+    "LMIN_PPXF": 3000.0,
+    "LMAX_PPXF": 6000.0,
+    "MOM": 4,
+    "ADEG": -1,
+    "MDEG": 4,
+    "MC_PPXF": 10,
+    "FOR_ERRORS": 1,
+    "REDDENING": [
+        0.1,
+        0.1
+    ],
+    "EBmV": "None",
+    "CONV_COR": 8.4,
+    "MC_LS": 30,
+    "NWALKER": 100,
+    "NCHAIN": 1000,
+    "EMI_FILE": "ppxf-emission-lines.yaml",
+    "LS_FILE": "lsBands.config",
+    "LMAX_EMI": 8600.0,
+    "LMIN_EMI": 2000.0,
+    "EMI_MOM": 2,
+    "USE_STELLAR_CONTINUUM": "True",
+    "FIX_STELLAR_CONTINUUM": "True",
+    "MC_EMI": 10,
+    "LS_RESOLUTION_MODE": "SKIP_NEGATIVE"
+}

@@ -1,0 +1,5 @@
+# Column 1: Wavelength vector in Angstrom
+# Column 2: FWHM of observation at the respective wavelength in Angstrom
+
+1000.0	0.05	
+12000.0	0.60

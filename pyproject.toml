@@ -1,0 +1,181 @@
+# PyAPS 2.0 - packaging metadata (version is read from version.txt)
+
+[build-system]
+requires = [
+    "setuptools>=61.0",
+    "wheel",
+    "numpy>=1.21"
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "PyAPS"
+description = "Dedicated package for analysing and visualising the WEAVE survey data."
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Alireza Molaeinezhad", email = "amolaei@ast.cam.ac.uk"}
+]
+keywords = ["astronomy", "spectroscopy", "WEAVE", "survey", "data analysis"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Astronomy",
+]
+requires-python = ">=3.8"
+# Base dependencies: exactly what the interactive explorer (aps_explorer.py and the
+# viewer modules / apsPlot it drives) imports - audited by AST scan of every import in
+# the tree. Everything the batch CLI pipeline needs on top of that lives in the
+# "pipeline" extra, so a lean explorer-only install (and the server Docker image) stays
+# free of PyQt5/redrock/rvspecfit/etc.
+#   pip install PyAPS               # explorer + viewers
+#   pip install "PyAPS[pipeline]"   # + full processing pipeline
+# flask/werkzeug/itsdangerous arrive transitively via dash, but the explorer imports
+# them directly, so they are declared explicitly.
+dependencies = [
+    "numpy>=1.21",
+    "scipy>=1.5.2",
+    "matplotlib>=3.3.2",
+    "pandas>=1.1.3",
+    "astropy>=5.0.4",
+    "regions",
+    "scikit-learn",
+    "dill",
+    "plotly>=5.18",
+    "dash>=2.14",
+    "kaleido",
+    "flask>=2.2",
+    "werkzeug>=2.2",
+    "itsdangerous>=2.0",
+]
+
+# IMPORTANT: This tells setuptools to read version dynamically
+dynamic = ["version"]
+
+[project.urls]
+Homepage = "https://github.com/amolaeinezhad/PyAPS"
+Repository = "https://github.com/amolaeinezhad/PyAPS"
+Documentation = "https://github.com/amolaeinezhad/PyAPS"
+"Bug Tracker" = "https://github.com/amolaeinezhad/PyAPS/issues"
+
+[project.scripts]
+# `pip install PyAPS` then `aps-explorer --infiles ...` — the standalone-
+# tool entry point. explorer_worker(options=None) already defaults to
+# sys.argv[1:], so no signature change was needed for this.
+aps-explorer = "PyAPS.aps_explorer:explorer_worker"
+
+[project.optional-dependencies]
+# Everything the ~14 aps_*.py CLI pipeline scripts need that the
+# explorer's own import chain never reaches (see the `dependencies`
+# comment above for the audit this split is based on).
+pipeline = [
+    "astropy-healpix>=0.5",
+    "specutils",
+    "photutils",
+    "reproject",
+    "astroquery",
+    "numba>=0.56.0",
+    "emcee>=3.0.2",
+    "sep",
+    "ppxf>=7.4.0",
+    # Spatial binning for IFU Voronoi/patch binning (ExGalPrepare.define_voronoi_bins).
+    # NOTE: PowerBin's licence forbids redistribution without the author's written
+    # permission - unlike every other dependency here (all permissive). It is installed
+    # from PyPI at the user's own request and never bundled with PyAPS.
+    "powerbin>=1.1.12",
+    "pyqtgraph",
+    "PyQt5",
+    "PyYAML>=5.3",
+    "torch",
+    "desiutil",
+    "redrock @ git+https://github.com/desihub/redrock.git",
+    "rvspecfit @ git+https://github.com/segasai/rvspecfit.git",
+]
+# Optional contributed-software (CS) modules: aps_amy needs these; aps_squeze / aps_feswi
+# / aps_space / aps_alfa-neat / aps_rrlew / aps_rrlgv call external tools that are
+# installed separately under <PYAPS_DIR>/CS (see CS/README.md).
+cs = [
+    "ptemcee",
+    "PyAstronomy",
+]
+# The explorer's server/Docker deployment (see wsgi.py, Dockerfile) —
+# purely additive on top of the base `dependencies`, never needed for
+# standalone usage.
+server = [
+    "gunicorn>=21",
+]
+dev = [
+    "pytest>=6.0",
+    "pytest-cov",
+    "black",
+    "isort",
+    "flake8",
+    "mypy",
+    "pre-commit",
+]
+docs = [
+    "sphinx>=4.0",
+    "sphinx-rtd-theme",
+    "numpydoc",
+    "sphinx-autoapi",
+]
+performance = [
+    "pyspark",
+    "numba>=0.56.0",
+]
+all = ["PyAPS[pipeline,cs,server,dev,docs,performance]"]
+
+[tool.setuptools]
+package-dir = {"" = "py"}
+include-package-data = true
+zip-safe = false
+
+[tool.setuptools.packages.find]
+where = ["py"]
+exclude = ["tests*"]
+
+[tool.setuptools.package-data]
+"*" = ["*.txt", "*.rst", "*.md"]
+# "assets/*" (py/PyAPS/assets/style.css, explorer_ui.js) is Dash's own
+# convention -- Dash(__name__, ...) auto-serves anything found in an
+# assets/ directory next to the *installed* module file (confirmed via
+# `python3 -c "import PyAPS.aps_explorer as m; print(m.__file__)"` inside
+# the actual running container: it resolves to site-packages, not the
+# source checkout -- so without this entry the whole assets/ directory
+# silently never makes it into the built wheel at all, confirmed live as
+# a real 404 on /assets/style.css before this was added).
+#
+# "assets/vendor/*" is a second, explicit entry, not folded into
+# "assets/*" above -- that glob is *not* recursive (confirmed live: it
+# matches files directly under assets/, never assets/vendor/aladin.js
+# one level deeper), a real gap only caught because assets/vendor/
+# README.md happened to still get bundled anyway, via the unrelated
+# generic "*.md" rule above, masking the missing .js file's own 404
+# until it was checked for directly.
+"PyAPS" = ["configs/*", "templates/*", "data/*", "assets/*", "assets/vendor/*"]
+
+# OPTION 1A: Tell setuptools to read version from version.txt
+[tool.setuptools.dynamic]
+version = {file = "version.txt"}
+
+# Additional tools configuration
+[tool.black]
+line-length = 88
+target-version = ['py38', 'py39', 'py310', 'py311']
+
+[tool.isort]
+profile = "black"
+line_length = 88
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q --strict-markers"
+testpaths = ["tests", "py/PyAPS/tests"]

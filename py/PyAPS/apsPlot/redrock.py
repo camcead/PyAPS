@@ -1,0 +1,152 @@
+"""
+Redrock result figures, built on the shared `viz.spectra` overlay builder.
+
+`build_figure()` is the single source of truth for what a Redrock fit
+plot looks like: `aps_rr.make_rrplot()` calls it and exports the result as
+a static PNG for pipeline diagnostics, and the same function can be called
+by a live Dash page or the WEAVE Operational Hub to serve the identical
+plot interactively.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import numpy as np
+
+from .spectra import spectrum_overlay_figure
+
+MAX_RANKS = 3
+RANK_LABELS = ["Rank 0 (best)", "Rank 1", "Rank 2"]
+
+
+def _n_ranks(zbest):
+    if zbest["Z"].ndim == 1:
+        return 1
+    if zbest["Z"].ndim == 2:
+        return min(MAX_RANKS, zbest["Z"].shape[1])
+    return 0
+
+
+def _rank_title(zbest, id_zbest, rk):
+    try:
+        if zbest["Z"].ndim == 1:
+            return (
+                f"Z={zbest['Z'][id_zbest]:.5f}  "
+                f"Zerr={zbest['ZERR'][id_zbest]:.6f}  "
+                f"ZWARN={zbest['ZWARN'][id_zbest]}  "
+                f"CLASS={zbest['CLASS'][id_zbest]}  "
+                f"SUBCLASS={zbest['SUBCLASS'][id_zbest]}  "
+                f"SNR={zbest['SNR'][id_zbest]:.3f}"
+            )
+        z = zbest["Z"].value.data[id_zbest][rk]
+        zerr = zbest["ZERR"].value.data[id_zbest][rk]
+        zw = zbest["ZWARN"].value.data[id_zbest][rk]
+        cls = zbest["CLASS"].value.data[id_zbest][rk]
+        sub = zbest["SUBCLASS"].value.data[id_zbest][rk]
+        snr = (
+            zbest["SNR"].value.data[id_zbest][rk]
+            if zbest["SNR"].ndim > 1
+            else zbest["SNR"][id_zbest]
+        )
+        dchi2 = zbest["DELTACHI2"].value.data[id_zbest][rk]
+        return (
+            f"Rank {rk}  Z={z:.5f}  Zerr={zerr:.6f}  "
+            f"ZWARN={zw}  CLASS={cls}  SUB={sub}  SNR={snr:.2f}  "
+            f"ΔCHI2={dchi2:.1f}"
+        )
+    except Exception:
+        return f"Rank {rk}"
+
+
+def build_figure(zbest, zspec, setups, i, id_zbest):
+    """Build the Redrock fit-overlay figure for one target row.
+
+    Parameters
+    ----------
+    zbest, zspec : astropy.table.Table
+        Redrock best-fit and per-target spectrum tables, as produced by
+        `aps_rr`'s zfind pipeline.
+    setups : sequence[str]
+        Arm/setup codes, e.g. ["BLUE", "RED"] — only the first character
+        of each is used to key into `zspec`'s `*_RR_<arm>` columns.
+    i : int
+        Row index of the target within `zspec`.
+    id_zbest : int
+        Row index of the same target within `zbest`.
+
+    Returns
+    -------
+    plotly.graph_objects.Figure
+    """
+    n_ranks = _n_ranks(zbest)
+    if n_ranks == 0:
+        raise ValueError("Unsupported zbest['Z'] shape (expected 1D or 2D).")
+
+    arms = [s[0] for s in setups]
+    wave, flux, ivar_arr, models, panel_titles = {}, {}, {}, {}, {}
+
+    header = (
+        f"APS_ID={zspec[i]['APS_ID']}  TARGID={zspec[i]['TARGID']}  "
+        f"CNAME={zspec[i]['CNAME']}"
+    )
+
+    for arm in arms:
+        wave[arm] = np.asarray(zspec[f"LAMBDA_RR_{arm}"][i])
+        flux[arm] = np.asarray(zspec[f"FLUX_RR_{arm}"][i])
+        ivar_arr[arm] = np.asarray(zspec[f"IVAR_RR_{arm}"][i])
+        # MODEL_RR_<arm> is one model spectrum per rank, shape
+        # (n_ranks, n_wave). Older zspec files predating this only ever
+        # stored a single (rank-0) model per arm as a 1D array — fall
+        # back to reusing that one model across all rank panels so those
+        # files still plot.
+        model_stack = np.asarray(zspec[f"MODEL_RR_{arm}"][i])
+        if model_stack.ndim == 1:
+            models[arm] = [model_stack] * n_ranks
+        else:
+            models[arm] = [model_stack[rk]
+                            for rk in range(min(n_ranks, model_stack.shape[0]))]
+
+    for rk in range(n_ranks):
+        title_str = _rank_title(zbest, id_zbest, rk)
+        panel_titles[(rk, arms[0])] = f"{header}\n{title_str}" if rk == 0 else title_str
+
+    # zspec.meta['VACUUM'] is an astropy (value, comment) header tuple.
+    vacuum_meta = zspec.meta.get('VACUUM', True)
+    vacuum = vacuum_meta[0] if isinstance(vacuum_meta, tuple) else bool(vacuum_meta)
+    wave_label = "λ (vacuum) [Å]" if vacuum else "λ (AIR) [Å]"
+
+    return spectrum_overlay_figure(
+        arms, wave, flux, models,
+        ivar=ivar_arr,
+        rank_labels=RANK_LABELS[:n_ranks],
+        panel_titles=panel_titles,
+        figure_title=None,  # header is carried per-panel to match legacy layout
+        percentile_clip=(2, 98),
+        flux_unit=str(zspec[f"FLUX_RR_{arms[0]}"].unit),
+        wave_label=wave_label,
+    )
+
+
+def make_rrplot(zbest, zspec, setups, figdir, rank=0, collapse_fname=None):
+    """Drop-in replacement for the legacy matplotlib `make_rrplot`.
+
+    Same signature and same `RR_<TARGID>_<CNAME>_<APS_ID>.png` output
+    convention, now rendered through `build_figure()` + `write_image()`
+    (requires the `kaleido` package) so the plot is generated by the same
+    code path used for the live web view.
+    """
+    for i in range(len(zspec["APS_ID"])):
+        fig_fname = Path(figdir).joinpath(
+            f"RR_{zspec[i]['TARGID']}_{zspec[i]['CNAME']}_{zspec[i]['APS_ID']}.png"
+        )
+        if collapse_fname is not None:
+            fig_fname = Path(figdir).joinpath(f"RR_{collapse_fname}.png")
+
+        id_zbest = np.ravel(np.where(zbest["APS_ID"] == zspec[i]["APS_ID"]))
+        if len(id_zbest) == 0:
+            continue
+        id_zbest = id_zbest[0]
+
+        fig = build_figure(zbest, zspec, setups, i, id_zbest)
+        fig.write_image(str(fig_fname), scale=2)

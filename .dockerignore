@@ -1,0 +1,28 @@
+# Real data / results / calibration trees — these belong bind-mounted at
+# `docker run` time (see the Dockerfile's own top comment), never baked
+# into the image: they're large, host-specific, and would make every
+# image build slow and every image huge for no benefit.
+PyAPS_data/
+PyAPS_local/
+PyAPS_templates/
+CS/
+externals/
+
+# Not needed inside the image at all.
+.git/
+.github/
+doc/
+tests/
+bin/
+configs/
+
+# Local dev cruft.
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.vscode/
+.idea/
+*.log

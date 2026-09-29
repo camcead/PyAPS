@@ -1,0 +1,29 @@
+cff-version: 1.2.0
+message: >-
+  If you use PyAPS in your research, please cite it using the metadata below.
+  A version-specific archival DOI (via Zenodo) will be added here once the
+  first tagged release is public.
+title: PyAPS
+type: software
+abstract: >-
+  Python-based Advance Processing System for WEAVE: a platform for
+  processing and analysing WEAVE survey spectroscopic data (MOS, mIFU, and
+  LIFU observing modes), developed as part of the WEAVE Science Processing
+  and Archive (SPA) system.
+authors:
+  - name: "WEAVE APS Team"
+  - given-names: Alireza
+    family-names: Molaeinezhad
+    email: amolaei@ast.cam.ac.uk
+    affiliation: >-
+      CAMCEAD, Institute of Astronomy, University of Cambridge
+license: MIT
+repository-code: "https://github.com/amolaeinezhad/PyAPS"
+version: "2.0"
+date-released: "2026-09-29"
+keywords:
+  - astronomy
+  - spectroscopy
+  - WEAVE
+  - survey
+  - data analysis

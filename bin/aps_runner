@@ -1,0 +1,10 @@
+#!/usr/bin/env python3
+
+import os
+os.environ['OMP_NUM_THREADS'] = '1'
+import sys
+import PyAPS
+from PyAPS import aps_runner
+
+if __name__ == '__main__':
+    aps_runner.scriptGen_runner(options=sys.argv[1:])

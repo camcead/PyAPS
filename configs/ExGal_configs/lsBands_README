@@ -1,0 +1,25 @@
+# Cleaned Spectral Index Definitions - Duplicates and Redundancies Removed
+# -------------------------------------------------------------------------
+#
+# DUPLICATES/REDUNDANCIES REMOVED (11 indices):
+#
+# 1. CALCIUM H&K DUPLICATES (3 removed):
+#    - CaIIH_K: Nearly identical to CaHK (overlapping 3900-4020Å range)
+#    - H_K: Essentially same as CaHK, different naming convention
+#    - CaK3933 & CaH3968: Subsets of the broader CaHK feature
+#
+# 2. Hγ DUPLICATES (3 removed):
+#    - Hg_sigma_275, Hg_sigma_200, Hg_sigma_125: All measure same Hγ feature
+#      with slightly different bandpasses. Kept Hg_sigma_130 as most recent
+#
+# 3. Hα DUPLICATES (1 removed):
+#    - Ha_Gregg94: Overlaps with broader Halpha index (6420-6640Å)
+#
+# 4. SODIUM 8190Å DUPLICATES (1 removed):
+#    - NaI8200A: Very similar to NaI8190sdss, measuring same feature
+#
+# 5. CALCIUM TRIPLET OVERLAPS (2 removed):
+#    - CaAZ88_1, CaAZ88_2: Overlap significantly with Ca1 and Ca2 indices
+#
+# Total: Reduced from 106 to 95 indices
+# All remaining indices are unique and provide distinct spectral information

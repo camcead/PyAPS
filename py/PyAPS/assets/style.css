@@ -1,0 +1,302 @@
+/* ---------------------------------------------------------------------
+   aps_explorer.py design tokens + dark mode.
+
+   Dash auto-loads every file under this assets/ directory (no
+   assets_folder override on the Dash() app, app.index_string already
+   has the {%css%}/{%scripts%} placeholders — confirmed before writing
+   this).
+
+   Values below are copied 1:1 from the approved design-preview Artifact
+   (design round 6) — every colour/shadow/radius here was
+   extracted from this app's own existing inline styles (aps_explorer.py,
+   apsPlot/style.py), not invented. Dark mode is the one genuinely new
+   thing: the same accent blue (#2c5f8a), lightened for contrast on a
+   dark ground, not a hue change.
+
+   Dark mode's own background/ink/accent values were retuned per a later,
+   dedicated design-critique pass (still 2026-08-16) — explicit, itemized
+   feedback: "Reduce the number of near-identical navy backgrounds. I'd
+   use three deliberate levels: page/panels/raised controls-plots... The
+   plot gridlines are a little assertive... Keep text in a small neutral
+   ramp... Choose one semantic accent... The magenta coordinate text...
+   feels disconnected." Only dark mode's values changed here — light mode
+   below is untouched, never part of that feedback. See individual
+   token comments below for exactly which named "level" each one is.
+
+   Three-state theme contract (kept identical across every block below;
+   flipped 2026-08-16 so dark is the default rather than light — the
+   guard direction on every block below flipped to match, not just the
+   base :root values): bare :root = dark (the default now); `@media
+   (prefers-color-scheme: light) :root:not([data-theme="dark"])` = a
+   user's OS light preference, unless they've explicitly picked dark in
+   the banner toggle; `:root[data-theme="light"]` = explicit in-app
+   light choice, wins over the OS either way; `:root[data-theme="dark"]`
+   reinforces the same values as the bare :root default, for the case
+   where a user's OS prefers light but they've explicitly chosen dark
+   in the toggle anyway. See explorer_ui.js for what sets `data-theme`
+   on <html>, and for the "dark" (not "auto") default it now falls back
+   to for a first-time visitor with nothing saved yet.
+--------------------------------------------------------------------- */
+:root{
+  /* Three deliberate background levels (was a much narrower, easy-to-
+     confuse range of near-identical navies — #101c28/#182634/#14212e all
+     read as "the same dark blue" at a glance) — page < panels < raised
+     controls/plots, each now a genuinely distinguishable step apart. */
+  --pyaps-paper:#081722;         /* page */
+  --pyaps-paper-sunken:#0e2130;  /* panels */
+  --pyaps-paper-raised:#142b3c;  /* raised controls/plots (incl. every Plotly figure's own background) */
+  /* Text ramp — explicit report some labels/toolbar icons sat "close to
+     the too dim to scan threshold"; muted/secondary both brightened. */
+  --pyaps-ink:#e7eef5;        /* primary */
+  --pyaps-ink-muted:#a9bbcb;  /* secondary */
+  --pyaps-ink-faint:#71879a;  /* muted */
+  /* Borders/grid — one explicit value; --pyaps-line stays the existing
+     ~70%-brightness subtler sibling of it (unchanged ratio from before
+     this retune, just re-derived from the new anchor) for table-row-
+     separator-style divisions that were never meant to read as a full
+     border. */
+  --pyaps-line:#1e3849; --pyaps-line-strong:#2b5068;
+  /* One semantic accent — cyan, reserved for selected tabs/focus/
+     interactive controls (see the "avoid decorative elsewhere" audit
+     this same pass did: dash_table headers no longer fill with this,
+     see apsPlot/style.py). */
+  --pyaps-accent:#4ea9d9; --pyaps-accent-hover:#6bb8e0; --pyaps-accent-soft:#14283c; --pyaps-accent-ink:#081722;
+  --pyaps-banner-grad:linear-gradient(180deg, #0b141c 0%, #16283a 100%);
+  --pyaps-signal:#e0a24a; --pyaps-signal-soft:#3a2c14;
+  --pyaps-success:#4caf58; --pyaps-error:#e2685f;
+  --pyaps-shadow-btn:0 1px 3px rgba(0,0,0,.5);
+  --pyaps-shadow-banner:0 2px 8px rgba(0,0,0,.5);
+  --pyaps-shadow-drawer:2px 0 16px rgba(0,0,0,.55);
+  --pyaps-focus:0 0 0 3px rgba(78,169,217,.45);
+  --pyaps-radius-s:4px; --pyaps-radius-m:6px; --pyaps-radius-pill:20px;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --pyaps-paper:#f8fafb; --pyaps-paper-raised:#ffffff; --pyaps-paper-sunken:#eef2f6;
+    --pyaps-ink:#1a2733; --pyaps-ink-muted:#5a6b7a; --pyaps-ink-faint:#8996a3;
+    --pyaps-line:#dbe2e8; --pyaps-line-strong:#c7d3de;
+    --pyaps-accent:#2c5f8a; --pyaps-accent-hover:#1f4864; --pyaps-accent-soft:#e8f1fa; --pyaps-accent-ink:#ffffff;
+    --pyaps-banner-grad:linear-gradient(180deg, #1f4864 0%, #2c5f8a 100%);
+    --pyaps-signal:#b4650f; --pyaps-signal-soft:#fbe6cc;
+    --pyaps-success:#2f7d3a; --pyaps-error:crimson;
+    --pyaps-shadow-btn:0 1px 3px rgba(0,0,0,0.15);
+    --pyaps-shadow-banner:0 2px 6px rgba(0,0,0,0.15);
+    --pyaps-shadow-drawer:2px 0 12px rgba(0,0,0,0.25);
+    --pyaps-focus:0 0 0 3px rgba(44,95,138,.35);
+  }
+}
+:root[data-theme="light"]{
+  --pyaps-paper:#f8fafb; --pyaps-paper-raised:#ffffff; --pyaps-paper-sunken:#eef2f6;
+  --pyaps-ink:#1a2733; --pyaps-ink-muted:#5a6b7a; --pyaps-ink-faint:#8996a3;
+  --pyaps-line:#dbe2e8; --pyaps-line-strong:#c7d3de;
+  --pyaps-accent:#2c5f8a; --pyaps-accent-hover:#1f4864; --pyaps-accent-soft:#e8f1fa; --pyaps-accent-ink:#ffffff;
+  --pyaps-banner-grad:linear-gradient(180deg, #1f4864 0%, #2c5f8a 100%);
+  --pyaps-signal:#b4650f; --pyaps-signal-soft:#fbe6cc;
+  --pyaps-success:#2f7d3a; --pyaps-error:crimson;
+  --pyaps-shadow-btn:0 1px 3px rgba(0,0,0,0.15);
+  --pyaps-shadow-banner:0 2px 6px rgba(0,0,0,0.15);
+  --pyaps-shadow-drawer:2px 0 12px rgba(0,0,0,0.25);
+  --pyaps-focus:0 0 0 3px rgba(44,95,138,.35);
+}
+
+/* Body/page background + text now follow the tokens too, so dark mode
+   isn't just the banner/drawer — the whole page ground changes. */
+body{ background:var(--pyaps-paper); color:var(--pyaps-ink); transition:background-color .3s ease, color .3s ease; }
+
+/* ---------------------------------------------------------------- */
+/* Theme toggle (toolbar, moved from the banner — see _theme_toggle()'s
+   own docstring) — base look is inline Python (see _toolbar()), only
+   the states Dash inline styles can't express live here. Tokenized
+   (not the old literal white-on-transparent) since the toolbar's own
+   background genuinely flips with the theme this control switches,
+   unlike the banner's always-dark gradient it used to sit on.        */
+/* ---------------------------------------------------------------- */
+.theme-toggle-btn{ transition:background-color .15s ease, color .15s ease; }
+.theme-toggle-btn:not(.active):hover{ color:var(--pyaps-ink); }
+.theme-toggle-btn.active{ background:var(--pyaps-accent); color:var(--pyaps-accent-ink); }
+
+/* ---------------------------------------------------------------- */
+/* Settings drawer — close button hover + the backdrop's own fade.
+   The drawer's slide animation itself lives on load-panel's own
+   inline `transition` (see _LOAD_PANEL_BASE_STYLE in aps_explorer.py)
+   so it animates correctly even though the open/closed state is set
+   by a normal Dash server callback, not client JS.                   */
+/* ---------------------------------------------------------------- */
+#close-load-panel:hover{ background:rgba(255,255,255,.15); }
+#load-panel-backdrop{ transition:opacity .28s ease; }
+
+/* ---------------------------------------------------------------- */
+/* "'COlor aladin point by' shoujlkd be only visible in 2d mode as in
+   3d it is not releavant" — .mode-3d is set on #main-panel (always
+   present from initial page mount) by aps_explorer.update_map_mode; see
+   that callback's own comment for why this is a pure CSS rule keyed off
+   an always-present ancestor's class rather than a direct Output at
+   #aladin-color-by-row itself (which only exists once a dataset's own
+   settings panel has actually rendered — a real "Output at a component
+   that doesn't exist yet" crash, confirmed live, not hypothetical). */
+/* ---------------------------------------------------------------- */
+.mode-3d #aladin-color-by-row{ display:none !important; }
+
+/* ---------------------------------------------------------------- */
+/* 3D wavelength-range out-of-range warning — explicit request: "When I
+   go before the wavelenght range and after the max, I need it put a
+   message or wanrng next to the range." Collapses to zero height
+   whenever aps_explorer.py's own wave-filter clientside callback writes
+   an empty string (a valid selection, or no range typed at all) rather
+   than the callback also having to toggle `style` itself. */
+/* ---------------------------------------------------------------- */
+#flux-cube-wave-range-warning:empty{ display:none; margin-bottom:0; }
+
+/* ---------------------------------------------------------------- */
+/* Collapsible cards — defined in Phase 1, inert until a later pass
+   rendered real .card-classed content (the redesign plan's own
+   "Deferred to Phase 2" note). First real use: aps_explorer.py's
+   _collapsible_card()/_file_info_panel(), the dataset-info panel at the
+   top of the page, minimised by default with a click-to-toggle header —
+   explicit request: "I want for both L1 and L2 that panel be minimise
+   by default and have a bottoon to collapse or uncollapse it."
+   .card-toggle-label-open/-collapsed swap (rather than the original
+   single rotating chevron) is what actually shows "Collapse"/"Expand"
+   text matching the current state — explicit follow-up: "the
+   collapase/uncollapse bottton for the input info is very small and
+   not visible at all..Make a proper bottom with text for it." The
+   :hover affordances are added here (inline Python styles already
+   cover the button's own base layout/border/background) — Dash inline
+   style={} dicts can't express :hover. */
+/* ---------------------------------------------------------------- */
+.card-toggle-label-collapsed{ display:none; }
+.card.collapsed .card-toggle-label-open{ display:none; }
+.card.collapsed .card-toggle-label-collapsed{ display:inline; }
+.card.collapsed .card-body{ display:none; }
+.card-toggle{ transition:background-color .15s ease, color .15s ease, border-color .15s ease; }
+.card-head:hover .card-toggle{ background:var(--pyaps-accent-soft); color:var(--pyaps-accent); border-color:var(--pyaps-accent); }
+
+/* ---------------------------------------------------------------- */
+/* Native form controls + Dash's own dcc.Dropdown/RadioItems/Checklist —
+   confirmed live (Playwright against a real loaded L2 dataset) that
+   dropdowns, radio buttons, checklists, and several plain dcc.Input
+   fields (colour-range min/max, bin-ID readout, flux-cube wavelength
+   controls, etc. across aps_explorer.py/aps_IFUviewer.py/
+   aps_MOSviewer.py) stayed pure white/near-black regardless of theme,
+   because they were never given any inline colour styling at all —
+   dark mode had nothing to override. Deliberately LOW specificity
+   (plain element/class selectors, no !important) so any element that
+   *does* carry its own inline style (the majority already tokenized in
+   Phase 1) is completely unaffected — CSS's own cascade means these
+   rules only ever apply where nothing more specific already does.
+   Class names below are Dash 4.4.1's actual generated markup (dumped
+   live via Playwright, not guessed) — dcc.Dropdown in this Dash
+   version is its own clean implementation (.dash-dropdown etc.), not
+   the historical react-select internals older Dash versions used. */
+input[type="text"], input[type="number"], input[type="search"], textarea, select {
+  background-color: var(--pyaps-paper);
+  color: var(--pyaps-ink);
+  border: 1px solid var(--pyaps-line-strong);
+  border-radius: var(--pyaps-radius-s);
+}
+input[type="radio"], input[type="checkbox"] {
+  accent-color: var(--pyaps-accent);
+}
+
+/* Aladin Lite's own coordinate-frame ("ICRS"), projection ("SIN"), and
+   marker-shape pickers are plain native <select> elements with the
+   class .aladin-input-select, and .aladin-box is its "Stack"
+   overlays/surveys panel (show coordinates grid, show overlay, etc.).
+
+   These deliberately do NOT follow --pyaps-paper-raised/--pyaps-ink
+   (i.e. do NOT flip with the page's own light/dark theme) any more —
+   explicit follow-up report: "in white mode while the background of
+   aladin is usually dark, the background for projection (sin/tan,etc)
+   and show coordinates and show overlay optoons are white with grey
+   font..it is not good...I want to have the same for both dark and
+   bright mode." The Aladin sky viewport itself is always a dark
+   astronomical image regardless of page theme (DSS/survey imagery has
+   its own black background, not something this app's theme controls at
+   all) — controls floating over it now get one fixed dark styling that
+   matches that viewport in both page themes, the same "always dark,
+   independent of the page toggle" treatment already given to the log
+   console elsewhere in this app. Literal hex (not var(--pyaps-*)) is
+   deliberate here — these must NOT change when :root's own tokens flip
+   for light mode. */
+/* Aladin Lite's own coordinate readout (the RA/Dec text box, e.g. "08 37
+   03.00 +69 46 31.0") is styled via a CSS custom property Aladin itself
+   defines on .aladin-container (--aladin-color, its own hardcoded
+   #b232b2 — a bright magenta with no relationship to this app's own
+   palette at all). Explicit critique: "The magenta coordinate text is
+   eye-catching but feels disconnected from the rest of the system...
+   shift it toward the common accent/secondary-text palette." Overridden
+   to this app's own accent instead of Aladin's own magenta — literal hex
+   (not var(--pyaps-accent)), same "always dark, independent of the page
+   toggle" reasoning the rest of this Aladin section already uses just
+   below: this text sits directly against the fixed-dark Aladin chrome
+   in *both* app themes, not the page's own flipping background. */
+.aladin-container {
+  --aladin-color: #4ea9d9 !important;
+}
+
+.aladin-input-select {
+  background-color: #182634 !important;
+  color: #e4ecf2 !important;
+  border-color: #345068 !important;
+}
+.aladin-box {
+  background-color: #182634 !important;
+  color: #e4ecf2 !important;
+}
+
+.dash-dropdown, .dash-dropdown-content, .dash-dropdown-search-container {
+  background-color: var(--pyaps-paper-raised) !important;
+  color: var(--pyaps-ink) !important;
+  border-color: var(--pyaps-line-strong) !important;
+}
+.dash-dropdown-value, .dash-dropdown-value-item, .dash-dropdown-search {
+  color: var(--pyaps-ink) !important;
+}
+.dash-dropdown-search { background-color: transparent !important; }
+
+/* Aladin Lite is a third-party embedded widget with its own extensive
+   theming system (dozens of aladin-* classes) — a full dark theme for
+   it is out of scope here. This is a minimal, targeted fix for just the
+   small always-visible icon buttons floating over the map (layer
+   stack, fullscreen-globe), confirmed live to otherwise stay a plain
+   white square regardless of page theme. Fixed dark literal (not
+   var(--pyaps-*)) for the same "match the always-dark sky viewport in
+   both page themes" reason as .aladin-input-select/.aladin-box above —
+   kept as one consistent look for every piece of Aladin's own chrome,
+   not just the two the original report named. */
+.aladin-btn {
+  background-color: #182634 !important;
+  border-color: #345068 !important;
+}
+.dash-dropdown-trigger-icon { color: var(--pyaps-ink-faint) !important; }
+.dash-options-list-option.dash-dropdown-option {
+  background-color: var(--pyaps-paper-raised) !important;
+  color: var(--pyaps-ink) !important;
+}
+.dash-options-list-option.dash-dropdown-option:hover,
+.dash-options-list-option.dash-dropdown-option.focused {
+  background-color: var(--pyaps-accent-soft) !important;
+}
+.dash-options-list-option.selected.dash-dropdown-option {
+  background-color: var(--pyaps-accent-soft) !important;
+  color: var(--pyaps-accent) !important;
+}
+
+/* RadioItems/Checklist — same underlying .dash-options-list markup,
+   just without the -dropdown-option modifier class. */
+.dash-options-list-option-text { color: var(--pyaps-ink) !important; }
+.dash-radioitems .dash-options-list-option:hover,
+.dash-checklist .dash-options-list-option:hover {
+  background-color: var(--pyaps-paper-sunken);
+}
+
+/* dash_table's own filter-row inputs render inside .dash-filter cells;
+   already covered by the plain input[type=text] rule above, but the
+   cell wrapper itself defaults to white too. */
+.dash-filter { background-color: var(--pyaps-paper-raised) !important; }
+
+/* ---------------------------------------------------------------- */
+:focus-visible{ outline:none; box-shadow:var(--pyaps-focus); border-radius:var(--pyaps-radius-s); }
+@media (prefers-reduced-motion: reduce){
+  *{ transition-duration:.001ms !important; animation-duration:.001ms !important; }
+}

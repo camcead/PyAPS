@@ -1,0 +1,440 @@
+# pPXF Emission Line Configuration - MAXIMUM 755 COLUMNS VERSION
+# ----------------------------------------------------------------
+# Reduced from 77 to 68 emission lines to stay within 755 column limit
+# Total columns: 68 × 11 + 6 = 754 columns (just under 755 limit)
+#
+# LINES REMOVED (9 total) - Strategic removal preserving key diagnostics:
+#
+# 1. H12_3749.93 - Weakest Balmer line, H11-H8 sufficient for series analysis
+# 2. H11_3770.93 - Very weak Balmer line, higher order lines provide adequate coverage
+# 3. [NI]_5197.90 - Weak auroral line, [NI]_5200.39 provides same diagnostic
+# 4. FeIII_2076.62 - Rarely detected UV iron line, other Fe lines sufficient
+# 5. AlIII_1857.40 - Very weak UV line, rarely detected in typical spectra
+# 6. SiII_1814.00 - Weak UV line, SiIII and SiIV lines provide Si diagnostics
+# 7. NIII_1750.00 - Weak UV line, other N lines (NV, NIV) cover nitrogen
+# 8. OI_1305.53 - Weak UV line, [OI] optical lines are primary oxygen diagnostics
+# 9. NaI_5896.36 - Primarily stellar absorption, not emission, limited diagnostic value
+#
+# These removals maintain:
+# - All critical BPT diagram lines (Halpha, Hbeta, [OIII], [NII], [SII], [OI])
+# - Key temperature diagnostics ([OIII]4363, [NII]5755, [SII] ratio)
+# - Main density diagnostics ([SII] doublet, [OII] doublets)
+# - Important UV diagnostics (Lya, CIV, MgII, etc.)
+# - Balmer series coverage (H10-H8, He, Hd, Hg, Hbeta, Halpha)
+
+emission_lines = {
+    # UV lines (vacuum) - 19 lines (removed 5)
+    "OVI_1033.82": 1033.82,
+    "Lya_1215.24": 1215.24,
+    "NV_1240.81": 1240.81,
+    # "OI_1305.53": 1305.53,  # REMOVED - weak UV line
+    "CII_1335.31": 1335.31,
+    "SiIV_1398.00": 1398.00,
+    "OIV_1402.00": 1402.00,
+    "NIV_1483.00": 1483.00,
+    "NIV_1487.00": 1487.00,
+    "CIV_1549.48": 1549.48,
+    "HeII_1640.40": 1640.40,
+    "[OIII]_1665.85": 1665.85,
+    # "NIII_1750.00": 1750.00,  # REMOVED - weak UV line
+    # "SiII_1814.00": 1814.00,  # REMOVED - weak UV line
+    "SiIII_1883.00": 1883.00,
+    "SiIII_1892.00": 1892.00,
+    # "AlIII_1857.40": 1857.40,  # REMOVED - rarely detected
+    "CIII_1908.73": 1908.73,
+    # "FeIII_2076.62": 2076.62,  # REMOVED - rarely detected UV iron
+    "[OIII]_2320.28": 2320.28,
+    "[CII]_2325.28": 2325.28,
+    "FeII_2324.58": 2324.58,
+    "FeII_2626.92": 2626.92,
+    "MgII_2798.29": 2798.29,
+
+    # Optical/NIR lines (air) - 49 lines (removed 4)
+    "HeII_3203.15": 3203.15,
+    "[NeV]_3345.81": 3345.81,
+    "[NeV]_3425.81": 3425.81,
+    "FeII_3498.92": 3498.92,
+    "[OII]_3726.03": 3726.03,
+    "[OII]_3728.73": 3728.73,
+    # "H12_3749.93": 3749.93,  # REMOVED - weakest Balmer
+    # "H11_3770.93": 3770.93,  # REMOVED - very weak Balmer
+    "H10_3797.92": 3797.92,
+    "H9_3835.91": 3835.91,
+    "[NeIII]_3868.69": 3868.69,
+    "HeI_3887.90": 3887.90,
+    "H8_3888.90": 3888.90,
+    "[NeIII]_3967.40": 3967.40,
+    "He_3970.07": 3970.07,
+    "[FeV]_4071.24": 4071.24,
+    "Hd_4101.73": 4101.73,
+    "Hg_4340.46": 4340.46,
+    "[OIII]_4363.15": 4363.15,
+    "HeI_4471.74": 4471.74,
+    "FeII_4564.71": 4564.71,
+    "HeII_4685.74": 4685.74,
+    "[ArIV]_4711.30": 4711.30,
+    "[ArIV]_4740.10": 4740.10,
+    "Hbeta_4861.32": 4861.32,
+    "[OIII]_4958.83": 4958.83,
+    "[OIII]_5006.77": 5006.77,
+    # "[NI]_5197.90": 5197.90,  # REMOVED - weak, 5200 is sufficient
+    "[NI]_5200.39": 5200.39,
+    "[FeXIV]_5302.86": 5302.86,
+    "[FeVII]_5720.71": 5720.71,
+    "[NII]_5754.40": 5754.40,
+    "HeI_5875.60": 5875.60,
+    # "NaI_5896.36": 5896.36,  # REMOVED - primarily absorption
+    "[OI]_6300.20": 6300.20,
+    "[OI]_6363.67": 6363.67,
+    "[NII]_6547.96": 6547.96,
+    "Halpha_6562.80": 6562.80,
+    "[NII]_6583.34": 6583.34,
+    "HeI_6678.16": 6678.16,
+    "[SII]_6716.31": 6716.31,
+    "[SII]_6730.68": 6730.68,
+    "[ArIII]_7135.67": 7135.67,
+    "[OII]_7319.46": 7319.46,
+    "[OII]_7329.98": 7329.98,
+    "[SIII]_9068.60": 9068.60,
+    "[SIII]_9530.60": 9530.60
+}
+
+# Total: 19 UV + 49 Optical = 68 emission lines
+# Expected columns: 68 × 11 = 748 emission columns + 6 fixed = 754 total (under 755 limit)
+
+# Line ratios - updated to exclude removed lines
+line_ratios = {
+    # Balmer series ratios (relative to Halpha as reference)
+    # "H12_3749.93": {"line": "Halpha_6562.80", "ratio": 0.009},  # REMOVED
+    # "H11_3770.93": {"line": "Halpha_6562.80", "ratio": 0.012},  # REMOVED
+    "H10_3797.92": {"line": "Halpha_6562.80", "ratio": 0.016},
+    "H9_3835.91": {"line": "Halpha_6562.80", "ratio": 0.022},
+    "H8_3888.90": {"line": "Halpha_6562.80", "ratio": 0.030},
+    "He_3970.07": {"line": "Halpha_6562.80", "ratio": 0.056},
+    "Hd_4101.73": {"line": "Halpha_6562.80", "ratio": 0.091},
+    "Hg_4340.46": {"line": "Halpha_6562.80", "ratio": 0.164},
+    "Hbeta_4861.32": {"line": "Halpha_6562.80", "ratio": 0.350},
+
+    # OIII doublet ratio
+    "[OIII]_4958.83": {"line": "[OIII]_5006.77", "ratio": 0.350},
+
+    # OI doublet ratio
+    "[OI]_6363.67": {"line": "[OI]_6300.20", "ratio": 0.333},
+
+    # NII doublet ratio
+    "[NII]_6547.96": {"line": "[NII]_6583.34", "ratio": 0.340},
+
+    # SII doublet ratio
+    "[SII]_6716.31": {"line": "[SII]_6730.68", "ratio": 1.0},
+
+    # OII doublet ratios
+    "[OII]_3726.03": {"line": "[OII]_3728.73", "ratio": 1.0},
+    "[OII]_7319.46": {"line": "[OII]_7329.98", "ratio": 1.0},
+
+    # NIV doublet
+    "NIV_1483.00": {"line": "NIV_1487.00", "ratio": 1.0},
+
+    # SiIII lines
+    "SiIII_1883.00": {"line": "SiIII_1892.00", "ratio": 1.0},
+
+    # NeV doublet
+    "[NeV]_3345.81": {"line": "[NeV]_3425.81", "ratio": 1.0},
+
+    # ArIV doublet
+    "[ArIV]_4711.30": {"line": "[ArIV]_4740.10", "ratio": 1.0},
+
+    # SIII lines
+    "[SIII]_9068.60": {"line": "[SIII]_9530.60", "ratio": 1.0}
+}
+
+# Tie settings - updated to exclude removed lines
+tie_settings_legacy = {
+    "balmer": [
+        "H10_3797.92","H9_3835.91",
+        "H8_3888.90","He_3970.07","Hd_4101.73",
+        "Hg_4340.46","Hbeta_4861.32","Halpha_6562.80"
+    ],
+    "forbidden": [
+        "[OIII]_4363.15",
+        "[NII]_5754.40",
+        "[OII]_3726.03",
+        "[OII]_3728.73",
+        "[OII]_7319.46",
+        "[OII]_7329.98"
+    ],
+    "[OIII]_5006.77": [
+        "[OIII]_4958.83",
+        "[NI]_5200.39"
+    ],
+    "[NII]_6583.34": [
+        "HeI_5875.60",
+        "[OI]_6300.20",
+        "[OI]_6363.67",
+        "[NII]_6547.96",
+        "[SII]_6716.31",
+        "[SII]_6730.68",
+        "[ArIII]_7135.67"
+    ],
+    "tie_all": False
+}
+
+tie_settings_optimised = {
+    "balmer": [
+        "H10_3797.92","H9_3835.91",
+        "H8_3888.90","He_3970.07","Hd_4101.73",
+        "Hg_4340.46","Hbeta_4861.32","Halpha_6562.80"
+    ],
+    "high_ion_forbidden": [
+        "[OIII]_4958.83",
+        "[OIII]_5006.77",
+        "[OIII]_4363.15",
+        "[OIII]_1665.85",
+        "[OIII]_2320.28",
+        "[NeIII]_3868.69",
+        "[NeIII]_3967.40",
+        "[NeV]_3345.81",
+        "[NeV]_3425.81",
+        "[ArIV]_4711.30",
+        "[ArIV]_4740.10",
+        "[FeXIV]_5302.86"
+    ],
+    "low_ion_forbidden": [
+        "[NII]_6547.96",
+        "[NII]_6583.34",
+        "[NII]_5754.40",
+        "[SII]_6716.31",
+        "[SII]_6730.68",
+        "[OI]_6300.20",
+        "[OI]_6363.67",
+        "[OII]_3726.03",
+        "[OII]_3728.73",
+        "[OII]_7319.46",
+        "[OII]_7329.98",
+        "[ArIII]_7135.67",
+        "[NI]_5200.39"
+    ],
+    "sulfur_group": [
+        "[SIII]_9068.60",
+        "[SIII]_9530.60"
+    ],
+    "hei_recombination": [
+        "HeI_3887.90",
+        "HeI_4471.74",
+        "HeI_5875.60",
+        "HeI_6678.16"
+    ],
+    "heii_recombination": [
+        "HeII_3203.15",
+        "HeII_1640.40",
+        "HeII_4685.74"
+    ],
+    "uv_resonance": [
+        "Lya_1215.24",
+        "NV_1240.81",
+        "CIV_1549.48",
+        "SiIV_1398.00",
+        "OVI_1033.82",
+        "MgII_2798.29"
+    ],
+    "uv_semiforbidden": [
+        "CII_1335.31",
+        "OIV_1402.00",
+        "NIV_1483.00",
+        "NIV_1487.00",
+        "SiIII_1883.00",
+        "SiIII_1892.00",
+        "CIII_1908.73",
+        "[CII]_2325.28"
+    ],
+    "iron_lines": [
+        "FeII_2324.58",
+        "FeII_2626.92",
+        "FeII_3498.92",
+        "FeII_4564.71",
+        "[FeV]_4071.24",
+        "[FeVII]_5720.71"
+    ],
+    "miscellaneous": [],  # Empty after removing NaI
+    "tie_all": False
+}
+
+tie_settings_aggressive = {
+    "balmer": [
+        "H10_3797.92","H9_3835.91",
+        "H8_3888.90","He_3970.07","Hd_4101.73",
+        "Hg_4340.46","Hbeta_4861.32","Halpha_6562.80"
+    ],
+    "high_ion_all": [
+        "[OIII]_4958.83",
+        "[OIII]_5006.77",
+        "[OIII]_4363.15",
+        "[OIII]_1665.85",
+        "[OIII]_2320.28",
+        "[NeIII]_3868.69",
+        "[NeIII]_3967.40",
+        "[NeV]_3345.81",
+        "[NeV]_3425.81",
+        "[ArIV]_4711.30",
+        "[ArIV]_4740.10",
+        "[FeXIV]_5302.86",
+        "HeII_3203.15",
+        "HeII_1640.40",
+        "HeII_4685.74",
+        "[SIII]_9068.60",
+        "[SIII]_9530.60"
+    ],
+    "low_ion_all": [
+        "[NII]_6547.96",
+        "[NII]_6583.34",
+        "[NII]_5754.40",
+        "[SII]_6716.31",
+        "[SII]_6730.68",
+        "[OI]_6300.20",
+        "[OI]_6363.67",
+        "[OII]_3726.03",
+        "[OII]_3728.73",
+        "[OII]_7319.46",
+        "[OII]_7329.98",
+        "[ArIII]_7135.67",
+        "[NI]_5200.39"
+    ],
+    "uv_lines_all": [
+        "Lya_1215.24",
+        "NV_1240.81",
+        "CIV_1549.48",
+        "SiIV_1398.00",
+        "OVI_1033.82",
+        "MgII_2798.29",
+        "CII_1335.31",
+        "OIV_1402.00",
+        "NIV_1483.00",
+        "NIV_1487.00",
+        "SiIII_1883.00",
+        "SiIII_1892.00",
+        "CIII_1908.73",
+        "[CII]_2325.28"
+    ],
+    "other_recombination": [
+        "HeI_3887.90",
+        "HeI_4471.74",
+        "HeI_5875.60",
+        "HeI_6678.16",
+        "FeII_2324.58",
+        "FeII_2626.92",
+        "FeII_3498.92",
+        "FeII_4564.71",
+        "[FeV]_4071.24",
+        "[FeVII]_5720.71"
+    ],
+    "tie_all": False
+}
+
+# Default kinematic settings (unchanged)
+kinematic_settings = {
+    "initial_velocity": 0.0,
+    "initial_dispersion": 10.0,
+    "limit_dispersion": True,
+    "min_dispersion": 5.0,
+    "max_dispersion": 500.0,
+    "emi_moments": 2
+}
+
+# Line measurement settings (unchanged)
+measurement_settings = {
+    "measure_fluxes": True,
+    "measure_ew": True,
+    "measure_fwhm": True,
+    "measure_snr": True,
+    "aon_threshold": 4.0
+}
+
+# Regions to mask during the fit (unchanged - sky lines)
+mask_regions = [
+    {"name": "sky_5577", "wavelength": 5577.4000, "width": 7.5},
+    {"name": "sky_5890", "wavelength": 5889.9000, "width": 7.5},
+    {"name": "sky_6158", "wavelength": 6157.5000, "width": 7.5},
+    {"name": "sky_6300", "wavelength": 6300.3000, "width": 7.5},
+    {"name": "sky_6364", "wavelength": 6363.8000, "width": 7.5},
+    {"name": "sky_7275", "wavelength": 7275.0497, "width": 7.5},
+    {"name": "sky_7283", "wavelength": 7282.9936, "width": 7.5},
+    {"name": "sky_7315", "wavelength": 7314.7802, "width": 7.5},
+    {"name": "sky_7339", "wavelength": 7339.4788, "width": 7.5},
+    {"name": "sky_7400", "wavelength": 7400.4127, "width": 7.5},
+    {"name": "sky_7523", "wavelength": 7522.5762, "width": 7.5},
+    {"name": "sky_7712", "wavelength": 7711.5680, "width": 7.5},
+    {"name": "sky_7716", "wavelength": 7715.8297, "width": 7.5},
+    {"name": "sky_7749", "wavelength": 7749.4827, "width": 7.5},
+    {"name": "sky_7759", "wavelength": 7759.0550, "width": 7.5},
+    {"name": "sky_7793", "wavelength": 7793.1733, "width": 7.5},
+    {"name": "sky_7808", "wavelength": 7807.8585, "width": 7.5},
+    {"name": "sky_7840", "wavelength": 7839.9020, "width": 7.5},
+    {"name": "sky_7852", "wavelength": 7852.2676, "width": 7.5},
+    {"name": "sky_7860", "wavelength": 7859.7707, "width": 7.5},
+    {"name": "sky_7869", "wavelength": 7869.3932, "width": 7.5},
+    {"name": "sky_7912", "wavelength": 7912.3341, "width": 7.5},
+    {"name": "sky_7920", "wavelength": 7920.2998, "width": 7.5},
+    {"name": "sky_7931", "wavelength": 7930.8736, "width": 7.5},
+    {"name": "sky_7948", "wavelength": 7948.0000, "width": 7.5},
+    {"name": "sky_7964", "wavelength": 7963.9344, "width": 7.5},
+    {"name": "sky_7992", "wavelength": 7992.4380, "width": 7.5},
+    {"name": "sky_8025", "wavelength": 8024.9856, "width": 7.5},
+    {"name": "sky_8062", "wavelength": 8061.9779, "width": 7.5},
+    {"name": "sky_8281", "wavelength": 8280.9855, "width": 7.5},
+    {"name": "sky_8289", "wavelength": 8288.5687, "width": 7.5},
+    {"name": "sky_8345", "wavelength": 8344.5730, "width": 7.5},
+    {"name": "sky_8353", "wavelength": 8352.7630, "width": 7.5},
+    {"name": "sky_8382", "wavelength": 8382.3473, "width": 7.5},
+    {"name": "sky_8399", "wavelength": 8399.1174, "width": 7.5},
+    {"name": "sky_8415", "wavelength": 8415.2073, "width": 7.5},
+    {"name": "sky_8430", "wavelength": 8430.0771, "width": 7.5},
+    {"name": "sky_8452", "wavelength": 8451.9886, "width": 7.5},
+    {"name": "sky_8465", "wavelength": 8465.2065, "width": 7.5},
+    {"name": "sky_8493", "wavelength": 8493.3357, "width": 7.5},
+    {"name": "sky_8505", "wavelength": 8504.6281, "width": 7.5},
+    {"name": "sky_8539", "wavelength": 8538.5717, "width": 7.5},
+    {"name": "sky_8761", "wavelength": 8761.2828, "width": 7.5},
+    {"name": "sky_8768", "wavelength": 8767.8810, "width": 7.5},
+    {"name": "sky_8776", "wavelength": 8776.1969, "width": 7.5},
+    {"name": "sky_8778", "wavelength": 8778.3076, "width": 7.5},
+    {"name": "sky_8791", "wavelength": 8791.1734, "width": 7.5},
+    {"name": "sky_8827", "wavelength": 8827.0657, "width": 7.5},
+    {"name": "sky_8837", "wavelength": 8836.5400, "width": 7.5},
+    {"name": "sky_8868", "wavelength": 8867.5378, "width": 7.5},
+    {"name": "sky_8886", "wavelength": 8885.7966, "width": 7.5},
+    {"name": "sky_8903", "wavelength": 8903.0848, "width": 7.5},
+    {"name": "sky_8920", "wavelength": 8919.7344, "width": 7.5},
+    {"name": "sky_8943", "wavelength": 8943.3928, "width": 7.5},
+    {"name": "sky_8958", "wavelength": 8957.9231, "width": 7.5},
+    {"name": "sky_8988", "wavelength": 8988.3162, "width": 7.5},
+    {"name": "sky_9002", "wavelength": 9001.5768, "width": 7.5},
+    {"name": "sky_9050", "wavelength": 9049.8480, "width": 7.5},
+    {"name": "sky_9313", "wavelength": 9313.3176, "width": 7.5},
+    {"name": "sky_9324", "wavelength": 9323.7068, "width": 7.5},
+    {"name": "sky_9376", "wavelength": 9375.9328, "width": 7.5},
+    {"name": "sky_9440", "wavelength": 9439.7041, "width": 7.5},
+    {"name": "sky_9477", "wavelength": 9476.9610, "width": 7.5},
+    {"name": "sky_9520", "wavelength": 9519.5278, "width": 7.5}
+]
+
+# Line limit settings (unchanged)
+line_limits = {
+    "balmer": {"min_sigma": 5.0, "max_sigma": 500.0},
+    "high_ion_forbidden": {"min_sigma": 5.0, "max_sigma": 300.0},
+    "low_ion_forbidden": {"min_sigma": 5.0, "max_sigma": 300.0},
+    "uv_resonance": {"min_sigma": 10.0, "max_sigma": 1000.0},
+    "hei_recombination": {"min_sigma": 5.0, "max_sigma": 400.0},
+    "heii_recombination": {"min_sigma": 10.0, "max_sigma": 600.0},
+    "iron_lines": {"min_sigma": 5.0, "max_sigma": 400.0},
+    "uv_semiforbidden": {"min_sigma": 10.0, "max_sigma": 800.0},
+    "sulfur_group": {"min_sigma": 5.0, "max_sigma": 300.0}
+}
+
+# Additional settings from EMIPPXF config (unchanged)
+emippxf_settings = {
+    "balmer_decrement": 2.86,
+    "use_vacuum_uv": True,
+    "vacuum_to_air_conversion": "Ciddor1996",
+    "fitting_method": "ppxf",
+    "stellar_subtraction": True,
+    "emission_mask_sigma": 3.0
+}
