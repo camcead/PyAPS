@@ -6,6 +6,10 @@ All notable changes to PyAPS are documented here. The format follows
 
 ## Unreleased
 
+### Changed
+- Archived on Zenodo: version DOI 10.5281/zenodo.23042511 (2.0), concept DOI 10.5281/zenodo.23042510 (all versions).
+  Added to `CITATION.cff` and the README (badge, citation block, BibTeX).
+
 ### Known limitations
 - A regular (non-editable) `pip install` does not bundle `configs/ExGal_configs`; set `PYAPS_CONFIGDIR`
   or use `pip install -e .` from a clone.

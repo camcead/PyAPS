@@ -4,6 +4,7 @@
 [![Python](https://img.shields.io/badge/Python-3.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Documentation](https://img.shields.io/badge/docs-latest-brightgreen.svg)](doc/)
+[![DOI](https://zenodo.org/badge/1394828963.svg)](https://doi.org/10.5281/zenodo.23042510)
 
 ## Overview
 
@@ -868,5 +869,19 @@ the contributions from all WEAVE science teams and the broader astronomical comm
 ## Citation
 
 If you use PyAPS in your research, please cite it — see [CITATION.cff](CITATION.cff)
-for the current metadata. A version-specific archival DOI (minted via Zenodo on the
-first tagged release) will be added there and here once available.
+for the current metadata. Every release is archived on Zenodo:
+
+- **Cite this exact version (2.0):** [10.5281/zenodo.23042511](https://doi.org/10.5281/zenodo.23042511)
+- **Cite PyAPS in general (all versions, always the latest):** [10.5281/zenodo.23042510](https://doi.org/10.5281/zenodo.23042510)
+
+```bibtex
+@software{pyaps_2_0,
+  author    = {Molaeinezhad, Alireza and {WEAVE APS Team}},
+  title     = {PyAPS: Python-based Advance Processing System for WEAVE},
+  version   = {2.0},
+  year      = {2026},
+  publisher = {Zenodo},
+  doi       = {10.5281/zenodo.23042511},
+  url       = {https://doi.org/10.5281/zenodo.23042511}
+}
+```

@@ -1,8 +1,8 @@
 cff-version: 1.2.0
 message: >-
   If you use PyAPS in your research, please cite it using the metadata below.
-  A version-specific archival DOI (via Zenodo) will be added here once the
-  first tagged release is public.
+  The DOI is the archived release on Zenodo; the concept DOI under `identifiers`
+  always resolves to the latest version.
 title: PyAPS
 type: software
 abstract: >-
@@ -22,6 +22,11 @@ repository-code: "https://github.com/camcead/PyAPS"
 url: "https://camcead.ast.cam.ac.uk"
 repository-artifact: "https://github.com/camcead/PyAPS/releases"
 version: "2.0"
+doi: "10.5281/zenodo.23042511"
+identifiers:
+  - type: doi
+    value: "10.5281/zenodo.23042510"
+    description: "Concept DOI: all versions of PyAPS (always the latest release)"
 date-released: "2026-09-29"
 keywords:
   - astronomy
