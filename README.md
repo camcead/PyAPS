@@ -8,7 +8,7 @@
 
 ## Overview
 
-PyAPS is a Python-based platform for processing and analyzing WEAVE survey data, developed as part of the Science Processing and Archive (SPA) system. It provides state-of-the-art modules in a distributed architecture for analyzing and visualizing WEAVE spectroscopic data in both Multi-Object Spectroscopy (MOS) and Integral Field Unit (IFU) modes.
+PyAPS is a Python-based platform for processing and analyzing WEAVE survey data, developed as part of the Science Processing and Analysis (SPA) system. It provides state-of-the-art modules in a distributed architecture for analyzing and visualizing WEAVE spectroscopic data in both Multi-Object Spectroscopy (MOS) and Integral Field Unit (IFU) modes.
 
 **Developer**: WEAVE APS team  
 **Version**: 2.0
@@ -866,7 +866,7 @@ This project is licensed under the MIT License — see the [LICENSE](LICENSE) fi
 
 ## Acknowledgments
 
-PyAPS is developed as part of the WEAVE Science Processing and Archive system. We acknowledge
+PyAPS is developed as part of the WEAVE Science Processing and Analysis system. We acknowledge
 the contributions from all WEAVE science teams and the broader astronomical community.
 
 ## Citation

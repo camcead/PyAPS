@@ -9,7 +9,7 @@ abstract: >-
   Python-based Advance Processing System for WEAVE: a platform for
   processing and analysing WEAVE survey spectroscopic data (MOS, mIFU, and
   LIFU observing modes), developed as part of the WEAVE Science Processing
-  and Archive (SPA) system.
+  and Analysis (SPA) system.
 authors:
   - name: "WEAVE APS Team"
   - given-names: Alireza
