@@ -31,13 +31,13 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Physics",
 ]
 requires-python = ">=3.9"
-# Base dependencies: exactly what the interactive explorer (aps_explorer.py and the
+# Base dependencies (the light install): exactly what the interactive explorer (aps_explorer.py and the
 # viewer modules / apsPlot it drives) imports - audited by AST scan of every import in
 # the tree. Everything the batch CLI pipeline needs on top of that lives in the
 # "pipeline" extra, so a lean explorer-only install (and the server Docker image) stays
 # free of PyQt5/redrock/rvspecfit/etc.
-#   pip install PyAPS               # explorer + viewers
-#   pip install "PyAPS[pipeline]"   # + full processing pipeline
+#   pip install PyAPS               # explorer + viewers only (cannot run the processing)
+#   pip install "PyAPS[pipeline]"   # the processing pipeline (PyAPS's main purpose) + everything above
 # flask/werkzeug/itsdangerous arrive transitively via dash, but the explorer imports
 # them directly, so they are declared explicitly.
 dependencies = [

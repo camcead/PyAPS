@@ -6,6 +6,9 @@ All notable changes to PyAPS are documented here. The format follows
 
 ## Unreleased
 
+### Documentation
+- The README now says plainly that PyAPS is the processing pipeline and that processing needs the `pipeline` installation option; a plain install is the lighter explorer and viewer set. (Whether the pipeline should become the default installation is open for the next release.)
+
 ### Changed
 - Archived on Zenodo: version DOI 10.5281/zenodo.23042511 (2.0), concept DOI 10.5281/zenodo.23042510 (all versions).
   Added to `CITATION.cff` and the README (badge, citation block, BibTeX).

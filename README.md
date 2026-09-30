@@ -46,12 +46,15 @@ python3 -m pip install -e .              # recommended: links to the source tree
 
 ### Choosing what to install
 
-The base install is deliberately lean: it provides the interactive explorer and the
-viewers. Add extras for the rest (run from the repository root):
+PyAPS is the WEAVE processing pipeline: `aps_runner` and the scientific modules are its main purpose. The pipeline calls a number of
+scientific packages (some of them installed from GitHub), so **to process data install it with the `pipeline` option**:
+`pip install -e ".[pipeline]"`. A plain `pip install .` installs only the lighter set of packages that the interactive explorer and
+the viewers need, which is enough to open and inspect products but not to run the processing. The other options are additions for
+special uses (run from the repository root):
 
 | Command | Adds | Needed for |
 |---|---|---|
-| `pip install .` (or `pip install -e .`) | numpy, scipy, matplotlib, pandas, astropy, regions, scikit-learn, dill, plotly, dash, kaleido, flask, werkzeug, itsdangerous | `aps-explorer`, `aps_l1_preview`, `aps_IFUviewer`, `aps_MOSviewer` |
+| `pip install .` (or `pip install -e .`), no options | numpy, scipy, matplotlib, pandas, astropy, regions, scikit-learn, dill, plotly, dash, kaleido, flask, werkzeug, itsdangerous | `aps-explorer`, `aps_l1_preview`, `aps_IFUviewer`, `aps_MOSviewer` |
 | `pip install ".[pipeline]"` | astropy-healpix, specutils, photutils, reproject, astroquery, numba, emcee, sep, ppxf, powerbin, pyqtgraph, PyQt5, PyYAML, torch, desiutil, redrock, rvspecfit | the processing pipeline (`aps_runner`, `aps_rr`, `aps_rvs`, `aps_ferre`, `aps_ifu_*`, `aps_mosExGal`, ...) |
 | `pip install ".[cs]"` | ptemcee, PyAstronomy | the contributed `aps_amy` module |
 | `pip install ".[server]"` | gunicorn | running the explorer as a shared service ([Docker](#server--multi-user-deployment-docker)) |
