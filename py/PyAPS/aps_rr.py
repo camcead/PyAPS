@@ -252,27 +252,58 @@ _original_calc_zchi2_batch = _rr_zscan.calc_zchi2_batch
 
 
 
+# Solver selection: 'perarm' (default, the PyAPS modification) or 'joint'
+# (upstream Redrock shared-coefficient solve). Set by rrweave_worker(rr_solver=...)
+# / --rr_solver, or by the APS_RR_SOLVER environment variable. It is read at
+# every call, so it is inherited by forked workers as long as it is set
+# before the worker pool is created.
+import os as _os
+_RR_SOLVER = _os.environ.get('APS_RR_SOLVER', 'perarm').lower()
+
+# Optional diagnostics sink for tests / audits (single process only).
+# When set to a list, each multi-arm call appends a dict with the reported
+# chi2 array and the chi2 re-evaluated from the RETURNED (mean) coefficients.
+_RR_DIAG = None
+
+
 def _patched_calc_zchi2_batch(spectra, tdata, weights, flux, wflux, nz,
                                nbasis, solve_matrices_algorithm=None,
                                solver_args=None, use_gpu=False,
                                fullprecision=True, prior=None):
     """
-    Patched version of calc_zchi2_batch that solves each arm
-    independently and sums chi2 for multi-arm targets.
+    Multi-arm replacement for redrock.zscan.calc_zchi2_batch (CPU only).
 
-    Key design decisions:
-    - chi2 is summed across arms (per-arm independent solve)
-    - zcoeff is a simple EQUAL-WEIGHT mean of per-arm coefficients
-      regardless of IVAR normalisation mode or arm pixel count
-      This ensures fitz always starts from a neutral point and
-      the result is completely independent of IVAR scaling
+    Each arm gets its own coefficient vector (solved independently at every
+    trial redshift). What is returned:
+
+    - zchi2  : SUM over arms of the per-arm weighted residual chi2, each
+               evaluated at that arm's OWN coefficients. It is therefore NOT
+               the chi2 of the returned zcoeff applied to every arm (that is
+               always >= zchi2 when unregularised), and it still scales with
+               the input IVAR of each arm.
+    - zcoeff : equal-weight mean, over the arms in which a column is
+               active, of the per-arm coefficients. For a basis shared by all
+               arms this is the arithmetic mean over arms; for columns that
+               exist in one arm only (per-camera Legendre terms in
+               archetype mode) it is that arm's coefficient (no dilution).
+               The mean coefficients are what Redrock stores as the result
+               COEFF and what PyAPS uses to draw PCA-mode models; they do not
+               reproduce zchi2. A per-arm uniform IVAR rescale leaves the
+               per-arm coefficients unchanged (no prior), but NOT zchi2.
+
+    Single-spectrum input, GPU mode, or APS_RR_SOLVER='joint' delegate to the
+    upstream implementation unchanged.
+
+    Prior handling: the prior matrix is scaled by each arm's fraction of the
+    total weight, which is not equivalent to regularising one shared vector.
+    See doc/aps_rr.md ("Per-arm chi2 modification").
     """
 
-    # Single arm or GPU: use original implementation unchanged
-    if len(spectra) <= 1 or use_gpu:
+    # Single arm, GPU, or user-selected joint solve: upstream implementation
+    if len(spectra) <= 1 or use_gpu or _RR_SOLVER == 'joint':
         if use_gpu:
             print("  [APS PATCH] WARNING: per-arm chi2 patch not applied "
-                  "in GPU mode — results may be suboptimal")
+                  "in GPU mode - upstream joint solve used instead")
         return _original_calc_zchi2_batch(
             spectra, tdata, weights, flux, wflux, nz, nbasis,
             solve_matrices_algorithm=solve_matrices_algorithm,
@@ -284,6 +315,7 @@ def _patched_calc_zchi2_batch(spectra, tdata, weights, flux, wflux, nz,
 
     zchi2  = np.zeros(nz, dtype=np.float64)
     zcoeff = np.zeros((nz, nbasis), dtype=np.float64)
+    diag_mean = np.full(nz, np.nan) if _RR_DIAG is not None else None
 
     # Pre-compute per-arm pixel offsets into the concatenated arrays
     arm_offsets = []
@@ -296,11 +328,17 @@ def _patched_calc_zchi2_batch(spectra, tdata, weights, flux, wflux, nz,
     # Pre-compute total weight for prior scaling
     total_weight = weights.sum()
 
+    bounds_all = None
+    if solver_args is not None and 'bounds' in solver_args:
+        bounds_all = np.asarray(solver_args['bounds'])
+
     for i in range(nz):
         chi2_total     = 0.0
         coeff_sum      = np.zeros(nbasis, dtype=np.float64)
+        coeff_n        = np.zeros(nbasis, dtype=np.int64)
         n_arms_valid   = 0
         valid          = True
+        Tb_all         = [] if diag_mean is not None else None
 
         for arm_idx, (s, i_start, i_end) in enumerate(arm_offsets):
             key    = s.wavehash
@@ -312,58 +350,80 @@ def _patched_calc_zchi2_batch(spectra, tdata, weights, flux, wflux, nz,
             if w_arm.sum() == 0:
                 continue
 
-            M_arm = Tb_arm.T.dot(np.multiply(w_arm[:, None], Tb_arm))
-            y_arm = Tb_arm.T.dot(wf_arm)
+            # Columns that are identically zero in this arm (e.g. another
+            # arm's per-camera Legendre terms, or a template that does not
+            # cover this arm) carry no information here: solve on the
+            # active columns only and leave the rest at zero.
+            active = np.any(Tb_arm != 0, axis=0)
+            if not active.any():
+                # No template support in this arm: model is zero there, so
+                # the arm contributes its full weighted flux^2 (as in the
+                # upstream joint chi2) rather than being silently dropped.
+                chi2_total += np.dot(f_arm ** 2, w_arm)
+                if Tb_all is not None:
+                    Tb_all.append((Tb_arm, f_arm, w_arm))
+                continue
+            Ta = Tb_arm[:, active]
+
+            M_arm = Ta.T.dot(np.multiply(w_arm[:, None], Ta))
+            y_arm = Ta.T.dot(wf_arm)
 
             # Scale prior by this arm's fractional weight so the
             # total prior effect across all arms equals the original.
-            # e.g. 2 equal arms → each gets prior × 0.5
+            # e.g. 2 equal arms -> each gets prior x 0.5
             if prior is not None:
                 arm_frac = w_arm.sum() / total_weight \
                            if total_weight > 0 else 1.0 / len(arm_offsets)
-                M_arm = M_arm + prior * arm_frac
-                # if arm_idx == 0 and i == 0:
-                #     print(f"  [APS PATCH] prior scaled by arm fraction "
-                #           f"{arm_frac:.4f} for arm {arm_idx}")
+                M_arm = M_arm + (prior * arm_frac)[np.ix_(active, active)]
+
+            sargs = solver_args
+            if bounds_all is not None:
+                sargs = dict(solver_args)
+                sargs['bounds'] = bounds_all[:, active]
 
             try:
-                c_arm = solve_matrices(
+                c_act = solve_matrices(
                     M_arm, y_arm,
                     solve_algorithm=solve_matrices_algorithm
                     if solve_matrices_algorithm else 'PCA',
-                    solver_args=solver_args,
+                    solver_args=sargs,
                     use_gpu=False)
             except (np.linalg.LinAlgError, NotImplementedError):
                 chi2_total = HUGE_CHI2
                 valid = False
                 break
 
+            c_arm = np.zeros(nbasis, dtype=np.float64)
+            c_arm[active] = c_act
+
             model_arm = Tb_arm.dot(c_arm)
             chi2_arm  = np.dot((f_arm - model_arm) ** 2, w_arm)
 
             chi2_total   += chi2_arm
 
-            # --------------------------------------------------------
-            # EQUAL-WEIGHT coefficient mean (not IVAR-weighted).
-            #
-            # Using arm_weight = w_arm.sum() here would bias zcoeff
-            # toward whichever arm has higher scaled IVAR, making
-            # the fitz starting point sensitive to IVAR normalisation
-            # mode (balanced vs hybrid vs pixels).
-            #
-            # Equal weighting (count arms, not pixels) ensures zcoeff
-            # is completely independent of IVAR scaling and gives fitz
-            # a neutral starting point regardless of normalisation.
-            # --------------------------------------------------------
-            coeff_sum    += c_arm
-            n_arms_valid += 1
+            # Equal-weight (not IVAR-weighted) mean over the arms in which
+            # each column is active.
+            coeff_sum[active] += c_act
+            coeff_n[active]   += 1
+            n_arms_valid      += 1
+            if Tb_all is not None:
+                Tb_all.append((Tb_arm, f_arm, w_arm))
 
         if valid and n_arms_valid > 0:
             zchi2[i]  = chi2_total
-            zcoeff[i] = coeff_sum / n_arms_valid
+            zcoeff[i] = np.divide(coeff_sum, coeff_n,
+                                  out=np.zeros(nbasis), where=coeff_n > 0)
+            if diag_mean is not None:
+                diag_mean[i] = sum(
+                    np.dot((f - T.dot(zcoeff[i])) ** 2, w)
+                    for T, f, w in Tb_all)
         else:
             zchi2[i]  = HUGE_CHI2
             zcoeff[i] = 0.0
+
+    if diag_mean is not None:
+        _RR_DIAG.append(dict(zchi2=zchi2.copy(), zchi2_at_mean_coeff=diag_mean,
+                             zcoeff=zcoeff.copy()))
 
     return zchi2, zcoeff
 
@@ -378,8 +438,8 @@ import redrock.zscan
 
 redrock.zscan.calc_zchi2_batch = _patched_calc_zchi2_batch
 
-print("  [APS] Redrock coarse scan patched: per-arm independent chi2 solve")
-print("        This fixes joint PCA coefficient bias for WEAVE blue+red arms")
+print("  [APS] Redrock calc_zchi2_batch patched: per-arm independent solve "
+      "(solver=%s; override via the APS_RR_SOLVER env variable or the rr_solver argument)" % _RR_SOLVER)
 
 
 
@@ -2442,12 +2502,17 @@ def rrweave_worker(infiles, templates, srvyconf=None, zbest_fname= None, zall_fn
     comm_rank=0, comm_size=1, nminima=3, archetypes=None, cache_Rcsr= False, priors=None, chi2_scan=None, figdir=None,
     debug=False, return_outputs=False, collapse = False, collapse_fname=None, match_table=None, gpu=False, max_gpuprocs = None, catdir=None, caldir=None, configdir=None, prior_sigma=0.01, n_nearest=3,skysub_mask_residuals=True,
     spaxel_weighted_lsf=False, extinction_corr=False, extinction_ebv_scale=1.0, extinction_mapdir=None,
-    star_z_prior_sigma=None):
+    star_z_prior_sigma=None, rr_solver=None):
 
     """
     Function description:
 
     """
+
+    global _RR_SOLVER
+    if rr_solver is not None:
+        _RR_SOLVER = str(rr_solver).lower()
+    print("  [APS] multi-arm Redrock chi2 solver: %s" % _RR_SOLVER)
 
     C_LIGHT = 299792.458   # km/s
     # ----------------------------------------------------------------
@@ -3222,6 +3287,12 @@ def rrweave(options=None, comm=None):
                                                    "stage (redrock's own priors mechanism) rather "
                                                    "than post-hoc. Ignored if --priors is also set. "
                                                    "~0.0067 corresponds to ~2000 km/s.")),
+            (("--rr_solver",), dict(type=str, default=None, required=False,
+                                     choices=['perarm', 'joint'],
+                                     help="multi-arm CPU chi2 solver: 'perarm' = PyAPS per-arm "
+                                          "independent coefficients, chi2 summed (default); "
+                                          "'joint' = upstream Redrock shared-coefficient solve. "
+                                          "Default: $APS_RR_SOLVER or 'perarm'.")),
         ],
     )
 
@@ -3360,7 +3431,7 @@ def rrweave(options=None, comm=None):
         priors=args.priors, chi2_scan=args.chi2_scan, figdir=figdir, debug=args.debug, return_outputs=False, collapse=False,
         collapse_fname=None, match_table=None,gpu=args.gpu, max_gpuprocs = args.max_gpuprocs, catdir=args.catdir, caldir=args.caldir, configdir=args.configdir, skysub_mask_residuals=args.skysub_mask_residuals,
         extinction_corr=args.extinction_corr, extinction_ebv_scale=args.extinction_ebv_scale, extinction_mapdir=args.extinction_mapdir,
-        star_z_prior_sigma=args.star_z_prior_sigma)
+        star_z_prior_sigma=args.star_z_prior_sigma, rr_solver=args.rr_solver)
 
     ## Please note, if you set return_outputs=True, then the rrweave_worker function will return
     ## scandata, zbest, zspec, zfitall
