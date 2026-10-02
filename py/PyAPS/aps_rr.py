@@ -262,7 +262,10 @@ _RR_SOLVER = _os.environ.get('APS_RR_SOLVER', 'perarm').lower()
 
 # Optional diagnostics sink for tests / audits (single process only).
 # When set to a list, each multi-arm call appends a dict with the reported
-# chi2 array and the chi2 re-evaluated from the RETURNED (mean) coefficients.
+# chi2 array, the chi2 re-evaluated from the RETURNED (mean) coefficients, and
+# - at the best-chi2 trial redshift - the per-arm coefficients/chi2, a data
+# fingerprint (sum of weights*flux, sum of weights) and the calling stage
+# (names of the calling Redrock functions). It never alters the returned values.
 _RR_DIAG = None
 
 
@@ -272,6 +275,16 @@ def _patched_calc_zchi2_batch(spectra, tdata, weights, flux, wflux, nz,
                                fullprecision=True, prior=None):
     """
     Multi-arm replacement for redrock.zscan.calc_zchi2_batch (CPU only).
+
+    SCOPE (verified by namespace inspection, tests/test_rr_perarm_patch.py): only the
+    binding inside redrock.zscan is replaced. Redrock's fitz.py and archetypes.py
+    imported the original function by name before this module patched it, so they
+    keep the upstream JOINT solver. The per-arm solve is therefore active in
+      * the coarse redshift scan (zscan.calc_zchi2), and
+      * the per-camera archetype solve (zscan.per_camera_coeff_with_least_square_batch,
+        which looks the name up in the zscan namespace),
+    but NOT in the fine-scan refinement / final single-redshift coefficient call
+    in fitz.py, nor in archetypes.py's non-per-camera calls.
 
     Each arm gets its own coefficient vector (solved independently at every
     trial redshift). What is returned:
@@ -316,6 +329,7 @@ def _patched_calc_zchi2_batch(spectra, tdata, weights, flux, wflux, nz,
     zchi2  = np.zeros(nz, dtype=np.float64)
     zcoeff = np.zeros((nz, nbasis), dtype=np.float64)
     diag_mean = np.full(nz, np.nan) if _RR_DIAG is not None else None
+    _diag_arm = {}
 
     # Pre-compute per-arm pixel offsets into the concatenated arrays
     arm_offsets = []
@@ -339,6 +353,8 @@ def _patched_calc_zchi2_batch(spectra, tdata, weights, flux, wflux, nz,
         n_arms_valid   = 0
         valid          = True
         Tb_all         = [] if diag_mean is not None else None
+        arm_c_list     = []
+        arm_chi_list   = []
 
         for arm_idx, (s, i_start, i_end) in enumerate(arm_offsets):
             key    = s.wavehash
@@ -408,6 +424,9 @@ def _patched_calc_zchi2_batch(spectra, tdata, weights, flux, wflux, nz,
             n_arms_valid      += 1
             if Tb_all is not None:
                 Tb_all.append((Tb_arm, f_arm, w_arm))
+                arm_c_list.append(c_arm.copy())
+                arm_chi_list.append(float(chi2_arm))
+                _diag_arm[i] = (arm_c_list, arm_chi_list)
 
         if valid and n_arms_valid > 0:
             zchi2[i]  = chi2_total
@@ -422,8 +441,27 @@ def _patched_calc_zchi2_batch(spectra, tdata, weights, flux, wflux, nz,
             zcoeff[i] = 0.0
 
     if diag_mean is not None:
+        import sys as _sys
+        chain, fr, zctx = [], _sys._getframe(1), None
+        for _ in range(6):
+            if fr is None:
+                break
+            if len(chain) < 4:
+                chain.append(fr.f_code.co_name)
+            if zctx is None:
+                for _k in ('zbest', 'zmin'):
+                    _v = fr.f_locals.get(_k)
+                    if isinstance(_v, (float, np.floating)):
+                        zctx = float(_v)
+                        break
+            fr = fr.f_back
+        ib = int(np.argmin(zchi2))
+        ac = _diag_arm.get(ib, ([], []))
         _RR_DIAG.append(dict(zchi2=zchi2.copy(), zchi2_at_mean_coeff=diag_mean,
-                             zcoeff=zcoeff.copy()))
+                             zcoeff=zcoeff.copy(), stage=chain, z_context=zctx, nz=nz, nbasis=nbasis,
+                             i_best=ib, arm_coeffs_at_best=[c.tolist() for c in ac[0]],
+                             arm_chi2_at_best=ac[1],
+                             fingerprint=(float(np.sum(wflux)), float(np.sum(weights)))))
 
     return zchi2, zcoeff
 
@@ -438,7 +476,7 @@ import redrock.zscan
 
 redrock.zscan.calc_zchi2_batch = _patched_calc_zchi2_batch
 
-print("  [APS] Redrock calc_zchi2_batch patched: per-arm independent solve "
+print("  [APS] Redrock zscan.calc_zchi2_batch patched (coarse scan + per-camera archetype solve): per-arm independent solve "
       "(solver=%s; override via the APS_RR_SOLVER env variable or the rr_solver argument)" % _RR_SOLVER)
 
 

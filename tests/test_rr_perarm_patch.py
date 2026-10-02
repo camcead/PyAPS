@@ -166,3 +166,19 @@ def test_diag_hook(shared, monkeypatch):
     assert len(sink) == 1
     assert sink[0]["zchi2_at_mean_coeff"][0] == pytest.approx(chi2_at(coeff[0], f, w, T))
     assert sink[0]["zchi2"][0] == chi[0]
+
+
+def test_patch_scope_is_zscan_only():
+    """Documents (and pins) where the per-arm solve is active. fitz.py and archetypes.py
+    imported the upstream function by name before aps_rr patched zscan, so they keep the
+    joint solver. If this test fails, Redrock/aps_rr import order changed: update
+    doc/aps_rr.md ('Scope') and the paper text."""
+    import redrock.archetypes as arch
+    import redrock.fitz as fitz
+    import redrock.zscan as zscan
+    assert zscan.calc_zchi2_batch is aps_rr._patched_calc_zchi2_batch
+    assert fitz.calc_zchi2_batch is aps_rr._original_calc_zchi2_batch
+    assert arch.calc_zchi2_batch is aps_rr._original_calc_zchi2_batch
+    # the per-camera archetype solver resolves the name in the zscan namespace -> patched
+    assert (arch.per_camera_coeff_with_least_square_batch.__globals__["calc_zchi2_batch"]
+            is aps_rr._patched_calc_zchi2_batch)
