@@ -325,7 +325,7 @@ def read_ascii_patchfile(patch_file):
 
 
     # Read the file into a pandas DataFrame
-    df = pd.read_csv(patch_file, sep='\s+', comment='#', header=None,names=column_names)
+    df = pd.read_csv(patch_file, sep='\\s+', comment='#', header=None,names=column_names)
 
     # Convert the last column to a list
     df['CLASS'] = df['CLASS'].str.split(',')

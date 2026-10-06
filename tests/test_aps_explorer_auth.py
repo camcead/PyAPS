@@ -45,7 +45,10 @@ def test_token_round_trip(monkeypatch):
 
 def test_verify_token_bad_signature(monkeypatch):
     token = _mint(monkeypatch, {"user": "alice", "kind": "l1", "infiles": ["a.fit"]})
-    tampered = token[:-1] + ("a" if token[-1] != "a" else "b")
+    # Alter a character well inside the signature: the final base64 character can carry
+    # padding bits only, so changing it would sometimes decode to the same signature.
+    i = len(token) - 6
+    tampered = token[:i] + ("a" if token[i] != "a" else "b") + token[i + 1:]
     with pytest.raises(auth.TokenError, match="invalid"):
         auth.verify_token(tampered)
 

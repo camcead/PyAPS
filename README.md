@@ -1,7 +1,7 @@
 # PyAPS - Python-based Advance Processing System for WEAVE
 
 [![CI](https://github.com/camcead/PyAPS/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/camcead/PyAPS/actions/workflows/ci.yml)
-[![Python](https://img.shields.io/badge/Python-3.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-blue)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/Python-3.12%20%7C%203.13-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Documentation](https://img.shields.io/badge/docs-latest-brightgreen.svg)](doc/)
 [![DOI](https://zenodo.org/badge/1394828963.svg)](https://doi.org/10.5281/zenodo.23042510)
@@ -26,7 +26,7 @@ PyAPS is a Python-based platform for processing and analyzing WEAVE survey data,
 
 ### Prerequisites
 
-- Python 3.9 - 3.12 (3.11 recommended)
+- Python 3.12 or newer (3.12 is the production target; 3.13 and 3.14 are tested too)
 - `pip`; a Fortran compiler (`gfortran`) if a compiled dependency has no wheel for your platform
 - Git
 - [FERRE](externals/README.md) (only for the stellar-parameter module `aps_ferre`)
@@ -43,6 +43,14 @@ python3 -m venv ~/pyaps-venv && source ~/pyaps-venv/bin/activate   # or use a co
 python3 -m pip install -e .              # recommended: links to the source tree, finds configs/ automatically
 # python3 -m pip install .               # regular install: also set PYAPS_CONFIGDIR (see below)
 ```
+
+### Dependency versions
+
+The package follows the newest released versions of its dependencies (numpy 2.5, scipy 1.18, pandas 3, astropy 8, matplotlib 3.11,
+dash 4, plotly 7, ...). `requirements.txt` is the loose list (latest of everything) and `requirements-lock-20261006.txt` is the frozen
+set that the test suite passed on (Python 3.12); to reproduce that environment exactly:
+`pip install -r requirements-lock-20261006.txt && pip install --no-deps -e .` (add
+`--extra-index-url https://download.pytorch.org/whl/cpu` on a Linux host without a GPU).
 
 ### Choosing what to install
 

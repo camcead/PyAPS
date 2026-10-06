@@ -1374,10 +1374,12 @@ def read_voronoi_fits_table(table_file):
 
     # try 10 times with delay to handle potential file access issues
     max_attempts = 10
+    delay = 1.0  # seconds between attempts
     for attempt in range(max_attempts):
         try:
             hdul = fits.open(table_file)
-        except:
+            break
+        except Exception:
             if attempt < max_attempts - 1:
                 print(f"Attempt {attempt + 1} failed, waiting {delay}s...")
                 time.sleep(delay)

@@ -6,6 +6,15 @@ All notable changes to PyAPS are documented here. The format follows
 
 ## Unreleased
 
+### Changed (dependencies, Python)
+- Rebuilt on the newest released versions of every dependency (numpy 2.5, scipy 1.18, pandas 3.0, astropy 8.0, matplotlib 3.11, scikit-learn 1.9, plotly 7.1, dash 4.4, kaleido 1.5, flask 3.1, numba 0.68, gunicorn 26, ...). Python 3.12 is now the minimum (3.12 and 3.13 in CI; 3.14 also passes); the Docker image uses `python:3.12-slim`. Dependency floors in `pyproject.toml` follow the new versions; `requirements.txt` (loose) and `requirements-lock-20261006.txt` (frozen, tested) are new. `setuptools>=77` and an SPDX `license = "MIT"` in the packaging metadata.
+- `ssppop_fitting.py` imports `scipy.spatial.Delaunay` instead of the deprecated `scipy.spatial.qhull` module; `aps_amy.py` uses timezone-aware `datetime.now(timezone.utc)` (`utcnow()` is deprecated in 3.12).
+
+### Fixed (dependency upgrade)
+- Regular expressions and LaTeX labels written as plain string literals (`'\s*#'`, `'$\pm$'`, ...) now escape the backslash: Python 3.12 warns about the invalid escape sequences and a later version will make them syntax errors (`aps_rrlew.py`, `lsindex_spec.py`, `MOSExGalLS.py`, `IFUExGalLS.py`, `aps_ifu_prepare.py`, `aps_ifu_v0.py`, `aps_space.py`). The strings themselves are unchanged.
+- `ExGalPrepare.read_voronoi_fits_table`: the retry loop never left the loop after a successful open and referred to an undefined `delay`; it now breaks on success and waits 1 s between attempts. `aps_cubepreview.py` imports `read_ascii_patchfile`; `ssppop_fitting.py` imports its optional `corner`, `joblib` and `h5py` where they are used (they were undefined names).
+- Tests: ten explorer tests (five of them only run with real WEAVE data) asserted the old `display:block/none` behaviour of the sidebar, the old six-argument signature and three-value return of `update_map_mode`, the old callback id, and passed a dict to `aps_MOSviewer._color_by_values`; they now follow the code (sliding drawer via `transform`/`visibility`, the nine-argument callback, the `l2-info-table` CSV export, the `AppState` argument). An autouse fixture resets the explorer state between test files (the layout test failed in a full run after an earlier file loaded a dataset), and the token-tamper test changes a character inside the signature (altering the last base64 character sometimes decoded to the same signature, so it failed at random).
+
 ### Fixed
 - Redrock per-arm chi2 modification (`aps_rr.py`): per-camera archetype columns are solved on, and averaged over, the arms in which they are non-zero (the stored Legendre coefficients were diluted by 1/n_arm; reported chi2 and rankings were unaffected); an arm to which the template does not contribute now adds its weighted flux squared to the chi2, as in the upstream joint fit, instead of discarding the trial redshift.
 - `tests/test_aps_common_args.py` reads only the option lines of `--help`, skips scripts whose optional dependencies are missing, and lists the flags added since the original snapshot.

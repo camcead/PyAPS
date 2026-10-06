@@ -33,7 +33,7 @@ To run the data-dependent tests point `PYAPS_TEST_DATA` at a directory containin
 6. Open a pull request against `develop` and fill in the template.
 
 ## Conventions
-* Python >= 3.9. Match the style of the surrounding code; the project does not enforce a formatter.
+* Python >= 3.12. Match the style of the surrounding code; the project does not enforce a formatter.
 * Command-line flags shared by the `aps_*.py` scripts live in `aps_common_args.py`; a test guards
   against accidental flag changes.
 * Every new module should have a short docstring saying what it does and how to run it.

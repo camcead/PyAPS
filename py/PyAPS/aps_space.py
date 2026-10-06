@@ -376,7 +376,7 @@ def collect_spectra(file_params_root,wave_original_dict):
 
     if os.path.isfile(results_model_file):
         #load the spectra from the file results_model_file
-        result_df = pd.read_csv(results_model_file, header=None, index_col=None, names=fields_names, sep='\s+')
+        result_df = pd.read_csv(results_model_file, header=None, index_col=None, names=fields_names, sep='\\s+')
         #put the loaded spectra into the dataframe df_ (this fit the SPAce spectrum into the original wave array)
         #in this way, the resulting array will be always the same for all the stacked spectra
         df_space_spectra = pd.merge(df_,result_df,on=fields_names[0], how='left')
