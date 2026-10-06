@@ -29,7 +29,7 @@ from scipy import interpolate
 import scipy
 import astropy
 import matplotlib
-from datetime import datetime
+from datetime import datetime, timezone
 from scipy.stats.mstats import mquantiles
 # from parameters import *
 from astropy.table import Table
@@ -641,7 +641,7 @@ def modheader(hdul):
 
 def createDAT(outpath, headname, infiles, aps_ids, overwrite):
     tab = open(outpath+'/amy_wd/'+ headname+'_AMY.dat', "w")
-    tab.write("Date of creation: {}\n".format(datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')))
+    tab.write("Date of creation: {}\n".format(datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')))
     tab.write("\n")
     tab.write("######## OB info and inputs ###########\n")
     tab.write("OB: {}\n".format(os.path.splitext(os.path.basename(infiles[0]))[0].split('_')[1]))
@@ -688,7 +688,7 @@ def make_output_fits(outpath, headname, infiles, aps_ids, overwrite=True):
     hdr.comments['PROV1001']='L1 file used'
     hdr['PROV2001'] = ''
     hdr.comments['PROV2001']='L2 file used'
-    hdr['DATETIME'] = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+    hdr['DATETIME'] = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
     hdr.comments['DATETIME']='Datetime file created'
     print(hdr['PROV1001'],hdr['DATETIME'])
     empty_primary = fits.PrimaryHDU(header=hdr)

@@ -731,8 +731,8 @@ def actualseefits_LR(argumentsList, lr_list):
                     plt.plot([wave_find2[0],wave_find2[-1]],[min(filtered_noise2),min(filtered_noise2)],'cyan',linewidth=0.5)
                     plt.plot([wave_find2[0],wave_find2[-1]],[max(filtered_noise2),max(filtered_noise2)],'cyan',linewidth=0.5)
 
-                    plt.text(wave_find1[0]-35,0.7,'C=%2.3f$\pm$%2.3f SNR=%2.1f'%(noise1,std_noise1,1/std_noise1),rotation=90,fontsize=6,fontweight='ultralight')
-                    plt.text(wave_find2[0]-35,0.7,'C=%2.3f$\pm$%2.3f SNR=%2.1f'%(noise2,std_noise2,1/std_noise2),fontsize=6,rotation=90,fontweight='ultralight')
+                    plt.text(wave_find1[0]-35,0.7,'C=%2.3f$\\pm$%2.3f SNR=%2.1f'%(noise1,std_noise1,1/std_noise1),rotation=90,fontsize=6,fontweight='ultralight')
+                    plt.text(wave_find2[0]-35,0.7,'C=%2.3f$\\pm$%2.3f SNR=%2.1f'%(noise2,std_noise2,1/std_noise2),fontsize=6,rotation=90,fontweight='ultralight')
 
                     plt.plot([l_wavelength[tt],l_wavelength[tt]],[0,2],'gray',linewidth=0.2,linestyle='--') 
                     plt.text(l_wavelength[tt]-35,1.45,l_wavelength[tt],fontsize=6,rotation=90)
@@ -759,7 +759,7 @@ def actualseefits_LR(argumentsList, lr_list):
                 plt.plot(wave_find3,flux_find3,'black',linewidth=0.5)
                 plt.plot([wave_find3[0],wave_find3[-1]],[min(filtered_noise3),min(filtered_noise3)],'cyan',linewidth=0.5)
                 plt.plot([wave_find3[0],wave_find3[-1]],[max(filtered_noise3),max(filtered_noise3)],'cyan',linewidth=0.5)
-                plt.text(wave_find3[0]-35,0.9,'C=%2.3f$\pm$%2.3f SNR=%2.1f'%(noise3,std_noise3,1/std_noise3),fontsize=6,rotation=90,fontweight='ultralight')
+                plt.text(wave_find3[0]-35,0.9,'C=%2.3f$\\pm$%2.3f SNR=%2.1f'%(noise3,std_noise3,1/std_noise3),fontsize=6,rotation=90,fontweight='ultralight')
                 plt.ylim([0.3,1.5])
                 plt.tight_layout()
                 plt.savefig(pp1, format='pdf')
@@ -1672,8 +1672,8 @@ def actualseefits_LR(argumentsList, lr_list):
 
 
 
-        plt.text(wave_find1[0]-35,0.7,'C=%2.3f$\pm$%2.3f SNR=%2.1f'%(noise1,std_noise1,1/std_noise1),rotation=90,fontsize=6,fontweight='ultralight')
-        plt.text(wave_find2[0]-35,0.7,'C=%2.3f$\pm$%2.3f SNR=%2.1f'%(noise2,std_noise2,1/std_noise2),fontsize=6,rotation=90,fontweight='ultralight')
+        plt.text(wave_find1[0]-35,0.7,'C=%2.3f$\\pm$%2.3f SNR=%2.1f'%(noise1,std_noise1,1/std_noise1),rotation=90,fontsize=6,fontweight='ultralight')
+        plt.text(wave_find2[0]-35,0.7,'C=%2.3f$\\pm$%2.3f SNR=%2.1f'%(noise2,std_noise2,1/std_noise2),fontsize=6,rotation=90,fontweight='ultralight')
         #   plt.text(wave_find3[0]-35,0.7,'C=%2.3f$\pm$%2.3f SNR=%2.1f'%(noise3,std_noise3,1/std_noise3),fontsize=6,rotation=90,fontweight='ultralight')
 
         for tt in range(0, len(l_wavelength)):
@@ -1709,7 +1709,7 @@ def actualseefits_LR(argumentsList, lr_list):
         plt.plot(wave_find3,flux_find3,'black',linewidth=0.5)
         plt.plot([wave_find3[0],wave_find3[-1]],[min(filtered_noise3),min(filtered_noise3)],'cyan',linewidth=0.5)
         plt.plot([wave_find3[0],wave_find3[-1]],[max(filtered_noise3),max(filtered_noise3)],'cyan',linewidth=0.5)
-        plt.text(wave_find3[0]-35,0.9,'C=%2.3f$\pm$%2.3f SNR=%2.1f'%(noise3,std_noise3,1/std_noise3),fontsize=6,rotation=90,fontweight='ultralight')
+        plt.text(wave_find3[0]-35,0.9,'C=%2.3f$\\pm$%2.3f SNR=%2.1f'%(noise3,std_noise3,1/std_noise3),fontsize=6,rotation=90,fontweight='ultralight')
         for tt in range(0, len(l_wavelength)):
             if l_wavelength[tt]>6000:
 
@@ -1822,7 +1822,7 @@ def actualseefits_LR(argumentsList, lr_list):
 
                 wav_cen=l_wavelength[ttt]
 
-                plt.text(wav_cen-40.5,0.75,'EW(G)= %2.1f$\pm$%2.1f'%(EW_local[ttt],ERR_EW_local[ttt]),fontsize=6)
+                plt.text(wav_cen-40.5,0.75,'EW(G)= %2.1f$\\pm$%2.1f'%(EW_local[ttt],ERR_EW_local[ttt]),fontsize=6)
                 plt.text(wav_cen-40.5,0.73,'EW(G INT)= %2.1f'%(EW_local_INT[ttt]),fontsize=6)
                 plt.text(wav_cen-40.5,0.71,'EW(INT)= %2.1f'%(EW_local_INT_T[ttt]),fontsize=6)
                 
@@ -1832,8 +1832,8 @@ def actualseefits_LR(argumentsList, lr_list):
 
 
                 plt.text(wav_cen+2,1.08,'RV first= %2.2f'%(radvel_diagnos),fontsize=6)
-                plt.text(wav_cen+2,1.06,'<RV>= %2.2f$\pm$%2.2f'%(RV_gauss_meant1,RV_gauss_sigmat1),fontsize=6)
-                plt.text(wav_cen+2,1.04,'RV(ind)= %2.2f$\pm$%2.2f'%(RV_local[ttt],ERR_RV_local[ttt]),fontsize=6)
+                plt.text(wav_cen+2,1.06,'<RV>= %2.2f$\\pm$%2.2f'%(RV_gauss_meant1,RV_gauss_sigmat1),fontsize=6)
+                plt.text(wav_cen+2,1.04,'RV(ind)= %2.2f$\\pm$%2.2f'%(RV_local[ttt],ERR_RV_local[ttt]),fontsize=6)
                 plt.ylim([0.5,1.1])
                 plt.xlim([wav_cen-25,wav_cen+25])
                 plt.title(l_namewave[ttt])
@@ -2269,8 +2269,8 @@ def actualseefits_HR(argumentsList,hr_list):
                     plt.plot([wave_find2[0],wave_find2[-1]],[min(filtered_noise2),min(filtered_noise2)],'cyan',linewidth=0.5)
                     plt.plot([wave_find2[0],wave_find2[-1]],[max(filtered_noise2),max(filtered_noise2)],'cyan',linewidth=0.5)
 
-                    plt.text(wave_find1[0]-35,0.7,'C=%2.3f$\pm$%2.3f SNR=%2.1f'%(noise1,std_noise1,1/std_noise1),rotation=90,fontsize=6,fontweight='ultralight')
-                    plt.text(wave_find2[0]-35,0.7,'C=%2.3f$\pm$%2.3f SNR=%2.1f'%(noise2,std_noise2,1/std_noise2),fontsize=6,rotation=90,fontweight='ultralight')
+                    plt.text(wave_find1[0]-35,0.7,'C=%2.3f$\\pm$%2.3f SNR=%2.1f'%(noise1,std_noise1,1/std_noise1),rotation=90,fontsize=6,fontweight='ultralight')
+                    plt.text(wave_find2[0]-35,0.7,'C=%2.3f$\\pm$%2.3f SNR=%2.1f'%(noise2,std_noise2,1/std_noise2),fontsize=6,rotation=90,fontweight='ultralight')
 
                     plt.plot([l_wavelength[tt],l_wavelength[tt]],[0,2],'gray',linewidth=0.2,linestyle='--') 
                     plt.text(l_wavelength[tt]-35,1.45,l_wavelength[tt],fontsize=6,rotation=90)
@@ -2297,7 +2297,7 @@ def actualseefits_HR(argumentsList,hr_list):
                 plt.plot(wave_find3,flux_find3,'black',linewidth=0.5)
                 plt.plot([wave_find3[0],wave_find3[-1]],[min(filtered_noise3),min(filtered_noise3)],'cyan',linewidth=0.5)
                 plt.plot([wave_find3[0],wave_find3[-1]],[max(filtered_noise3),max(filtered_noise3)],'cyan',linewidth=0.5)
-                plt.text(wave_find3[0]-35,0.9,'C=%2.3f$\pm$%2.3f SNR=%2.1f'%(noise3,std_noise3,1/std_noise3),fontsize=6,rotation=90,fontweight='ultralight')
+                plt.text(wave_find3[0]-35,0.9,'C=%2.3f$\\pm$%2.3f SNR=%2.1f'%(noise3,std_noise3,1/std_noise3),fontsize=6,rotation=90,fontweight='ultralight')
                 plt.ylim([0.3,1.5])
                 plt.tight_layout()
                 plt.savefig(pp1, format='pdf')
@@ -3209,8 +3209,8 @@ def actualseefits_HR(argumentsList,hr_list):
 
 
 
-        plt.text(wave_find1[0]-35,0.7,'C=%2.3f$\pm$%2.3f SNR=%2.1f'%(noise1,std_noise1,1/std_noise1),rotation=90,fontsize=6,fontweight='ultralight')
-        plt.text(wave_find2[0]-35,0.7,'C=%2.3f$\pm$%2.3f SNR=%2.1f'%(noise2,std_noise2,1/std_noise2),fontsize=6,rotation=90,fontweight='ultralight')
+        plt.text(wave_find1[0]-35,0.7,'C=%2.3f$\\pm$%2.3f SNR=%2.1f'%(noise1,std_noise1,1/std_noise1),rotation=90,fontsize=6,fontweight='ultralight')
+        plt.text(wave_find2[0]-35,0.7,'C=%2.3f$\\pm$%2.3f SNR=%2.1f'%(noise2,std_noise2,1/std_noise2),fontsize=6,rotation=90,fontweight='ultralight')
         #   plt.text(wave_find3[0]-35,0.7,'C=%2.3f$\pm$%2.3f SNR=%2.1f'%(noise3,std_noise3,1/std_noise3),fontsize=6,rotation=90,fontweight='ultralight')
 
         #   plt.plot(item_x_T_noise[tt].a,item_x_T_noise[tt].b,'blue',lw=1)
@@ -3251,7 +3251,7 @@ def actualseefits_HR(argumentsList,hr_list):
         plt.plot(wave_find3,flux_find3,'black',linewidth=0.5)
         plt.plot([wave_find3[0],wave_find3[-1]],[min(filtered_noise3),min(filtered_noise3)],'cyan',linewidth=0.5)
         plt.plot([wave_find3[0],wave_find3[-1]],[max(filtered_noise3),max(filtered_noise3)],'cyan',linewidth=0.5)
-        plt.text(wave_find3[0]-35,0.9,'C=%2.3f$\pm$%2.3f SNR=%2.1f'%(noise3,std_noise3,1/std_noise3),fontsize=6,rotation=90,fontweight='ultralight')
+        plt.text(wave_find3[0]-35,0.9,'C=%2.3f$\\pm$%2.3f SNR=%2.1f'%(noise3,std_noise3,1/std_noise3),fontsize=6,rotation=90,fontweight='ultralight')
         
         for tt in range(0, len(l_wavelength)):
             if l_wavelength[tt]>5950:
@@ -3357,7 +3357,7 @@ def actualseefits_HR(argumentsList,hr_list):
 
                 wav_cen=l_wavelength[ttt]
 
-                plt.text(wav_cen-15.5,0.75,'EW(G)= %2.1f$\pm$%2.1f'%(EW_local[ttt],ERR_EW_local[ttt]),fontsize=6)
+                plt.text(wav_cen-15.5,0.75,'EW(G)= %2.1f$\\pm$%2.1f'%(EW_local[ttt],ERR_EW_local[ttt]),fontsize=6)
                 plt.text(wav_cen-15.5,0.73,'EW(G INT)= %2.1f'%(EW_local_INT[ttt]),fontsize=6)
                 plt.text(wav_cen-15.5,0.71,'EW(INT)= %2.1f'%(EW_local_INT_T[ttt]),fontsize=6)
                 
@@ -3367,8 +3367,8 @@ def actualseefits_HR(argumentsList,hr_list):
 
 
                 plt.text(wav_cen+2,1.08,'RV first= %2.2f'%(radvel_diagnos),fontsize=6)
-                plt.text(wav_cen+2,1.06,'<RV>= %2.2f$\pm$%2.2f'%(RV_gauss_meant1,RV_gauss_sigmat1),fontsize=6)
-                plt.text(wav_cen+2,1.04,'RV(ind)= %2.2f$\pm$%2.2f'%(RV_local[ttt],ERR_RV_local[ttt]),fontsize=6)
+                plt.text(wav_cen+2,1.06,'<RV>= %2.2f$\\pm$%2.2f'%(RV_gauss_meant1,RV_gauss_sigmat1),fontsize=6)
+                plt.text(wav_cen+2,1.04,'RV(ind)= %2.2f$\\pm$%2.2f'%(RV_local[ttt],ERR_RV_local[ttt]),fontsize=6)
                 plt.ylim([0.5,1.1])
                 plt.xlim([wav_cen-25,wav_cen+25])
                 plt.title(l_namewave[ttt])

@@ -409,7 +409,7 @@ def save_ls(metalist, configs, names, ls_indices, ls_errors, index_names, labels
 
     # Load Lick indices file to get index types
     lickfile = config_dir + configs['LS_FILE']
-    lick_table = ascii.read(lickfile, comment='\s*#')
+    lick_table = ascii.read(lickfile, comment='\\s*#')
 
     def get_index_unit(index_name):
         """
@@ -984,12 +984,12 @@ def runModule_LINESTRENGTH(LINE_STRENGTH, RESOLUTION, nthreads, configs, velscal
     logging.info(f"Spectral coverage: {wave_min:.1f} - {wave_max:.1f} Å")
 
     lickfile = config_dir+configs['LS_FILE']
-    tab   = ascii.read(lickfile, comment='\s*#')
+    tab   = ascii.read(lickfile, comment='\\s*#')
     names = tab['names']
 
 
     # Check which indices are outside wavelength coverage
-    lick_tab = ascii.read(lickfile, comment='\s*#')
+    lick_tab = ascii.read(lickfile, comment='\\s*#')
     for i, index_name in enumerate(names):
         idx_row = np.where(lick_tab['names'] == index_name)[0]
         if len(idx_row) > 0:
