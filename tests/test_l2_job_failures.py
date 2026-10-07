@@ -1,4 +1,4 @@
-"""Regression tests for the three L2 job failure families seen on a dev host running
+"""Regression tests for the four L2 job failure families seen on a dev host running
 Python 3.12 with NumPy 2.5 (no WEAVE data needed, all inputs are tiny synthetic arrays/files).
 
 1. RVS jobs: the RVS template directory came only from ``template_lib`` in
@@ -7,6 +7,8 @@ Python 3.12 with NumPy 2.5 (no WEAVE data needed, all inputs are tiny synthetic 
    ``FileNotFoundError`` deep inside astropy.
 3. PPXF jobs: ``ExGalPrepare.prepare_spec_file`` stored a size-1 array in a scalar element,
    which NumPy 2 rejects ("setting an array element with a sequence").
+4. IFU galaxy jobs: a cached LSF/FWHM ``.dill`` written under another Python minor version
+   loaded fine and then failed when called ("SystemError: error return without exception set").
 
 Run with:
     cd <PYAPS_DIR> && pytest tests/test_l2_job_failures.py -v
@@ -196,3 +198,80 @@ def test_ferre_fails_cleanly_when_rvs_output_is_missing(tmp_path):
     present = tmp_path / "rvs_single_y.fits"
     present.write_bytes(b"")
     aps_ferre.check_rvs_input(str(present))  # no exception
+
+
+# --------------------------------------------------------------------------------------
+# 4. IFU galaxy jobs: LSF/FWHM cache written under another Python minor version
+# --------------------------------------------------------------------------------------
+class _FakeInterp:
+    """Stand-in for a loaded LSF/FWHM interpolator (only the attributes the check reads)."""
+
+    def __init__(self, func, stamp="current"):
+        from PyAPS import aps_lsf
+
+        self.interpolator_dict = {"global": {"interpolate_function": func,
+                                             "wavelength_range": (3800.0, 9300.0)}}
+        if stamp == "current":
+            self._cache_python = aps_lsf._python_minor()
+        elif stamp is not None:
+            self._cache_python = stamp
+
+
+def test_lsf_cache_with_working_closure_is_usable():
+    from PyAPS import aps_lsf
+
+    ok, why = aps_lsf._lsf_cache_is_usable(_FakeInterp(lambda w: np.full_like(w, 2.0)))
+    assert ok and why == ""
+    # a cache from before the stamp existed but with a working closure is kept as is
+    ok, _ = aps_lsf._lsf_cache_is_usable(_FakeInterp(lambda w: w, stamp=None))
+    assert ok
+
+
+def test_lsf_cache_from_another_python_minor_is_rejected():
+    from PyAPS import aps_lsf
+
+    major, minor = aps_lsf._python_minor()
+    ok, why = aps_lsf._lsf_cache_is_usable(_FakeInterp(lambda w: w, stamp=(major, minor - 1)))
+    assert not ok and "Python" in why
+
+
+def test_lsf_cache_whose_closure_fails_when_called_is_rejected():
+    """What a Python 3.11 closure does under 3.12: unpickles fine, then
+    'SystemError: error return without exception set' on the first call."""
+    from PyAPS import aps_lsf
+
+    def broken(_w):
+        raise SystemError("error return without exception set")
+
+    ok, why = aps_lsf._lsf_cache_is_usable(_FakeInterp(broken, stamp=None))
+    assert not ok and "SystemError" in why
+
+
+def test_run_lsf_analysis_rebuilds_an_unusable_cache(tmp_path, monkeypatch):
+    from PyAPS import aps_lsf
+
+    cal = tmp_path / "BLUEL11_cal.fits"
+    cal.write_bytes(b"")
+    pickle_path = aps_lsf.get_output_pickle_path([str(cal)], str(tmp_path))
+    Path(pickle_path).write_bytes(b"stub")
+
+    def broken(_w):
+        raise SystemError("error return without exception set")
+
+    bad = _FakeInterp(broken, stamp=None)
+    bad._cache_format_version = aps_lsf._LSF_CACHE_FORMAT_VERSION
+    bad.set_debug = lambda *_a, **_k: None
+    bad.print_summary = lambda: None
+    monkeypatch.setattr(aps_lsf.LSFInterpolator, "load", classmethod(lambda cls, p: bad))
+
+    built = []
+
+    def fake_create(self, files, **kw):
+        built.append(files)
+        return False  # stop right after the rebuild decision
+
+    monkeypatch.setattr(aps_lsf.LSFInterpolator, "create_from_files", fake_create)
+    result = aps_lsf.run_lsf_analysis([str(cal)], figdir=None, make_plot=False,
+                                      pickle_dir=str(tmp_path), overwrite=False)
+    assert built, "an unusable cache must trigger a rebuild"
+    assert result is None  # the fake rebuild reports failure
