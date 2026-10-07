@@ -71,7 +71,7 @@ def test_flags_site_absolute_paths():
 
 def test_flags_internal_hosts_and_ips():
     assert "INFRA-HOST" in scan("ssh weave@" + "apm" + "63.example.org\n")
-    assert "INFRA-HOST" in scan("host: aps." + "weave" + "master." + "arcus\n")
+    assert "INFRA-HOST" in scan("host: aps." + "weave" + "master." + "arc" + "us\n")
     assert "INFRA-HOST" in scan("https://" + "gitlab" + ".ast.cam.ac.uk/x\n")
     assert "INFRA-IP" in scan("HOST = '" + ".".join(["131", "111", "5", "9"]) + "'\n")
 

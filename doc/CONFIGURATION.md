@@ -10,7 +10,7 @@ never committed (they are listed in `.gitignore`), see [PUBLIC_HYGIENE.md](PUBLI
 | `configs/explorer.env.example` | `configs/explorer.env` (`chmod 600`) | the explorer server / Docker deployment (shared secret, upstream URL, default data folders) |
 
 Other host-local names that are ignored by git and must never be committed: `configs/PyAPS_dms_config*`
-(database connection of the optional WDAP/DMS tooling), `configs/script_params_*.yaml`, `configs/*.bak`,
+(database connection of the optional, separately maintained database tooling), `configs/script_params_*.yaml`, `configs/*.bak`,
 `configs/*.orig`, `configs/ACTIVE_SITE`, `configs/pyaps_site.env`, `configs/*.local.*`, any `*.env`.
 
 ## Steps
