@@ -1769,7 +1769,7 @@ def add_extra_columns(input_table, match_table=None):
     """
     inputs:
     input: the original table (in astropy.table form)
-    match_table: a dictionary in the format {'path': '/data/m1_table.fits', 'hdu':1 ,'match_keys':['APS_ID', 'CNAME', 'TARGID'] , 'new_keys':['BIN_ID']}
+    match_table: a dictionary in the format {'path': '<PYAPS_DATA>/m1_table.fits', 'hdu':1 ,'match_keys':['APS_ID', 'CNAME', 'TARGID'] , 'new_keys':['BIN_ID']}
     We use it to add extra columns to the final fits file (e.g. BIN_D for IFU mode)
     """
 

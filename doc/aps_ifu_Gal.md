@@ -325,18 +325,18 @@ Check spatial binning and Voronoi before running FERRE (which can take a long ti
 
 ```bash
 python aps_Gal_worker.py \
-    --infiles /data/L1/20240808/stackcube_3071431.fit \
-              /data/L1/20240808/stackcube_3071430.fit \
+    --infiles $PYAPS_DATA/L1/20240808/stackcube_3071431.fit \
+              $PYAPS_DATA/L1/20240808/stackcube_3071430.fit \
     --headname stackcube_3071431__stackcube_3071430 \
-    --outpath  /data/L2/20240808/11182/ \
-    --patch_file /data/L2/20240808/11182/stackcube_..._targets_mod.fits \
+    --outpath  $PYAPS_DATA/L2/20240808/11182/ \
+    --patch_file $PYAPS_DATA/L2/20240808/11182/stackcube_..._targets_mod.fits \
     --IFU_config_dir <PYAPS_DIR>/configs/ExGal_configs/ \
     --IFU_params     <PYAPS_DIR>/configs/Gal_configs/LIFULR11_GAL.json \
     --wlranges 3800.0,5950.0 5900.0,9280.0 \
     --arms_ratio 1.0,1.0 \
     --sens_corr True --mask_gaps True --safe_mask_gaps True \
     --tellurics True --join_arms True \
-    --caldir /data/CAL --catdir /data/CAT
+    --caldir $PYAPS_DATA/CAL --catdir $PYAPS_DATA/CAT
 ```
 
 > **Note:** Not passing `--rvs_config`, `--ferre_exe`, or `--ferre_templates` skips the fitting modules and runs preparation only. Inspect the figures in `figs_Gal/` before proceeding.
@@ -345,11 +345,11 @@ python aps_Gal_worker.py \
 
 ```bash
 python aps_Gal_worker.py \
-    --infiles /data/L1/20240808/stackcube_3071431.fit \
-              /data/L1/20240808/stackcube_3071430.fit \
+    --infiles $PYAPS_DATA/L1/20240808/stackcube_3071431.fit \
+              $PYAPS_DATA/L1/20240808/stackcube_3071430.fit \
     --headname stackcube_3071431__stackcube_3071430 \
-    --outpath  /data/L2/20240808/11182/ \
-    --patch_file /data/L2/20240808/11182/stackcube_..._targets_mod.fits \
+    --outpath  $PYAPS_DATA/L2/20240808/11182/ \
+    --patch_file $PYAPS_DATA/L2/20240808/11182/stackcube_..._targets_mod.fits \
     --IFU_config_dir <PYAPS_DIR>/configs/ExGal_configs/ \
     --IFU_params     <PYAPS_DIR>/configs/Gal_configs/LIFULR11_GAL.json \
     --rvs_config     <PYAPS_DIR>/configs/rvs_config.yaml \
@@ -361,7 +361,7 @@ python aps_Gal_worker.py \
     --arms_ratio 1.0,1.0 \
     --sens_corr True --mask_gaps True --safe_mask_gaps True \
     --tellurics True --join_arms True \
-    --caldir /data/CAL --catdir /data/CAT
+    --caldir $PYAPS_DATA/CAL --catdir $PYAPS_DATA/CAT
 ```
 
 ### Override binning parameters at runtime
@@ -380,10 +380,10 @@ python aps_Gal_worker.py \
 
 ```bash
 python aps_Gal_worker.py \
-    --infiles /data/L1/20240808/stackcube_3071431.fit \
-              /data/L1/20240808/stackcube_3071430.fit \
+    --infiles $PYAPS_DATA/L1/20240808/stackcube_3071431.fit \
+              $PYAPS_DATA/L1/20240808/stackcube_3071430.fit \
     --headname stackcube_3071431__stackcube_3071430 \
-    --outpath  /data/L2/20240808/11182/ \
+    --outpath  $PYAPS_DATA/L2/20240808/11182/ \
     --IFU_config_dir <PYAPS_DIR>/configs/ExGal_configs/ \
     --IFU_params     <PYAPS_DIR>/configs/Gal_configs/LIFULR11_GAL.json \
     --patch_array "3,185.201,58.093,15.0,15.0,0.0001,0.0001,STAR" \
@@ -394,7 +394,7 @@ python aps_Gal_worker.py \
     --arms_ratio 1.0,1.0 \
     --sens_corr True --mask_gaps True --safe_mask_gaps True \
     --tellurics True --join_arms True \
-    --caldir /data/CAL --catdir /data/CAT
+    --caldir $PYAPS_DATA/CAL --catdir $PYAPS_DATA/CAT
 ```
 
 Note the smaller aperture (15×15 arcsec) appropriate for a point source.
@@ -423,13 +423,13 @@ python aps_Gal_worker.py \
 from PyAPS.aps_ifu_gal import ifu_Gal
 
 ifu_Gal(
-    infiles         = ["/data/L1/20240808/stackcube_3071431.fit",
-                       "/data/L1/20240808/stackcube_3071430.fit"],
+    infiles         = ["<PYAPS_DATA>/L1/20240808/stackcube_3071431.fit",
+                       "<PYAPS_DATA>/L1/20240808/stackcube_3071430.fit"],
     headname        = "stackcube_3071431__stackcube_3071430",
-    outpath         = "/data/L2/20240808/11182/",
+    outpath         = "<PYAPS_DATA>/L2/20240808/11182/",
     IFU_config_dir  = "<PYAPS_DIR>/configs/ExGal_configs/",
     IFU_params      = "<PYAPS_DIR>/configs/Gal_configs/LIFULR11_GAL.json",
-    patch_file      = "/data/L2/20240808/11182/stackcube_..._targets_mod.fits",
+    patch_file      = "<PYAPS_DATA>/L2/20240808/11182/stackcube_..._targets_mod.fits",
     rvs_config      = "<PYAPS_DIR>/configs/rvs_config.yaml",
     ferre_exe       = "<FERRE_DIR>/src/ferre.x",
     ferre_templates = "<PYAPS_DIR>/PyAPS_templates/templates_FERRE/",
@@ -442,7 +442,7 @@ ifu_Gal(
     arms_ratio      = [1.0, 1.0],
     sens_corr=True, mask_gaps=True, safe_mask_gaps=True,
     tellurics=True, join_arms=True,
-    caldir="/data/CAL", catdir="/data/CAT",
+    caldir="<PYAPS_DATA>/CAL", catdir="<PYAPS_DATA>/CAT",
 )
 ```
 
@@ -474,7 +474,7 @@ ifu_Gal(
     nthreads        = 4,
     wlranges=[[3800.0, 5950.0], [5900.0, 9280.0]],
     arms_ratio=[1.0, 1.0],
-    caldir="/data/CAL",
+    caldir="<PYAPS_DATA>/CAL",
 )
 ```
 
@@ -486,11 +486,11 @@ For inspection of the preparation stage only:
 from PyAPS.aps_ifu_gal import ifu_Gal_prepare
 
 prep = ifu_Gal_prepare(
-    infiles        = ["/data/L1/20240808/stackcube_3071431.fit",
-                      "/data/L1/20240808/stackcube_3071430.fit"],
+    infiles        = ["<PYAPS_DATA>/L1/20240808/stackcube_3071431.fit",
+                      "<PYAPS_DATA>/L1/20240808/stackcube_3071430.fit"],
     headname       = "stackcube_3071431__stackcube_3071430_P0003",
     IFU_params     = "<PYAPS_DIR>/configs/Gal_configs/LIFULR11_GAL.json",
-    outpath        = "/data/L2/20240808/11182/",
+    outpath        = "<PYAPS_DATA>/L2/20240808/11182/",
     z_input        = [0.0, 0.001],
     area           = [185.201, 58.093, 15.0, 15.0, 0.0],
     spbin_size_gal = 3.0,
@@ -502,7 +502,7 @@ prep = ifu_Gal_prepare(
     sens_corr=True, mask_gaps=True, safe_mask_gaps=True,
     tellurics=True,
     IFU_config_dir = "<PYAPS_DIR>/configs/ExGal_configs/",
-    caldir         = "/data/CAL",
+    caldir         = "<PYAPS_DATA>/CAL",
 )
 
 if prep is not None:

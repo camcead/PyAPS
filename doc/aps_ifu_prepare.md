@@ -219,10 +219,10 @@ in a single run.
 
 ```bash
 python aps_ifu_prepare.py \
-    --infiles /data/L1/20240808/stackcube_3071431.fit \
-              /data/L1/20240808/stackcube_3071430.fit \
+    --infiles $PYAPS_DATA/L1/20240808/stackcube_3071431.fit \
+              $PYAPS_DATA/L1/20240808/stackcube_3071430.fit \
     --headname stackcube_3071431__stackcube_3071430 \
-    --outpath  /data/L2/20240808/11182/ \
+    --outpath  $PYAPS_DATA/L2/20240808/11182/ \
     --IFU_config_dir <PYAPS_DIR>/configs/ExGal_configs/ \
     --IFU_params     <PYAPS_DIR>/configs/ExGal_configs/LIFULR11.json \
     --wlranges 3800.0,5950.0  5900.0,9280.0 \
@@ -242,8 +242,8 @@ python aps_ifu_prepare.py \
     --class_templates     <PYAPS_DIR>/PyAPS_templates/templates_RR_PCA/ \
     --class_templates_ARC <PYAPS_DIR>/PyAPS_templates/templates_RR_ARC/ \
     --class_z_rad         2.5 \
-    --caldir /data/CAL \
-    --catdir /data/CAT
+    --caldir $PYAPS_DATA/CAL \
+    --catdir $PYAPS_DATA/CAT
 ```
 
 ### Segmentation parameters explained
@@ -456,10 +456,10 @@ not a seg3d-specific rule.
 
 ```bash
 python aps_ifu_prepare.py \
-    --infiles /data/L1/20240808/stackcube_3071431.fit \
-              /data/L1/20240808/stackcube_3071430.fit \
+    --infiles $PYAPS_DATA/L1/20240808/stackcube_3071431.fit \
+              $PYAPS_DATA/L1/20240808/stackcube_3071430.fit \
     --headname stackcube_3071431__stackcube_3071430 \
-    --outpath  /data/L2/20240808/11182/ \
+    --outpath  $PYAPS_DATA/L2/20240808/11182/ \
     --IFU_config_dir <PYAPS_DIR>/configs/ExGal_configs/ \
     --IFU_params     <PYAPS_DIR>/configs/ExGal_configs/LIFULR11.json \
     --wlranges 3800.0,5950.0  5900.0,9280.0 \
@@ -846,7 +846,7 @@ Always inspect the patch file before running Stage 2. A quick Python check:
 ```python
 from astropy.table import Table
 
-t = Table.read("/data/L2/20240808/11182/"
+t = Table.read("<PYAPS_DATA>/L2/20240808/11182/"
                "stackcube_3071431__stackcube_3071430_targets.fits")
 
 for row in t:
@@ -867,7 +867,7 @@ from PyAPS.aps_ifu_tools import (
 )
 
 headname = "stackcube_3071431__stackcube_3071430"
-outpath  = "/data/L2/20240808/11182/"
+outpath  = "<PYAPS_DATA>/L2/20240808/11182/"
 
 # Load and summarise all rows
 data  = explore_patch_table(headname, outpath)
@@ -973,7 +973,7 @@ for that source use this as their root name.
 from PyAPS.aps_ifu_utils import test_patch_table, load_and_split_patch_file
 
 wp_table, ctarg_excluded = load_and_split_patch_file(
-    "/data/L2/20240808/11182/stackcube_..._targets_mod.fits")
+    "<PYAPS_DATA>/L2/20240808/11182/stackcube_..._targets_mod.fits")
 
 # Validation — prints warnings for any detected issues
 test_patch_table(wp_table, mode="ExGal")
@@ -1005,11 +1005,11 @@ committing to the full fitting run (which can take hours per field):
 
 ```bash
 python aps_ExGal_worker.py \
-    --infiles /data/L1/20240808/stackcube_3071431.fit \
-              /data/L1/20240808/stackcube_3071430.fit \
+    --infiles $PYAPS_DATA/L1/20240808/stackcube_3071431.fit \
+              $PYAPS_DATA/L1/20240808/stackcube_3071430.fit \
     --headname stackcube_3071431__stackcube_3071430 \
-    --outpath  /data/L2/20240808/11182/ \
-    --patch_file /data/L2/20240808/11182/stackcube_3071431__stackcube_3071430_targets_mod.fits \
+    --outpath  $PYAPS_DATA/L2/20240808/11182/ \
+    --patch_file $PYAPS_DATA/L2/20240808/11182/stackcube_3071431__stackcube_3071430_targets_mod.fits \
     --IFU_config_dir  <PYAPS_DIR>/configs/ExGal_configs/ \
     --ExGal_templates <PYAPS_DIR>/PyAPS_templates/templates_ExGal/ \
     --IFU_params      <PYAPS_DIR>/configs/ExGal_configs/LIFULR11.json \
@@ -1018,7 +1018,7 @@ python aps_ExGal_worker.py \
     --arms_ratio 1.0,1.0 \
     --sens_corr True --mask_gaps True --safe_mask_gaps True \
     --tellurics True --join_arms True \
-    --caldir /data/CAL --catdir /data/CAT
+    --caldir $PYAPS_DATA/CAL --catdir $PYAPS_DATA/CAT
 ```
 
 Inspect the diagnostic plots in `figs_ExGal/` before proceeding to the full run.
@@ -1027,11 +1027,11 @@ Inspect the diagnostic plots in `figs_ExGal/` before proceeding to the full run.
 
 ```bash
 python aps_ExGal_worker.py \
-    --infiles /data/L1/20240808/stackcube_3071431.fit \
-              /data/L1/20240808/stackcube_3071430.fit \
+    --infiles $PYAPS_DATA/L1/20240808/stackcube_3071431.fit \
+              $PYAPS_DATA/L1/20240808/stackcube_3071430.fit \
     --headname stackcube_3071431__stackcube_3071430 \
-    --outpath  /data/L2/20240808/11182/ \
-    --patch_file /data/L2/20240808/11182/stackcube_3071431__stackcube_3071430_targets_mod.fits \
+    --outpath  $PYAPS_DATA/L2/20240808/11182/ \
+    --patch_file $PYAPS_DATA/L2/20240808/11182/stackcube_3071431__stackcube_3071430_targets_mod.fits \
     --IFU_config_dir  <PYAPS_DIR>/configs/ExGal_configs/ \
     --ExGal_templates <PYAPS_DIR>/PyAPS_templates/templates_ExGal/ \
     --IFU_params      <PYAPS_DIR>/configs/ExGal_configs/LIFULR11.json \
@@ -1041,7 +1041,7 @@ python aps_ExGal_worker.py \
     --arms_ratio 1.0,1.0 \
     --sens_corr True --mask_gaps True --safe_mask_gaps True \
     --tellurics True --join_arms True \
-    --caldir /data/CAL --catdir /data/CAT
+    --caldir $PYAPS_DATA/CAL --catdir $PYAPS_DATA/CAT
 ```
 
 ### Single-target debug mode
@@ -1051,10 +1051,10 @@ patch file. This is the fastest way to test a particular galaxy:
 
 ```bash
 python aps_ExGal_worker.py \
-    --infiles /data/L1/20240808/stackcube_3071431.fit \
-              /data/L1/20240808/stackcube_3071430.fit \
+    --infiles $PYAPS_DATA/L1/20240808/stackcube_3071431.fit \
+              $PYAPS_DATA/L1/20240808/stackcube_3071430.fit \
     --headname stackcube_3071431__stackcube_3071430 \
-    --outpath  /data/L2/20240808/11182/ \
+    --outpath  $PYAPS_DATA/L2/20240808/11182/ \
     --IFU_config_dir  <PYAPS_DIR>/configs/ExGal_configs/ \
     --ExGal_templates <PYAPS_DIR>/PyAPS_templates/templates_ExGal/ \
     --IFU_params      <PYAPS_DIR>/configs/ExGal_configs/LIFULR11.json \
@@ -1064,7 +1064,7 @@ python aps_ExGal_worker.py \
     --arms_ratio 1.0,1.0 \
     --sens_corr True --mask_gaps True --safe_mask_gaps True \
     --tellurics True --join_arms True \
-    --caldir /data/CAL --catdir /data/CAT
+    --caldir $PYAPS_DATA/CAL --catdir $PYAPS_DATA/CAT
 ```
 
 The `--patch_array` format is fixed-order, comma-separated:
@@ -1094,10 +1094,10 @@ patch = make_patch_array(
 )
 
 ifu_ExGal(
-    infiles         = ["/data/L1/20240808/stackcube_3071431.fit",
-                       "/data/L1/20240808/stackcube_3071430.fit"],
+    infiles         = ["<PYAPS_DATA>/L1/20240808/stackcube_3071431.fit",
+                       "<PYAPS_DATA>/L1/20240808/stackcube_3071430.fit"],
     headname        = "stackcube_3071431__stackcube_3071430",
-    outpath         = "/data/L2/20240808/11182/",
+    outpath         = "<PYAPS_DATA>/L2/20240808/11182/",
     IFU_config_dir  = "<PYAPS_DIR>/configs/ExGal_configs/",
     ExGal_templates = "<PYAPS_DIR>/PyAPS_templates/templates_ExGal/",
     IFU_params      = "<PYAPS_DIR>/configs/ExGal_configs/LIFULR11.json",
@@ -1108,7 +1108,7 @@ ifu_ExGal(
     arms_ratio      = [1.0, 1.0],
     sens_corr=True, mask_gaps=True, safe_mask_gaps=True,
     tellurics=True, join_arms=True,
-    caldir="/data/CAL", catdir="/data/CAT",
+    caldir="<PYAPS_DATA>/CAL", catdir="<PYAPS_DATA>/CAT",
 )
 ```
 
@@ -1157,11 +1157,11 @@ FERRE stellar atmosphere models and optionally the RVS radial velocity module.
 
 ```bash
 python aps_Gal_worker.py \
-    --infiles /data/L1/20240808/stackcube_3071431.fit \
-              /data/L1/20240808/stackcube_3071430.fit \
+    --infiles $PYAPS_DATA/L1/20240808/stackcube_3071431.fit \
+              $PYAPS_DATA/L1/20240808/stackcube_3071430.fit \
     --headname stackcube_3071431__stackcube_3071430 \
-    --outpath  /data/L2/20240808/11182/ \
-    --patch_file /data/L2/20240808/11182/stackcube_3071431__stackcube_3071430_targets_mod.fits \
+    --outpath  $PYAPS_DATA/L2/20240808/11182/ \
+    --patch_file $PYAPS_DATA/L2/20240808/11182/stackcube_3071431__stackcube_3071430_targets_mod.fits \
     --IFU_config_dir <PYAPS_DIR>/configs/Gal_configs/ \
     --IFU_params     <PYAPS_DIR>/configs/Gal_configs/LIFULR11_GAL.json \
     --ferre_exe       <FERRE_DIR>/src/ferre.x \
@@ -1171,7 +1171,7 @@ python aps_Gal_worker.py \
     --arms_ratio 1.0,1.0 \
     --sens_corr True --mask_gaps True --safe_mask_gaps True \
     --tellurics True --join_arms True \
-    --caldir /data/CAL --catdir /data/CAT
+    --caldir $PYAPS_DATA/CAL --catdir $PYAPS_DATA/CAT
 ```
 
 ### Choosing Gal binning parameters
@@ -1215,10 +1215,10 @@ To generate and optionally submit scripts for a specific observation:
 from PyAPS.aps_runner import ifu_scriptGEN
 
 ifu_scriptGEN(
-    infiles  = ["/data/L1/20240808/stackcube_3071431.fit",
-                "/data/L1/20240808/stackcube_3071430.fit"],
+    infiles  = ["<PYAPS_DATA>/L1/20240808/stackcube_3071431.fit",
+                "<PYAPS_DATA>/L1/20240808/stackcube_3071430.fit"],
     headname = "stackcube_3071431__stackcube_3071430",
-    outpath  = "/data/L2/20240808/11182/",
+    outpath  = "<PYAPS_DATA>/L2/20240808/11182/",
     conf     = pipeline_conf,    # loaded from pipeline_params.yaml
     mp       = [1, 6, 4],        # [prepare_threads, ExGal_threads, Gal_threads]
     submit   = True,             # submit to SLURM immediately
@@ -1357,13 +1357,13 @@ To quickly compare different spatial bin sizes or Voronoi target SNR values:
 
 ```bash
 python aps_ifu_exgal_diag.py \
-    --infiles /data/L1/20240808/stackcube_3071431.fit \
-              /data/L1/20240808/stackcube_3071430.fit \
+    --infiles $PYAPS_DATA/L1/20240808/stackcube_3071431.fit \
+              $PYAPS_DATA/L1/20240808/stackcube_3071430.fit \
     --headname stackcube_3071431__stackcube_3071430 \
-    --outpath  /data/L2/20240808/11182/ \
+    --outpath  $PYAPS_DATA/L2/20240808/11182/ \
     --IFU_config_dir <PYAPS_DIR>/configs/ExGal_configs/ \
     --IFU_params     <PYAPS_DIR>/configs/ExGal_configs/LIFULR11.json \
-    --patch_file /data/L2/20240808/11182/stackcube_..._targets_mod.fits \
+    --patch_file $PYAPS_DATA/L2/20240808/11182/stackcube_..._targets_mod.fits \
     --scan_spbin 0.5,1.0,1.5,2.0 \
     --scan_target_snr 20,30,40 \
     --figdir_suffix diag
@@ -1473,7 +1473,7 @@ make_rrplot(
     zbest          = zbest,
     zspec          = zspec,
     setups         = [["BLU"], ["RED"]],
-    figdir         = "/data/L2/20240808/11182/figs_ExGal/",
+    figdir         = "<PYAPS_DATA>/L2/20240808/11182/figs_ExGal/",
     collapse_fname = "P0001_debug",
 )
 ```

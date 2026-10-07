@@ -29,7 +29,7 @@ Usage examples
   from PyAPS.aps_ifu_tools import explore_patch_table, edit_patch_table
 
   # Explore
-  result = explore_patch_table('WA_P0001', '/data/L2/12345/')
+  result = explore_patch_table('WA_P0001', '<PYAPS_DATA>/L2/<night>/<obid>/')
 
   # Grab the base table and tweak a row
   tbl = result['targets']
@@ -38,7 +38,7 @@ Usage examples
   save_patch_table(tbl, result['targets_path'])
 
   # Or use the interactive CLI
-  edit_patch_table('WA_P0001', '/data/L2/12345/')
+  edit_patch_table('WA_P0001', '<PYAPS_DATA>/L2/<night>/<obid>/')
 """
 
 import os

@@ -73,10 +73,10 @@ versions:
 Example:
 for MOS mode (Main APS and CS):
 
-python3.8 /PyAPS/py/PyAPS/aps_runner.py --infiles <PYAPS_DATA>/star_test/stacked_1002046.fit <PYAPS_DATA>/star_test/stacked_1002045.fit --config_file <PYAPS_DIR>/configs/script_params.yaml --cat_list None --aps_ids 1007,1006 --wlranges 3900.0,4900.0 7000.0,8100.0 --mod_wlranges False --targsrvy None --targclass None --mask_aps_ids None --area None --mask_areas None --headname 'stacked_1002046__stacked_1002045' --hname_suffix 'test' --uapsid 'None' --log False --aps_ovr False --CS_ovr False --run_CS True --run_L2 True --mp_LIFU 2 --mp_MIFU 2 --mp_MOS 6,8,10,8,8,4,1 --mp_CS 3,6,3,6,6,1,1 --CPS_path True --hpc 0 --seg2d_white_images None --patch_file None
+python3 <PYAPS_DIR>/py/PyAPS/aps_runner.py --infiles <PYAPS_DATA>/star_test/stacked_1002046.fit <PYAPS_DATA>/star_test/stacked_1002045.fit --config_file <PYAPS_DIR>/configs/script_params.yaml --cat_list None --aps_ids 1007,1006 --wlranges 3900.0,4900.0 7000.0,8100.0 --mod_wlranges False --targsrvy None --targclass None --mask_aps_ids None --area None --mask_areas None --headname 'stacked_1002046__stacked_1002045' --hname_suffix 'test' --uapsid 'None' --log False --aps_ovr False --CS_ovr False --run_CS True --run_L2 True --mp_LIFU 2 --mp_MIFU 2 --mp_MOS 6,8,10,8,8,4,1 --mp_CS 3,6,3,6,6,1,1 --CPS_path True --hpc 0 --seg2d_white_images None --patch_file None
 
 for IFU mode:
-python3.8 /PyAPS/py/PyAPS/aps_runner.py --infiles <PYAPS_DATA>/opr4_Jan2022/20211220/stackcubelet_2811196_01.fit <PYAPS_DATA>/opr4_Jan2022/20211220/stackcubelet_2811203_01.fit --config_file <PYAPS_DIR>/configs/script_params.yaml --cat_list None --aps_ids None --wlranges 3900.0,4900.0 7000.0,8100.0 --mod_wlranges False --targsrvy None --targclass None --mask_aps_ids None  --hname_suffix 'test'  --headname 'stackcubelet_2811196_01__stackcubelet_2811195_01' --uapsid 'None' --log False --aps_ovr False --CS_ovr False --run_CS True --run_L2 --mp_LIFU 2 --mp_MIFU 2 --CPS_path True --hpc 0 --seg2d_white_images None --patch_file <PYAPS_DIR>/PyAPS_results/mIFU/20211220/stackcubelet_2811196_01__stackcubelet_2811203_01_targets.fits
+python3 <PYAPS_DIR>/py/PyAPS/aps_runner.py --infiles <PYAPS_DATA>/opr4_Jan2022/20211220/stackcubelet_2811196_01.fit <PYAPS_DATA>/opr4_Jan2022/20211220/stackcubelet_2811203_01.fit --config_file <PYAPS_DIR>/configs/script_params.yaml --cat_list None --aps_ids None --wlranges 3900.0,4900.0 7000.0,8100.0 --mod_wlranges False --targsrvy None --targclass None --mask_aps_ids None  --hname_suffix 'test'  --headname 'stackcubelet_2811196_01__stackcubelet_2811195_01' --uapsid 'None' --log False --aps_ovr False --CS_ovr False --run_CS True --run_L2 --mp_LIFU 2 --mp_MIFU 2 --CPS_path True --hpc 0 --seg2d_white_images None --patch_file <PYAPS_DIR>/PyAPS_results/mIFU/20211220/stackcubelet_2811196_01__stackcubelet_2811203_01_targets.fits
 
 IFU(CT)
 python3.10 <PYAPS_DIR>/py/PyAPS/aps_runner.py --infiles <PYAPS_DATA>/CT/20221025/stackcube_2963103.fit <PYAPS_DATA>/CT/20221025/stackcube_2963102.fit --config_file <PYAPS_DIR>/configs/script_params.yaml --cat_list None --aps_ids None --wlranges None --mod_wlranges True --targsrvy None --targclass None --mask_aps_ids None --headname 'stackcube_2963103__stackcube_2963102' --hname_suffix 'CT' --uapsid '20220302030402' --log False --aps_ovr False --CS_ovr False --run_CS True --run_L2 --mp_LIFU 2 --mp_MIFU 2 --CPS_path True --hpc 0 --seg2d_white_images None --patch_file None --seg2d_white_images None
@@ -2352,9 +2352,11 @@ def scriptGen_runner(options=None):
 ############################################################################################
 
 if __name__ == '__main__':
+    # DEMO settings: edit for your setup. Replace the <PYAPS_DATA>, <PYAPS_DIR>, <night>, <runid>, <obid>
+    # markers below with your own locations and identifiers (no machine paths belong in this repository).
 
     # STAR TEST
-    MOS1_demo = ['--infiles', '<PYAPS_DATA>/star_test/stacked_1002046.fit', '<PYAPS_DATA>/star_test/stacked_1002045.fit',
+    MOS1_demo = ['--infiles', '<PYAPS_DATA>/star_test/stacked_<runid>.fit', '<PYAPS_DATA>/star_test/stacked_<runid>.fit',
         '--config_file' , '<PYAPS_DIR>/configs/script_params.yaml',
         '--cat_list' , 'None',
         '--aps_ids', '1007,1006',
@@ -2383,7 +2385,7 @@ if __name__ == '__main__':
 
 
     # GALAXY TEST
-    MOS2_demo = ['--infiles', '<PYAPS_DATA>/gal_test/superstack_100001.fits', '<PYAPS_DATA>/gal_test/superstack_100000.fits',
+    MOS2_demo = ['--infiles', '<PYAPS_DATA>/gal_test/superstack_<runid>.fits', '<PYAPS_DATA>/gal_test/superstack_<runid>.fits',
         '--config_file' , '<PYAPS_DIR>/configs/script_params.yaml',
         '--cat_list' , 'None',
         '--aps_ids', '1007,1006',
@@ -2411,7 +2413,7 @@ if __name__ == '__main__':
         '--mp_CS','2']
 
     # MIFU test
-    IFU1_demo = ['--infiles', '<PYAPS_DATA>/L1/20240515/stackcube_3059328.fit','<PYAPS_DATA>/L1/20240515/stackcube_3059327.fit',
+    IFU1_demo = ['--infiles', '<PYAPS_DATA>/L1/<night>/stackcube_<runid>.fit','<PYAPS_DATA>/L1/<night>/stackcube_<runid>.fit',
         '--config_file' , '<PYAPS_DIR>/configs/script_params.yaml',
         '--cat_list' , 'None',
         '--aps_ids', 'None',

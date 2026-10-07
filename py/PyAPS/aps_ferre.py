@@ -2199,12 +2199,14 @@ def ferre_weave(options=None):
 #################################################################################################
 
 if __name__ == '__main__':
+    # DEMO settings: edit for your setup. Replace the <PYAPS_DATA>, <PYAPS_DIR>, <night>, <runid>, <obid>
+    # markers below with your own locations and identifiers (no machine paths belong in this repository).
 
-    MOS_demo = ['--infiles', '<PYAPS_DATA>/20160908/3133/stack_1002226.fit', '<PYAPS_DATA>/20160908/3133/stack_1002225.fit',
-    '--classfile' , '<PYAPS_DIR>/PyAPS_results/20160908/3133/zbest_stack_1002226__stack_1002225.fits',
-    '--rvsfile' , '<PYAPS_DIR>/PyAPS_results/20160908/3133/rvs_stack_1002226__stack_1002225.fits',
+    MOS_demo = ['--infiles', '<PYAPS_DATA>/<night>/<obid>/stack_<runid>.fit', '<PYAPS_DATA>/<night>/<obid>/stack_<runid>.fit',
+    '--classfile' , '<PYAPS_DIR>/PyAPS_results/<night>/<obid>/zbest_stack_<runid>__stack_<runid>.fits',
+    '--rvsfile' , '<PYAPS_DIR>/PyAPS_results/<night>/<obid>/rvs_stack_<runid>__stack_<runid>.fits',
     '--templates' , '<PYAPS_DIR>/PyAPS_templates/templates_FR/',
-    '--outpath', '<PYAPS_DIR>/PyAPS_results/20160908/3133_2/',
+    '--outpath', '<PYAPS_DIR>/PyAPS_results/<night>/3133_2/',
     '--aps_ids', '1006,1007', # or 'None' to run for all available fibreids
     '--grid_prefix' , 'n', # other options: 'm': 5D grids, 'p':PCA compressed 5D grids
     '--targsrvy', 'None',
@@ -2212,7 +2214,7 @@ if __name__ == '__main__':
     '--mask_aps_ids', 'None',
     '--area', 'None',
     '--mask_areas', 'None',
-    '--headname', 'stack_1002226__stack_1002225',
+    '--headname', 'stack_<runid>__stack_<runid>',
     '--wlranges', 'None',
     '--outspec' , 'True',
     '--overwrite', 'True',

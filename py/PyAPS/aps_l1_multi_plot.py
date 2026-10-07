@@ -295,11 +295,13 @@ def l1_preview(options=None):
 
 
 if __name__ == '__main__':
+    # DEMO settings: edit for your setup. Replace the <PYAPS_DATA>, <PYAPS_DIR>, <night>, <runid>, <obid>
+    # markers below with your own locations and identifiers (no machine paths belong in this repository).
     M15_demo= [
-    '--infiles','<PYAPS_DATA>/L1/20230924/stack_3024723.fit','<PYAPS_DATA>/L1/20230924/stack_3024722.fit',
-    '--infiles_list', '<PYAPS_DATA>/L1/20230924/filelist_20230924.cat',
+    '--infiles','<PYAPS_DATA>/L1/<night>/stack_<runid>.fit','<PYAPS_DATA>/L1/<night>/stack_<runid>.fit',
+    '--infiles_list', '<PYAPS_DATA>/L1/<night>/filelist_20230924.cat',
     # '--infiles_list', 'None',
-    '--l2_reference', '<PYAPS_DATA>/L1/20230924/l2_reference.fits',
+    '--l2_reference', '<PYAPS_DATA>/L1/<night>/l2_reference.fits',
     '--aps_ids', 'None',
     '--targsrvy', 'None',
     '--targclass', 'None',

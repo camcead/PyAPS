@@ -2482,12 +2482,14 @@ def load_lsf_interpolator(pickle_path):
 # =============================================================================
 
 if __name__ == "__main__":
+    # DEMO settings: edit for your setup. Replace the <PYAPS_DATA>, <PYAPS_DIR>, <night>, <runid>, <obid>
+    # markers below with your own locations and identifiers (no machine paths belong in this repository).
 
     print("\n" + "="*80)
     print("🎨 LSF INTERPOLATOR - EXAMPLES")
     print("="*80)
 
-    lsfdir = "<PYAPS_DATA>/LSF/20250630"
+    lsfdir = "<PYAPS_DATA>/LSF/<night>"
     output_dir = "<PYAPS_DATA>/L2_dev/lsf_test"
     os.makedirs(output_dir, exist_ok=True)
 

@@ -988,14 +988,16 @@ def aps_L2merge(options=None):
 
 #####################################################################
 if __name__ == '__main__':
+    # DEMO settings: edit for your setup. Replace the <PYAPS_DATA>, <PYAPS_DIR>, <night>, <runid>, <obid>
+    # markers below with your own locations and identifiers (no machine paths belong in this repository).
 
     #MOS example1
 
     # #MOS example2
     # debug_demo1= [
-    # '--infiles', '<PYAPS_DATA>/gal_test/superstack_100001.fits', '<PYAPS_DATA>/gal_test/superstack_100000.fits',
-    # '--outpath', '<PYAPS_DIR>/PyAPS_results/20170223/3800/',
-    # '--headname' , 'superstack_100001__superstack_100000',
+    # '--infiles', '<PYAPS_DATA>/gal_test/superstack_<runid>.fits', '<PYAPS_DATA>/gal_test/superstack_<runid>.fits',
+    # '--outpath', '<PYAPS_DIR>/PyAPS_results/<night>/<obid>/',
+    # '--headname' , 'superstack_<runid>__superstack_<runid>',
     # '--wlranges', '4500.0,6200.0', '5800.0,7000.0', # or 'None' to use the whole available wlrange
     # '--outfile_suffix' , '_APS',
     # '--EMIPPXF_LEVEL', 'BIN',
@@ -1005,9 +1007,9 @@ if __name__ == '__main__':
 
     #MOS example2
     debug_demo2= [
-    '--infiles', '<PYAPS_DATA>/gal_test/superstack_100001.fits', '<PYAPS_DATA>/gal_test/superstack_100000.fits',
-    '--outpath', '$HOME//PyAPS/PyAPS_results/20170223/3800/',
-    '--headname' , 'superstack_100001__superstack_100000',
+    '--infiles', '<PYAPS_DATA>/gal_test/superstack_<runid>.fits', '<PYAPS_DATA>/gal_test/superstack_<runid>.fits',
+    '--outpath', '$HOME//PyAPS/PyAPS_results/<night>/<obid>/',
+    '--headname' , 'superstack_<runid>__superstack_<runid>',
     '--wlranges', 'None',
     '--outfile_suffix' , '_APS',
     '--EMIPPXF_LEVEL', 'BIN',
@@ -1019,9 +1021,9 @@ if __name__ == '__main__':
 
     # #IFU mode
     # debug_demo3= [
-    # '--infiles', '<PYAPS_DATA>/gal_test/superstack_100001.fits', '<PYAPS_DATA>/gal_test/superstack_100000.fits',
-    # '--outpath', '<PYAPS_DIR>/PyAPS_results/20170223/3800/',
-    # '--headname' , 'superstack_100001__superstack_100000',
+    # '--infiles', '<PYAPS_DATA>/gal_test/superstack_<runid>.fits', '<PYAPS_DATA>/gal_test/superstack_<runid>.fits',
+    # '--outpath', '<PYAPS_DIR>/PyAPS_results/<night>/<obid>/',
+    # '--headname' , 'superstack_<runid>__superstack_<runid>',
     # '--wlranges', '4500.0,6200.0', '5800.0,7000.0', # or 'None' to use the whole available wlrange
     # '--outfile_suffix' , '_APS',
     # '--EMIPPXF_LEVEL', 'BIN',

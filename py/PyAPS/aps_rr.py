@@ -3480,11 +3480,13 @@ def rrweave(options=None, comm=None):
 
 ##########################################################
 if __name__ == '__main__':
+    # DEMO settings: edit for your setup. Replace the <PYAPS_DATA>, <PYAPS_DIR>, <night>, <runid>, <obid>
+    # markers below with your own locations and identifiers (no machine paths belong in this repository).
 
 
 
     ##  TEST 1
-    debug_demo= ['--infiles', '<PYAPS_DATA>_dev/L1/star_test/stacked_1002046.fit', '<PYAPS_DATA>_dev/L1/star_test/stacked_1002045.fit',
+    debug_demo= ['--infiles', '<PYAPS_DATA>_dev/L1/star_test/stacked_<runid>.fit', '<PYAPS_DATA>_dev/L1/star_test/stacked_<runid>.fit',
     '--aps_ids', '1006,1007', # or 'None' to run for all available fibreids
     '--targsrvy', 'None',
     '--targclass', 'None',
@@ -3503,8 +3505,8 @@ if __name__ == '__main__':
     '--templates', '<PYAPS_DIR>/PyAPS_templates/templates_RR/',
     '--srvyconf', '<PYAPS_DIR>/configs/weave_cls.json',
     '--archetypes', '<PYAPS_DIR>/PyAPS_templates/templates_ARC_RR/',
-    '--outpath', '<PYAPS_DATA>_dev/L2/20160903/3294/',
-    '--headname', 'stacked_1002046__stacked_1002045',
+    '--outpath', '<PYAPS_DATA>_dev/L2/<night>/<obid>/',
+    '--headname', 'stacked_<runid>__stacked_<runid>',
     '--zall', 'True',
     '--priors', 'None',
     '--chi2_scan', 'None',
@@ -3524,7 +3526,7 @@ if __name__ == '__main__':
     ]
 
     ## TEST 2
-    debug_demo= ['--infiles', '<PYAPS_DATA>/L1/20240308/single_3048995.fit', '<PYAPS_DATA>/L1/20240308/single_3048994.fit',
+    debug_demo= ['--infiles', '<PYAPS_DATA>/L1/<night>/single_<runid>.fit', '<PYAPS_DATA>/L1/<night>/single_<runid>.fit',
     '--aps_ids', 'None',
     '--targsrvy', 'None',
     '--targclass', 'None',
@@ -3544,8 +3546,8 @@ if __name__ == '__main__':
     '--srvyconf', '<PYAPS_DIR>/configs/weave_cls.json',
     # '--archetypes', '<PYAPS_DIR>/PyAPS_templates/templates_ARC_RR/',
     '--archetypes', 'None',
-    '--outpath', '<PYAPS_DATA>/L2/20240308_test/12052/',
-    '--headname', 'single_3048995__single_3048994_test',
+    '--outpath', '<PYAPS_DATA>/L2/<night>_test/<obid>/',
+    '--headname', 'single_<runid>__single_<runid>_test',
     '--zall', 'True',
     '--priors', 'None',
     '--chi2_scan', 'None',

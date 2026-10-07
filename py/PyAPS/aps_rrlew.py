@@ -10,7 +10,7 @@ The code is consist of two main functions:
 
 Version 3.0
 Command line run:
-python3 aps_rrlew.py --apsfile <PYAPS_DIR>/PyAPS_results/20160908/3434/stack_1002250__stack_1002249_APS.fits --infiles <PYAPS_DATA>/opr4_jan2022/20160908/stack_1002250.fit <PYAPS_DATA>/opr4_jan2022/20160908/stack_1002249.fit --outpath <PYAPS_DIR>/PyAPS_results/20160908/3434/ --headname stack_1002250__stack_1002249 --targclass STAR_RRL --aps_ids 418,293 --hr_lines <PYAPS_DIR>/CS/RRLEW/gala_test_HR_RRLYR_list.in --lr_lines <PYAPS_DIR>/CS/RRLEW/gala_test_LR_RRLYR_list.in
+python3 aps_rrlew.py --apsfile <PYAPS_DIR>/PyAPS_results/<night>/<obid>/stack_<runid>__stack_<runid>_APS.fits --infiles <PYAPS_DATA>/opr4_jan2022/<night>/stack_<runid>.fit <PYAPS_DATA>/opr4_jan2022/<night>/stack_<runid>.fit --outpath <PYAPS_DIR>/PyAPS_results/<night>/<obid>/ --headname stack_<runid>__stack_<runid> --targclass STAR_RRL --aps_ids 418,293 --hr_lines <PYAPS_DIR>/CS/RRLEW/gala_test_HR_RRLYR_list.in --lr_lines <PYAPS_DIR>/CS/RRLEW/gala_test_LR_RRLYR_list.in
 
 
 
@@ -3941,13 +3941,15 @@ def rrlew_weave(options=None):
 
 
 if __name__ == '__main__':
+    # DEMO settings: edit for your setup. Replace the <PYAPS_DATA>, <PYAPS_DIR>, <night>, <runid>, <obid>
+    # markers below with your own locations and identifiers (no machine paths belong in this repository).
 
     debug_demo = [
-        '--apsfile', '<PYAPS_DIR>/PyAPS_results/20160908/3434/stack_1002250__stack_1002249_APS.fits',
-        '--infiles', '<PYAPS_DATA>/opr4_jan2022/20160908/stack_1002250.fit', '<PYAPS_DATA>/opr4_jan2022/20160908/stack_1002249.fit',
+        '--apsfile', '<PYAPS_DIR>/PyAPS_results/<night>/<obid>/stack_<runid>__stack_<runid>_APS.fits',
+        '--infiles', '<PYAPS_DATA>/opr4_jan2022/<night>/stack_<runid>.fit', '<PYAPS_DATA>/opr4_jan2022/<night>/stack_<runid>.fit',
         '--targclass', 'STAR_RRL',
-        '--outpath', '<PYAPS_DIR>/PyAPS_results/20160908/3434/',
-        '--headname', 'stack_1002250__stack_1002249',
+        '--outpath', '<PYAPS_DIR>/PyAPS_results/<night>/<obid>/',
+        '--headname', 'stack_<runid>__stack_<runid>',
         '--aps_ids', '418,293',#768,605,641,83,461,1005,942,457,390,260,881,33,559,345,749,680,99,334,780,981',
         '--hr_lines', '<PYAPS_DIR>/CS/RRLEW/gala_test_HR_RRLYR_list.in',
         '--lr_lines', '<PYAPS_DIR>/CS/RRLEW/gala_test_LR_RRLYR_list.in',

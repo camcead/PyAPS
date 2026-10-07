@@ -1463,13 +1463,15 @@ def exgal_runner(options=None):
 
 
 if __name__ == "__main__":
+    # DEMO settings: edit for your setup. Replace the <PYAPS_DATA>, <PYAPS_DIR>, <night>, <runid>, <obid>
+    # markers below with your own locations and identifiers (no machine paths belong in this repository).
     debug_LIFU = [
         "--infiles",
-        "<PYAPS_DATA>/L1/20240515/stackcube_3059328.fit",
-        "<PYAPS_DATA>/L1/20240515/stackcube_3059327.fit",
-        "--headname",        "LWVE_15383969+5921201_01_GR_H1",
-        "--outpath",         "<PYAPS_DATA>/L2/20240515/12958/",
-        "--patch_file",      "<PYAPS_DATA>/L2/20240515/12958/LWVE_15383969+5921201_01_GR_H1_targets_mod.fits",
+        "<PYAPS_DATA>/L1/<night>/stackcube_<runid>.fit",
+        "<PYAPS_DATA>/L1/<night>/stackcube_<runid>.fit",
+        "--headname",        "LWVE_<target>_01_GR_H1",
+        "--outpath",         "<PYAPS_DATA>/L2/<night>/<obid>/",
+        "--patch_file",      "<PYAPS_DATA>/L2/<night>/<obid>/LWVE_<target>_01_GR_H1_targets_mod.fits",
         "--IFU_config_dir",  "<PYAPS_DIR>/configs/ExGal_configs/",
         "--ExGal_templates", "<PYAPS_DIR>/PyAPS_templates/templates_ExGal/",
         "--IFU_params",      "<PYAPS_DIR>/configs/ExGal_configs/LIFUHR11.json",

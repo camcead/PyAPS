@@ -114,3 +114,20 @@ temp/
 *.key
 id_rsa*
 *secret*
+.env
+.env.*
+!*.env.example
+!.env.example
+.netrc
+*.p12
+*.pfx
+*.kdbx
+
+# Real (host-local) configuration: only templates (*.example) are tracked.
+# See docs/PUBLIC_HYGIENE.md
+PyAPS_dms_config*.json
+!PyAPS_dms_config*.example
+script_params_*.yaml
+script_params_*.yml
+script_params.local.yaml
+*credentials*

@@ -37,7 +37,7 @@ def _mint(monkeypatch, claims, secret=_TEST_SECRET):
 
 def test_token_round_trip(monkeypatch):
     claims = {"user": "alice", "allowed_surveys": ["WL2022A1"], "kind": "l2",
-              "outpath": "/data/L2/20230514", "headname": "LWVE_123"}
+              "outpath": "/fake_root/L2/20230514", "headname": "LWVE_123"}
     token = _mint(monkeypatch, claims)
     decoded = auth.verify_token(token)
     assert decoded == claims
@@ -92,12 +92,12 @@ def test_apply_token_and_current_auth(monkeypatch):
     assert auth.current_auth(bundle) is None
 
     claims = {"user": "alice", "allowed_surveys": ["WL2022A1", "WL2022A2"],
-              "kind": "l2", "outpath": "/data/L2/x", "headname": "h1"}
+              "kind": "l2", "outpath": "/fake_root/L2/x", "headname": "h1"}
     auth.apply_token(bundle, claims)
     stored = auth.current_auth(bundle)
     assert stored["user"] == "alice"
     assert stored["allowed_surveys"] == {"WL2022A1", "WL2022A2"}
-    assert stored["authorized_dataset"] == ("l2", "/data/L2/x", "h1")
+    assert stored["authorized_dataset"] == ("l2", "/fake_root/L2/x", "h1")
 
     # A second token replaces the first — moving to a new dataset, not
     # accumulating permissions.
@@ -125,18 +125,18 @@ def test_check_load_authorized_allows_matching_dataset(monkeypatch):
     monkeypatch.setattr(auth, "REQUIRE_WEAVEOR_AUTH", True)
     bundle = SessionBundle()
     auth.apply_token(bundle, {"user": "alice", "allowed_surveys": ["WL2022A1"],
-                               "kind": "l2", "outpath": "/data/L2/x", "headname": "h1"})
-    assert auth.check_load_authorized(bundle, "l2", outpath="/data/L2/x", headname="h1") is None
+                               "kind": "l2", "outpath": "/fake_root/L2/x", "headname": "h1"})
+    assert auth.check_load_authorized(bundle, "l2", outpath="/fake_root/L2/x", headname="h1") is None
 
 
 def test_check_load_authorized_rejects_different_dataset(monkeypatch):
     monkeypatch.setattr(auth, "REQUIRE_WEAVEOR_AUTH", True)
     bundle = SessionBundle()
     auth.apply_token(bundle, {"user": "alice", "allowed_surveys": ["WL2022A1"],
-                               "kind": "l2", "outpath": "/data/L2/x", "headname": "h1"})
+                               "kind": "l2", "outpath": "/fake_root/L2/x", "headname": "h1"})
     # Same kind, different headname — must NOT be allowed just because a
     # valid auth exists on the session at all.
-    error = auth.check_load_authorized(bundle, "l2", outpath="/data/L2/x", headname="h2")
+    error = auth.check_load_authorized(bundle, "l2", outpath="/fake_root/L2/x", headname="h2")
     assert error is not None
     assert "not authorized" in error
 
@@ -164,9 +164,9 @@ def test_record_dataset_loaded():
 
     # Replaces, same as apply_token — a fresh deep link is a new
     # navigation event, not an accumulation.
-    auth.record_dataset_loaded(bundle, "l2", outpath="/data/L2/x", headname="h1")
+    auth.record_dataset_loaded(bundle, "l2", outpath="/fake_root/L2/x", headname="h1")
     stored2 = auth.current_auth(bundle)
-    assert stored2["authorized_dataset"] == ("l2", "/data/L2/x", "h1")
+    assert stored2["authorized_dataset"] == ("l2", "/fake_root/L2/x", "h1")
 
 
 def test_check_load_authorized_multi_session_no_record_rejected(monkeypatch):
@@ -199,8 +199,8 @@ def test_check_load_authorized_multi_session_mismatched_record_rejected(monkeypa
     monkeypatch.setattr(auth, "REQUIRE_WEAVEOR_AUTH", False)
     monkeypatch.setattr(sess, "MULTI_SESSION", True)
     bundle = SessionBundle()
-    auth.record_dataset_loaded(bundle, "l2", outpath="/data/L2/x", headname="h1")
-    error = auth.check_load_authorized(bundle, "l2", outpath="/data/L2/x", headname="h2")
+    auth.record_dataset_loaded(bundle, "l2", outpath="/fake_root/L2/x", headname="h1")
+    error = auth.check_load_authorized(bundle, "l2", outpath="/fake_root/L2/x", headname="h2")
     assert error is not None
     assert "different dataset" in error
 
@@ -213,9 +213,9 @@ def test_check_load_authorized_multi_session_honors_real_token_too(monkeypatch):
     monkeypatch.setattr(sess, "MULTI_SESSION", True)
     bundle = SessionBundle()
     auth.apply_token(bundle, {"user": "alice", "allowed_surveys": ["WL2022A1"],
-                               "kind": "l2", "outpath": "/data/L2/x", "headname": "h1"})
-    assert auth.check_load_authorized(bundle, "l2", outpath="/data/L2/x", headname="h1") is None
-    assert auth.check_load_authorized(bundle, "l2", outpath="/data/L2/x", headname="h2") is not None
+                               "kind": "l2", "outpath": "/fake_root/L2/x", "headname": "h1"})
+    assert auth.check_load_authorized(bundle, "l2", outpath="/fake_root/L2/x", headname="h1") is None
+    assert auth.check_load_authorized(bundle, "l2", outpath="/fake_root/L2/x", headname="h2") is not None
 
 
 def test_check_load_authorized_standalone_unaffected_by_multi_session_flag(monkeypatch):
@@ -249,11 +249,11 @@ def test_locked_load_form_never_renders_the_real_path(monkeypatch):
     # that happens to read the default bundle afterward.
     saved_slots = dict(_DEFAULT_BUNDLE.slots)
     try:
-        secret_path = "/srv/weave/L1/20260101/super_secret_stack_9999999.fit"
-        auth.record_dataset_loaded(_DEFAULT_BUNDLE, "l1", infiles=[secret_path])
+        locked_path = "/fake_root/L1/20260101/super_secret_stack_9999999.fit"
+        auth.record_dataset_loaded(_DEFAULT_BUNDLE, "l1", infiles=[locked_path])
 
         rendered = str(ex._load_form())
-        assert secret_path not in rendered
+        assert locked_path not in rendered
         assert "Dataset fixed for this session" in rendered
         # The component still exists (empty) -- Dash's own State
         # resolution for handle_l1_load needs it present, even though
@@ -278,15 +278,15 @@ def test_log_panel_redacts_real_paths_in_server_mode_only(monkeypatch):
 
     monkeypatch.setattr(sess, "MULTI_SESSION", True)
     cases = {
-        ">>> Loading L1 dataset: ['/srv/weave/L1/20240105/single_3039505.fit', "
-        "'/srv/weave/L1/20240105/single_3039506.fit']":
+        ">>> Loading L1 dataset: ['/fake_root/L1/20240105/single_3039505.fit', "
+        "'/fake_root/L1/20240105/single_3039506.fit']":
             ">>> Loading L1 dataset: ['single_3039505.fit', 'single_3039506.fit']",
-        "[ARM 0] Starting vectorized processing: /srv/weave/L1/20240105/single_3039506.fit":
+        "[ARM 0] Starting vectorized processing: /fake_root/L1/20240105/single_3039506.fit":
             "[ARM 0] Starting vectorized processing: single_3039506.fit",
-        ">>> Loading L2 product: /srv/weave/L2/20240105/single_3039506__single_3039505_APS.fits":
+        ">>> Loading L2 product: /fake_root/L2/20240105/single_3039506__single_3039505_APS.fits":
             ">>> Loading L2 product: single_3039506__single_3039505_APS.fits",
         # A real WEAVE filename contains "+" (declination sign) -- must survive.
-        "Analysing /srv/weave/L1/20240105/LWVE_08370302+6946308_01_BR_L1_P0001_APS.fits file":
+        "Analysing /fake_root/L1/20240105/LWVE_08370302+6946308_01_BR_L1_P0001_APS.fits file":
             "Analysing LWVE_08370302+6946308_01_BR_L1_P0001_APS.fits file",
         "a line with no path at all": "a line with no path at all",
     }
@@ -294,7 +294,7 @@ def test_log_panel_redacts_real_paths_in_server_mode_only(monkeypatch):
         assert ex._redact_paths(line) == expected
 
     monkeypatch.setattr(sess, "MULTI_SESSION", False)
-    unredacted = "/srv/weave/L1/20240105/single_3039506.fit"
+    unredacted = "/fake_root/L1/20240105/single_3039506.fit"
     assert ex._redact_paths(unredacted) == unredacted, "standalone mode must stay completely unaffected"
 
 
@@ -306,10 +306,10 @@ def test_log_buffer_add_applies_redaction_in_server_mode(monkeypatch):
 
     monkeypatch.setattr(sess, "MULTI_SESSION", True)
     buf = ex._LogBuffer()
-    buf.add("", "Loading /srv/weave/L1/20240105/single_3039506.fit now")
+    buf.add("", "Loading /fake_root/L1/20240105/single_3039506.fit now")
     snapshot = buf.snapshot()
     assert len(snapshot) == 1
-    assert "/srv/weave" not in snapshot[0]
+    assert "/fake_root" not in snapshot[0]
     assert "single_3039506.fit" in snapshot[0]
 
 
@@ -330,8 +330,8 @@ def test_l1_deep_link_falls_back_to_default_caldir_catdir(monkeypatch):
 
     monkeypatch.setattr(sess, "MULTI_SESSION", False)
     monkeypatch.setattr(auth, "REQUIRE_WEAVEOR_AUTH", False)
-    monkeypatch.setattr(sess, "DEFAULT_CALDIR", "/srv/weave/CAL")
-    monkeypatch.setattr(sess, "DEFAULT_CATDIR", "/srv/weave/CAT")
+    monkeypatch.setattr(sess, "DEFAULT_CALDIR", "/fake_root/CAL")
+    monkeypatch.setattr(sess, "DEFAULT_CATDIR", "/fake_root/CAT")
 
     captured = {}
 
@@ -351,8 +351,8 @@ def test_l1_deep_link_falls_back_to_default_caldir_catdir(monkeypatch):
     try:
         # No caldir/catdir in the deep link at all -> must fall back.
         ex.handle_url_handoff("?kind=l1&infiles=/tmp/a.fit", 0)
-        assert captured["caldir"] == "/srv/weave/CAL"
-        assert captured["catdir"] == "/srv/weave/CAT"
+        assert captured["caldir"] == "/fake_root/CAL"
+        assert captured["catdir"] == "/fake_root/CAT"
 
         # An explicit caldir/catdir in the deep link must still win over
         # the default -- this is a fallback, not an override.
@@ -376,8 +376,8 @@ def test_l1_form_load_falls_back_to_default_caldir_catdir(monkeypatch):
 
     monkeypatch.setattr(sess, "MULTI_SESSION", False)
     monkeypatch.setattr(auth, "REQUIRE_WEAVEOR_AUTH", False)
-    monkeypatch.setattr(sess, "DEFAULT_CALDIR", "/srv/weave/CAL")
-    monkeypatch.setattr(sess, "DEFAULT_CATDIR", "/srv/weave/CAT")
+    monkeypatch.setattr(sess, "DEFAULT_CALDIR", "/fake_root/CAL")
+    monkeypatch.setattr(sess, "DEFAULT_CATDIR", "/fake_root/CAT")
 
     captured = {}
 
@@ -409,8 +409,8 @@ def test_l1_form_load_falls_back_to_default_caldir_catdir(monkeypatch):
             configdir=None, flags=None, advanced_flags=None, lsftype=None, ivar_norm_mode=None,
             edge_pixels=None, gap_offset_pix=None, funit=None, template_sigma0=None, version=1,
         )
-        assert captured["caldir"] == "/srv/weave/CAL"
-        assert captured["catdir"] == "/srv/weave/CAT"
+        assert captured["caldir"] == "/fake_root/CAL"
+        assert captured["catdir"] == "/fake_root/CAT"
     finally:
         _DEFAULT_BUNDLE.slots.clear()
         _DEFAULT_BUNDLE.slots.update(saved_slots)
