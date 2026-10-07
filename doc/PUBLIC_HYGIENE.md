@@ -16,6 +16,7 @@ The rule applies to every branch and every commit you push. It is enforced autom
 | Internal hosts / IPs | machine names of the processing or archive hosts, cluster login nodes, Imperial/Cambridge institutional hosts, any IPv4 address (except `127.0.0.1`, `0.0.0.0`) | everywhere |
 | Personal accounts / e-mails | login names of staff or service accounts, e-mail addresses of individuals (contributors too) | everywhere |
 | Absolute machine paths | `/home/...`, `/data/...`, `/scratch/...`, `/Users/...`, `/mnt/...`, `/srv/...`, `C:\Users\...` | everywhere |
+| Real values in templates | a `*.example` file whose secret/user/host/url/mail key holds anything but a `<...>` placeholder or `${VAR}` | every `*.example` file, never waivable |
 | Real data identifiers | night directories (`/20240808/`), run numbers (`stack_3071431.fit`), observation / plate directories (`/12958/`), real target names (`LWVE_...`) | **module headers and `__main__` demo blocks** of Python files |
 | Any absolute path at all | `/some/where/results` | module headers and `__main__` demo blocks (stricter than the rest of the tree) |
 
@@ -31,6 +32,8 @@ Use these in docs, comments, examples, test data and demo blocks:
 | `<night>`, `<runid>`, `<obid>`, `<target>` | night directory, run number, observation id, target name |
 | `<DB_HOST>`, `<DB_USER>`, `<DB_PASSWORD>`, `<token>` | anything that would identify or open a service |
 | `~/...`, `$HOME/...` | per-user locations |
+| `<env_suffix>` | empty for production, `_dev` for the development environment (`L2<env_suffix>` = `L2` or `L2_dev`); never hard-code either |
+| `<db_name>` | result-database name (development uses the same name with the `_dev` suffix, never the production one) |
 | `/data` after a colon in `docker run -v <PYAPS_DATA>:/data:ro` | container-side mount point (not a host path) |
 
 Runtime code never hard-codes a machine path. Resolve locations from, in this order, an explicit option,
@@ -63,8 +66,10 @@ if __name__ == '__main__':
 * `.pre-commit-config.yaml` has a local `public-hygiene` hook (`pre-commit install`).
 * `.github/workflows/ci.yml` runs the scanner and the test on every push and pull request to `main`, `dev`
   and `prod`.
+* `tools/check_config.py` is the user-side counterpart: after copying a template to its local name it reports every
+  `<...>` placeholder not yet filled in. See [CONFIGURATION.md](CONFIGURATION.md).
 * `.gitignore` keeps real host-local files (`PyAPS_dms_config*.json`, `script_params_<site>.yaml`, `*.env`,
-  keys) out of the repository. Commit only templates named `*.example` with placeholder values.
+  keys) out of the repository. Commit only templates named `*.example` with placeholder values (`script_params.yaml.example`, `explorer.env.example`).
 
 ## The allow-list
 

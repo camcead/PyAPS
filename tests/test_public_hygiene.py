@@ -155,3 +155,57 @@ def test_every_aps_module_demo_block_is_scanned():
         if "__name__" in text and "__main__" in text:
             ranges = hyg.python_demo_ranges(str(p), text)
             assert ranges, p.name
+
+
+# ----------------------------------------------------------------------------------------
+# *.example templates may contain placeholders only; local configs are ignored by git
+# ----------------------------------------------------------------------------------------
+def test_example_templates_allow_only_placeholders_for_sensitive_keys():
+    bad = "PYAPS_EXPLORER_WEAVEOR_" + "SECRET=Abc123longvalue\nDB_HOST=db" + ".example.org\n"
+    rules = {r for _, _, r, _ in hyg.scan_text("configs/x.env.example", bad, [])}
+    assert "EXAMPLE-VALUE" in rules
+    good = (
+        "PYAPS_EXPLORER_WEAVEOR_SECRET=<long random secret>\n"
+        "PYAPS_EXPLORER_WEAVEOR_URL=<https URL of the upstream app>\n"
+        "PYAPS_EXPLORER_MULTI_SESSION=1\n"
+        "venv_path: '$HOME/venv/bin/activate'\n"
+        '"password": "****",\n'
+        "# DB_HOST=commented lines are ignored\n"
+    )
+    assert not {r for _, _, r, _ in hyg.scan_text("configs/x.env.example", good, [])} & {"EXAMPLE-VALUE"}
+    # the same line in a non-template file is not judged by this rule
+    assert "EXAMPLE-VALUE" not in {r for _, _, r, _ in hyg.scan_text("configs/x.cfg", bad, [])}
+
+
+def test_example_value_rule_cannot_be_allowlisted():
+    assert "EXAMPLE-VALUE" in hyg.NEVER_ALLOW
+
+
+def test_shipped_templates_exist_and_local_configs_are_ignored():
+    assert (ROOT / "configs" / "script_params.yaml.example").is_file()
+    assert (ROOT / "configs" / "explorer.env.example").is_file()
+    if not _in_git_checkout():
+        return
+    tracked = set(hyg.tracked_files())
+    assert "configs/script_params.yaml" not in tracked, "the filled-in local file must not be tracked"
+    for name in ("configs/script_params.yaml", "configs/explorer.env", "configs/PyAPS_dms_config.json",
+                 "configs/script_params_mysite.yaml", "configs/pyaps_site.env", "configs/ACTIVE_SITE",
+                 "configs/script_params.yaml.bak"):
+        r = subprocess.run(["git", "check-ignore", "-q", name], cwd=ROOT)
+        assert r.returncode == 0, f"{name} must be git-ignored"
+    for name in ("configs/script_params.yaml.example", "configs/explorer.env.example"):
+        r = subprocess.run(["git", "check-ignore", "-q", name], cwd=ROOT)
+        assert r.returncode != 0, f"{name} (a template) must not be ignored"
+
+
+def test_check_config_reports_unfilled_placeholders(tmp_path):
+    spec = importlib.util.spec_from_file_location("check_config", ROOT / "tools" / "check_config.py")
+    cc = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cc)
+    f = tmp_path / "local.env"
+    f.write_text("A=<fill me in>\nB=ok\n# C=<commented>\nD=${SURELY_UNSET_VARIABLE_XYZ}\n")
+    problems = cc.check_file(f)
+    assert any("unfilled placeholder <fill me in>" in p for p in problems)
+    assert any("SURELY_UNSET_VARIABLE_XYZ" in p for p in problems)
+    assert not any("<commented>" in p for p in problems)
+    assert cc.check_file(tmp_path / "missing.yaml")[0].endswith("missing")

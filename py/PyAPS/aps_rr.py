@@ -3486,7 +3486,7 @@ if __name__ == '__main__':
 
 
     ##  TEST 1
-    debug_demo= ['--infiles', '<PYAPS_DATA>_dev/L1/star_test/stacked_<runid>.fit', '<PYAPS_DATA>_dev/L1/star_test/stacked_<runid>.fit',
+    debug_demo= ['--infiles', '<PYAPS_DATA>/L1<env_suffix>/star_test/stacked_<runid>.fit', '<PYAPS_DATA>/L1<env_suffix>/star_test/stacked_<runid>.fit',
     '--aps_ids', '1006,1007', # or 'None' to run for all available fibreids
     '--targsrvy', 'None',
     '--targclass', 'None',
@@ -3505,7 +3505,7 @@ if __name__ == '__main__':
     '--templates', '<PYAPS_DIR>/PyAPS_templates/templates_RR/',
     '--srvyconf', '<PYAPS_DIR>/configs/weave_cls.json',
     '--archetypes', '<PYAPS_DIR>/PyAPS_templates/templates_ARC_RR/',
-    '--outpath', '<PYAPS_DATA>_dev/L2/<night>/<obid>/',
+    '--outpath', '<PYAPS_DATA>/L2<env_suffix>/<night>/<obid>/',
     '--headname', 'stacked_<runid>__stacked_<runid>',
     '--zall', 'True',
     '--priors', 'None',
@@ -3546,7 +3546,7 @@ if __name__ == '__main__':
     '--srvyconf', '<PYAPS_DIR>/configs/weave_cls.json',
     # '--archetypes', '<PYAPS_DIR>/PyAPS_templates/templates_ARC_RR/',
     '--archetypes', 'None',
-    '--outpath', '<PYAPS_DATA>/L2/<night>_test/<obid>/',
+    '--outpath', '<PYAPS_DATA>/L2<env_suffix>/<night>_test/<obid>/',
     '--headname', 'single_<runid>__single_<runid>_test',
     '--zall', 'True',
     '--priors', 'None',

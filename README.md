@@ -504,11 +504,40 @@ metadata = apsob.get_metadata()
 
 ## Configuration
 
+### Configuration: first-time setup
+
+The repository ships **templates**, not installation-specific configuration. Before the first run you
+**must copy each `*.example` file to its local name and fill in every value for your own installation**:
+
+```bash
+cp configs/script_params.yaml.example configs/script_params.yaml      # pipeline parameters (aps_runner --config_file)
+cp configs/explorer.env.example       configs/explorer.env            # only for the explorer server / Docker
+chmod 600 configs/explorer.env                                        # it holds a shared secret
+python tools/check_config.py                                          # reports every <...> still unfilled
+```
+
+| Local file (git-ignored) | What to enter |
+|---|---|
+| `configs/script_params.yaml` | output / catalogue / calibration / XML folders (`PyAPS_RES`, `CS_RES`, `PyAPS_CAT`, `PyAPS_CAL`, `PyAPS_XML`), template and external-program locations, optional virtual environment (`use_venv`, `venv_path`), per-module processing defaults |
+| `configs/explorer.env` | `PYAPS_EXPLORER_WEAVEOR_SECRET` (a long random secret), upstream app URL, default calibration / catalogue folders, session limits |
+
+Placeholders: `<...>` is a value you must supply (`tools/check_config.py` lists every one left),
+`${PYAPS_HOME}` is the root of your PyAPS working tree, `<env_suffix>` is empty for a production
+environment and `_dev` for a development environment (data trees `L1_dev`, `L2_dev`, ... next to the
+production ones). **The local files are ignored by git: never commit them or paste them into issues.**
+Every key is explained in [doc/CONFIGURATION.md](doc/CONFIGURATION.md), which also has the safe steps for
+migrating a host that used to edit a tracked `configs/script_params.yaml` in place. The public-repository
+rules (no secrets, hosts or absolute paths anywhere in tracked files) are in
+[doc/PUBLIC_HYGIENE.md](doc/PUBLIC_HYGIENE.md).
+
+### Configuration files
+
 Configuration files are located in the `configs/` directory:
 
-- `script_params.yaml` — main pipeline parameters. Paths inside it use `${PYAPS_HOME}` /
+- `script_params.yaml.example` — template of the main pipeline parameters (copy it to the local, git-ignored
+  `script_params.yaml`, see above). Paths inside it use `${PYAPS_HOME}` /
   `${PYAPS_PKG_DIR}` (see [Environment variables](#environment-variables)), so it works unchanged
-  from any checkout. Copy it (e.g. `configs/script_params_mysite.yaml`) and pass the copy with
+  from any checkout. Make further copies (e.g. `configs/script_params_mysite.yaml`, also ignored) and pass them with
   `--config_file` when you want different output directories, module settings or resources.
 - `ExGal_configs/` — per-instrument-mode IFU/MOS extragalactic configuration and LSF settings.
 - `rvs_config.yaml`, `weave_cls.json`, `APS_FLAGS.json`, ... — module-specific configuration.

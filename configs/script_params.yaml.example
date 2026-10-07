@@ -1,11 +1,29 @@
+# =====================================================================================================
+# script_params.yaml.example  --  TEMPLATE. Do not edit in place and never commit a filled-in copy.
+#
+# First-time setup:   cp configs/script_params.yaml.example configs/script_params.yaml
+#                     (edit the local copy; it is ignored by git)  then check it with
+#                     python tools/check_config.py
+#
+# Every value below is either a documented default or a placeholder you must replace:
+#   * ${PYAPS_HOME}        root of your PyAPS working tree (export PYAPS_HOME=...; see README, "Environment variables")
+#   * ${PYAPS_PKG_DIR}     folder with the aps_*.py modules (set automatically by aps_runner)
+#   * <...>                a value that has no default: replace it, the checker reports every one left
+#   * <env_suffix>         environment suffix of the data trees: EMPTY for the production environment, `_dev` for the
+#                          development environment (data trees L1_dev, L2_dev, CS_dev, CAT_dev, CAL_dev, XML_dev next to
+#                          the production ones). Replace it in every key that has it; never point dev at the prod trees.
+# Pass the local file to the runner with  --config_file configs/script_params.yaml
+# Section banners (####) and the comments above a key explain what to enter; booleans/numbers are quoted
+# strings on purpose (the runner converts them).
+# =====================================================================================================
 
 # General PARAMS
 PyAPS_DIR: '${PYAPS_PKG_DIR}'
-PyAPS_RES: '${PYAPS_HOME}/PyAPS_local/PyAPS_data/L2'
-CS_RES: '${PYAPS_HOME}/PyAPS_local/PyAPS_data/CS'
-PyAPS_CAT: '${PYAPS_HOME}/PyAPS_local/PyAPS_data/CAT'
-PyAPS_CAL: '${PYAPS_HOME}/PyAPS_local/PyAPS_data/CAL'
-PyAPS_XML: '${PYAPS_HOME}/PyAPS_local/PyAPS_data/XML'
+PyAPS_RES: '${PYAPS_HOME}/PyAPS_local/PyAPS_data/L2<env_suffix>'
+CS_RES: '${PYAPS_HOME}/PyAPS_local/PyAPS_data/CS<env_suffix>'
+PyAPS_CAT: '${PYAPS_HOME}/PyAPS_local/PyAPS_data/CAT<env_suffix>'
+PyAPS_CAL: '${PYAPS_HOME}/PyAPS_local/PyAPS_data/CAL<env_suffix>'
+PyAPS_XML: '${PYAPS_HOME}/PyAPS_local/PyAPS_data/XML<env_suffix>'
 PyAPS_CONFIG: '${PYAPS_HOME}/configs'
 PyAPS_EXGALCONFIG: '${PYAPS_HOME}/configs/ExGal_configs'
 templates_RR: '${PYAPS_HOME}/PyAPS_local/PyAPS_templates/templates_RR'

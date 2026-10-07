@@ -131,3 +131,18 @@ script_params_*.yaml
 script_params_*.yml
 script_params.local.yaml
 *credentials*
+
+# ---- Host-local configuration (never tracked; only *.example templates are) ----------------------
+# Copy configs/<name>.example to configs/<name>, fill in every value, see doc/CONFIGURATION.md
+configs/script_params.yaml
+configs/script_params_*.yaml
+configs/PyAPS_dms_config*
+!configs/PyAPS_dms_config*.example
+configs/*.bak
+configs/*.orig
+configs/ACTIVE_SITE
+configs/pyaps_site.env
+configs/*.local.*
+configs/explorer.env
+*.env
+!*.env.example
