@@ -60,7 +60,7 @@ RULES = {
     ),
     "SECRET-ASSIGN": (
         re.compile(
-            r"""(?ix)\b(?:pass(?:word|wd)?|pwd|secret|api[_-]?key|access[_-]?key|auth[_-]?token|token)\w*["']?\s*[:=]\s*
+            r"""(?ix)\b(?:pass(?:word|wd|phrase)|pwd|secret|api[_-]?key|access[_-]?key|auth[_-]?token|token)\w*["']?\s*[:=]\s*
                 (["'])(?!\s*\1)(?P<v>[^"'\n]{6,})\1"""
         ),
         "hard-coded credential assignment",
