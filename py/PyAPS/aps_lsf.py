@@ -59,6 +59,46 @@ except ImportError:
 # because nothing was invalidating the stale cache.
 _LSF_CACHE_FORMAT_VERSION = 2
 
+
+def _python_minor():
+    """(major, minor) of the running interpreter, stamped on every cache built here."""
+    return (sys.version_info.major, sys.version_info.minor)
+
+
+def _lsf_cache_is_usable(interpolator):
+    """
+    Decide whether a pickled interpolator can be trusted in this interpreter.
+
+    dill pickles the closures' code objects by value (the bytecode), so a cache written
+    under another Python minor version (e.g. 3.11, loaded under 3.12) unpickles without an
+    error but fails when the closure is *called*, typically with
+    ``SystemError: error return without exception set``. That is what made every IFU
+    galaxy job crash in ``ifu_Gal_prepare`` right after "Loaded successfully". Returns
+    ``(usable, reason)``: unusable when the cache carries a different Python stamp, or
+    when a short call of the global interpolation function raises (that also covers the
+    caches written before the stamp existed). An object without a callable global function
+    (nothing to test) is taken as usable.
+    """
+    stamp = getattr(interpolator, "_cache_python", None)
+    if stamp is not None and tuple(stamp) != _python_minor():
+        return False, (f"cache was written under Python {stamp[0]}.{stamp[1]}, running "
+                       f"{_python_minor()[0]}.{_python_minor()[1]}")
+    try:
+        entry = interpolator.interpolator_dict["global"]
+        func = entry["interpolate_function"]
+    except (AttributeError, KeyError, TypeError):
+        return True, ""
+    try:
+        wmin, wmax = entry["wavelength_range"]
+        test_wave = np.linspace(float(wmin), float(wmax), 5)
+    except (KeyError, TypeError, ValueError):
+        test_wave = np.linspace(4000.0, 9000.0, 5)
+    try:
+        func(test_wave)
+    except Exception as e:  # noqa: BLE001 - any failure of the cached closure means "rebuild"
+        return False, f"calling the cached interpolation function failed: {type(e).__name__}: {e}"
+    return True, ""
+
 # =============================================================================
 # HELPER FUNCTIONS
 # =============================================================================
@@ -535,6 +575,8 @@ class LSFInterpolator:
         # added) and pickled along with everything else — see
         # _LSF_CACHE_FORMAT_VERSION's own comment for why this exists.
         self._cache_format_version = _LSF_CACHE_FORMAT_VERSION
+        # Python minor version the closures' bytecode belongs to (see _lsf_cache_is_usable)
+        self._cache_python = _python_minor()
 
     def set_debug(self, debug):
         """Set debug flag."""
@@ -2363,7 +2405,8 @@ def run_lsf_analysis(file_input, figdir=None, figname="lsf_analysis", debug=Fals
 
         if interpolator is not None:
             cached_version = getattr(interpolator, "_cache_format_version", None)
-            if cached_version == _LSF_CACHE_FORMAT_VERSION:
+            cache_ok, cache_problem = _lsf_cache_is_usable(interpolator)
+            if cached_version == _LSF_CACHE_FORMAT_VERSION and cache_ok:
                 print("="*70)
                 print("LSF ANALYSIS - Loading Existing Pickle")
                 print("="*70)
@@ -2372,14 +2415,23 @@ def run_lsf_analysis(file_input, figdir=None, figname="lsf_analysis", debug=Fals
                 interpolator.set_debug(debug)
                 interpolator.print_summary()
                 return interpolator
-            print("="*70)
-            print("LSF ANALYSIS - Cached pickle predates a performance fix, rebuilding")
-            print("="*70)
-            print(f"\n📂 {pickle_path}")
-            print(f"   was built with cache format {cached_version!r} (current is "
-                  f"{_LSF_CACHE_FORMAT_VERSION!r}) — its interpolator closures predate a "
-                  f"speed fix and would silently keep running the old, slow code forever. "
-                  f"Regenerating once, automatically.")
+            elif cached_version == _LSF_CACHE_FORMAT_VERSION:
+                print("!"*70)
+                print("LSF ANALYSIS - STALE/UNUSABLE CACHE (not a data problem)")
+                print("!"*70)
+                print(f"\n📂 {pickle_path}")
+                print(f"   {cache_problem}")
+                print(f"   (a cache written under another Python minor version loads fine but "
+                      f"its closures fail when called). Regenerating from source now.")
+            else:
+                print("="*70)
+                print("LSF ANALYSIS - Cached pickle predates a performance fix, rebuilding")
+                print("="*70)
+                print(f"\n📂 {pickle_path}")
+                print(f"   was built with cache format {cached_version!r} (current is "
+                      f"{_LSF_CACHE_FORMAT_VERSION!r}) — its interpolator closures predate a "
+                      f"speed fix and would silently keep running the old, slow code forever. "
+                      f"Regenerating once, automatically.")
             # Falls through to the rebuild below, same as overwrite=True.
 
     print("="*70)

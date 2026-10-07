@@ -1070,6 +1070,8 @@ class FWHMInterpolator:
     """
 
     def __init__(self):
+        # Python minor version the pickled closures' bytecode belongs to (see aps_lsf)
+        self._cache_python = (sys.version_info.major, sys.version_info.minor)
         # Per-file splines (for multi-arm handling)
         self.all_fiber_splines = []  # List of dicts, one per file
         self.all_wave_ranges = []    # List of (min, max) per file
@@ -2169,6 +2171,12 @@ def run_fwhm_analysis(file_paths, figdir=None, figname="analysis", debug=False, 
 
         try:
             interpolator = FWHMInterpolator.load(pickle_path)
+            # dill stores closures by bytecode: a cache written under another Python minor
+            # version loads fine but fails when called (aps_lsf._lsf_cache_is_usable).
+            from PyAPS.aps_lsf import _lsf_cache_is_usable
+            cache_ok, cache_problem = _lsf_cache_is_usable(interpolator)
+            if not cache_ok:
+                raise RuntimeError(cache_problem)
             return interpolator
         except Exception as e:
             # Same class of failure as aps_lsf.py's identical guard (see its
