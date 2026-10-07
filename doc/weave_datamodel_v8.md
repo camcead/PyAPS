@@ -1032,8 +1032,8 @@ Additional keywords for IFU products:
 | **P_ID** | int | - | Patch identifier |
 | **P_RA** | real | deg | Patch centre RA |
 | **P_DEC** | real | deg | Patch centre Dec |
-| **P_A** | real | arcsec | Patch semi-major axis diameter |
-| **P_B** | real | arcsec | Patch semi-minor axis diameter |
+| **P_A** | real | arcsec | Patch major-axis length (full diameter) |
+| **P_B** | real | arcsec | Patch minor-axis length (full diameter) |
 | **P_THETA** | real | deg | Patch rotation angle |
 | **CATOVER** | int | - | Catalogue override flag (1=True, 0=False) |
 

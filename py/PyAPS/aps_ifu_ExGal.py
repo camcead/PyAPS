@@ -375,7 +375,12 @@ def make_patch_array(
     ra, dec : float
         Target centre in degrees (ICRS).
     a_arcsec, b_arcsec : float
-        Semi-major / semi-minor axes in **arcsec**.
+        FULL major / minor axis lengths (diameters) in **arcsec**, the
+        same meaning as the ``A_world`` / ``B_world`` columns of a patch
+        table and the ``width`` / ``height`` of the extraction ellipse.
+        They are not semi-axes: ``a_arcsec=10, b_arcsec=6`` extracts up
+        to 5 arcsec from the centre along the major axis and 3 arcsec
+        along the minor axis (see ``aps_utils.aperture_sky_region``).
     z, zerr : float
         Redshift and uncertainty.
     class_str : str

@@ -25,6 +25,23 @@ All notable changes to PyAPS are documented here. The format follows
 ### Added
 - `--rr_solver perarm|joint` (default `perarm`, unchanged behaviour) to select the per-arm or the upstream joint multi-arm solve; `tests/test_rr_perarm_patch.py` (synthetic tests, including the scope of the modification).
 
+### Fixed (aperture convention)
+- Aperture definition made consistent and documented. `A_world`/`B_world` (patch tables), the `area`/`mask_areas`
+  entries and `make_patch_array(a_arcsec, b_arcsec)` are FULL axis lengths (diameters), the `width`/`height` of the
+  extraction ellipse, as the Gaia mask rows, the SEP rows and the MOS circular selection already assumed. Docs and
+  labels that called them semi-axes (`doc/aps_ifu_prepare.md`, the IFU tutorial, the cube preview
+  printout, the `make_patch_array` docstrings) now say full axis. A single helper, `aps_utils.aperture_sky_region`,
+  builds the region and is covered by aperture-boundary tests (`tests/test_aperture_convention.py`).
+  **No numerical behaviour changed**: patch-table products are unaffected; `make_patch_array(10, 6)` has always
+  extracted within 5" and 3" of the centre, and the seg3d merged-target aperture setting
+  (`seg3d_merge_aperture_arcsec`, default 2.0) has always been a diameter (1.0" extraction radius). Past L2 products
+  therefore need no reprocessing; read those numbers as diameters.
+
+### Added (Galactic aperture factor)
+- `gal_aperture_factor` (CLI `--gal_aperture_factor`) for the Galactic IFU route: an explicit factor applied to both
+  full aperture axis lengths. The default (`None`) keeps the old behaviour, 0.5 for patch-file rows and 1.0 for a
+  `patch_array`, so existing results are unchanged; set a number to make both routes select the same spaxels.
+
 ### Documentation
 - `doc/aps_rr.md` states where the per-arm solve is active (coarse scan and per-camera archetype solve; Redrock's fine scan keeps the joint solver), what the returned coefficients mean, and removes the unsupported claims of independence from IVAR scaling and of removing a joint-fit bias.
 

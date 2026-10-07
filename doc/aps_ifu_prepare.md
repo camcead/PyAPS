@@ -393,13 +393,15 @@ A FITS binary table with one row per detected source. Key columns:
 | `id` | int | Source ID within this field |
 | `RA_icrs` | float | Right ascension (degrees, ICRS) |
 | `DEC_icrs` | float | Declination (degrees, ICRS) |
-| `A_world` | float | Semi-major axis (degrees) |
-| `B_world` | float | Semi-minor axis (degrees) |
+| `A_world` | float | FULL major-axis length of the aperture ellipse (degrees), i.e. a diameter, not a semi-axis |
+| `B_world` | float | FULL minor-axis length of the aperture ellipse (degrees) |
 | `angle` | float | Position angle (degrees east of north) |
 | `type` | str | `T` = target, `C` = central WEAVE object, `M` = mask region |
 | `Z` | float array | Redshift (array of top N solutions) |
 | `ZERR` | float array | Redshift uncertainty |
 | `ZWARN` | int array | Redrock warning bitmask |
+
+**Aperture convention.** `A_world` and `B_world` are the *full* axis lengths of the extraction ellipse (the `width` and `height` of `regions.EllipseSkyRegion`), not semi-axes. A row with `A_world*3600 = 10` and `B_world*3600 = 6` extracts spaxels up to 5 arcsec from the centre along the major axis and 3 arcsec along the minor axis. Every producer (SEP sources, Gaia mask rows, the full-field row) and consumer (ExGal, Gal, `area`/`mask_areas` selection, cube preview) uses this one meaning; `aps_utils.aperture_sky_region` builds the region. Two parameters keep a historical name but follow the same rule: `make_patch_array(a_arcsec, b_arcsec)` takes full axis lengths, and `seg3d_merge_aperture_arcsec` (default 2.0) is the merged-target aperture diameter, so the default extracts within 1.0 arcsec of the target.
 | `CLASS` | str array | Classification: `GALAXY`, `QSO`, `STAR`, `WD` |
 | `SUBCLASS` | str array | Redrock sub-classification |
 

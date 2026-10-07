@@ -1041,7 +1041,7 @@ This is the central file connecting preparation to analysis.
 | `id` | int | Unique source ID (determines patch name: P0001, P0002, etc.) |
 | `type` | str | `T`=target, `C`=central object, `M`=mask region |
 | `RA_icrs`, `DEC_icrs` | float | Sky coordinates (degrees) |
-| `A_world`, `B_world` | float | Aperture semi-axes (degrees) |
+| `A_world`, `B_world` | float | Aperture FULL axis lengths, i.e. diameters (degrees) |
 | `angle` | float | Position angle (degrees E of N) |
 | `Z` | float array | Redshifts (top 3 solutions) |
 | `ZERR` | float array | Redshift uncertainties |
@@ -1421,8 +1421,8 @@ python3 py/PyAPS/aps_ExGal_worker.py \
 | `id` | int | - | `1` | Patch ID (will create output files like `*_P0001_APS.fits`) |
 | `RA_deg` | float | degrees | `185.198164` | Right ascension (ICRS, J2000) |
 | `Dec_deg` | float | degrees | `58.092634` | Declination (ICRS, J2000) |
-| `A_arcsec` | float | arcsec | `101.52` | Semi-major axis of extraction aperture |
-| `B_arcsec` | float | arcsec | `47.25` | Semi-minor axis of extraction aperture |
+| `A_arcsec` | float | arcsec | `101.52` | FULL major-axis length of the extraction aperture (not a semi-axis) |
+| `B_arcsec` | float | arcsec | `47.25` | FULL minor-axis length of the extraction aperture (not a semi-axis) |
 | `Z` | float | - | `0.0923` | Spectroscopic redshift |
 | `ZERR` | float | - | `0.0001` | Redshift uncertainty |
 | `CLASS` | str | - | `GALAXY` | Target class: `GALAXY`, `QSO`, `STAR` |
