@@ -617,11 +617,10 @@ def add_mask_region(
     ra, dec : float
         Centre of the mask region in degrees (ICRS).
     radius_arcsec : float
-        Size of the circular mask in arcsec. The value is stored unchanged
-        in A_world/B_world, which are FULL axis lengths (see
-        aps_utils.aperture_sky_region), so the masked radius is half of
-        this number. (Gaia mask rows written by aps_ifu_prepare store twice
-        their mask radius instead.)
+        Radius of the circular mask in arcsec. A_world/B_world are FULL
+        axis lengths (see aps_utils.aperture_sky_region), so twice this
+        radius is stored, exactly as the Gaia mask rows written by
+        aps_ifu_prepare do.
     angle : float
         Position angle in degrees (default 0).
 
@@ -630,7 +629,8 @@ def add_mask_region(
     Table
     """
     new_id    = int(np.max(tbl["id"])) + 1
-    radius_deg = radius_arcsec / 3600.0
+    # A_world/B_world are full axis lengths: store the diameter
+    radius_deg = 2.0 * radius_arcsec / 3600.0
 
     # Work out the shape of the CLASS/Z/ZERR/ZWARN arrays from an existing row
     ntop = len(np.atleast_1d(tbl[0]["CLASS"]))
