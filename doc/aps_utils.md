@@ -611,7 +611,7 @@ print("N galaxy fibres selected:", len(targs_mos.id()))
 targs_aperture = APSOB(
     infiles=[...],
     area=[185.198164, 58.092634,   # RA, Dec (degrees)
-          60.0, 40.0,               # semi-major, semi-minor axes (arcsec)
+          60.0, 40.0,               # full major, full minor axis lengths (arcsec)
           45.0],                    # position angle (degrees)
     join_arms=True,
     caldir="<PYAPS_DATA>/CAL",

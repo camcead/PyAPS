@@ -103,7 +103,7 @@ This is the most important section for anyone migrating from working with the Ex
 | Spatial bin size | Typically 1.0–2.0 arcsec | **Typically 3.0–5.0 arcsec** |
 | Target SNR per bin | Typically 20–30 | **Typically 50–80** |
 | Fitting modules | pPXF + EMIPPXF + LS | **RVS + FERRE** |
-| Aperture radius enhancement | ×3 for single large targets | **×0.5 (shrunk)** — stellar PSF, not extended |
+| Aperture radius enhancement | ×3 for single large targets | **×0.5 (shrunk) for patch-file rows by default**, set with `gal_aperture_factor` — concentrates on the bright central spaxels |
 | Wavelength window | Adaptive `ppxf_limits()` | Not applicable — FERRE handles its own range |
 | Central target skipping | No | **Yes** — C-type rows skipped when T-type rows exist |
 
@@ -269,11 +269,13 @@ The Gal loop applies three selection rules that differ from ExGal:
 ### 7.4 Aperture shrinkage for stellar targets
 
 ```python
-enhanced_rad_factor = 0.5   # always, for all Gal targets
-rad_factor = 1.0 if patch_array_mode else enhanced_rad_factor
+enhanced_rad_factor = resolve_gal_aperture_factor(gal_aperture_factor, patch_array_mode)
+# None -> 0.5 for patch_file rows, 1.0 for patch_array
 ```
 
-In `patch_array` mode the aperture is used as given. In `patch_file` mode the aperture from the patch table is halved. This is the opposite of ExGal which sometimes enlarges apertures (×3) for single large targets. The reasoning:
+By default, in `patch_array` mode the aperture is used as given, and in `patch_file` mode both full axis lengths from the patch table are multiplied by 0.5 (so the extraction radius is halved). This is a fixed spatial cut, not PSF fitting or S/N optimisation. The `gal_aperture_factor` argument (CLI `--gal_aperture_factor`) sets the factor explicitly on either route, so the same aperture gives the same selection whichever way it is supplied; leaving it unset keeps the historical defaults, so existing runs are unchanged. Gal rows of type `M` are skipped as targets but are not applied as spatial exclusions (ExGal does apply them); `mask_aps_ids` filtering still works.
+
+The default shrink is the opposite of ExGal, which sometimes enlarges apertures (×3) for single large targets. The reasoning:
 
 - Galaxy apertures from `aps_ifu_prepare` are sized to encompass the galaxy's extended emission
 - A stellar target is a point source — the IFU aperture around it will include sky if you use the full galaxy-sized aperture
@@ -583,6 +585,7 @@ These are identical to the ExGal module. See `aps_ifu_exgal_README.md` Section 9
 | `class_templates_ARC` | str or None | `None` | Redrock archetype template directory. |
 | `class_z_rad` | float | `1.5` | Search radius in arcsec for catalogue redshift prior. |
 | `class_ntop` | int | `1` | Number of top Redrock solutions to store. |
+| `gal_aperture_factor` | float or None | `None` | Factor applied to both full aperture axis lengths. `None` = 0.5 for `patch_file` rows, 1.0 for `patch_array`. |
 | `mp_prep` | int | `1` | Threads for the re-classification step. |
 
 ### Loop control
@@ -676,7 +679,7 @@ In `aps_ifu_prepare`, the segmentation step fits an elliptical aperture to each 
 - Too large (the star is in the same field as a large galaxy, and the default minimum aperture is set for that galaxy's size)
 - Correctly small (the star was detected and fitted independently)
 
-In practice, stellar targets in LIFU fields where the primary science target is a galaxy will have patch-table apertures sized for the galaxy scale (~30–100 arcsec semi-major axis). Extracting a stellar spectrum with a 100-arcsec aperture would include hundreds of IFU spaxels that are dominated by sky or galaxy light, not the star.
+In practice, stellar targets in LIFU fields where the primary science target is a galaxy will have patch-table apertures sized for the galaxy scale (~30–100 arcsec major-axis length). Extracting a stellar spectrum with a 100-arcsec aperture would include hundreds of IFU spaxels that are dominated by sky or galaxy light, not the star.
 
 The `×0.5` shrinkage is a conservative default that works in most cases. If you have a specific stellar target where the full aperture is correct (e.g. a star in a pure MIFU stellar field), use `patch_array` mode and specify the correct aperture size directly.
 

@@ -446,8 +446,8 @@ def inspect_row(tbl: Table, row_id: int) -> None:
     print(f"  type         : {str(row['type']).strip()}")
     print(f"  RA_icrs      : {float(row['RA_icrs']):.8f} deg")
     print(f"  DEC_icrs     : {float(row['DEC_icrs']):.8f} deg")
-    print(f"  A_world      : {float(row['A_world'])*3600:.4f} arcsec")
-    print(f"  B_world      : {float(row['B_world'])*3600:.4f} arcsec")
+    print(f"  A_world      : {float(row['A_world'])*3600:.4f} arcsec (full major axis)")
+    print(f"  B_world      : {float(row['B_world'])*3600:.4f} arcsec (full minor axis)")
     print(f"  angle        : {float(row['angle']):.3f} deg")
     print(f"  flag         : {row['flag']}")
 
@@ -617,7 +617,11 @@ def add_mask_region(
     ra, dec : float
         Centre of the mask region in degrees (ICRS).
     radius_arcsec : float
-        Radius of the circular mask in arcsec.
+        Size of the circular mask in arcsec. The value is stored unchanged
+        in A_world/B_world, which are FULL axis lengths (see
+        aps_utils.aperture_sky_region), so the masked radius is half of
+        this number. (Gaia mask rows written by aps_ifu_prepare store twice
+        their mask radius instead.)
     angle : float
         Position angle in degrees (default 0).
 

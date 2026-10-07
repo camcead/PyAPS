@@ -2208,6 +2208,32 @@ def l1_fileinfo(infiles, wlranges=None, arms_ratio=None, catdir=None, caldir=Non
 
 
 ###########################################################################################################
+def aperture_sky_region(ra_deg, dec_deg, a_arcsec, b_arcsec, angle_deg):
+    """
+    Elliptical sky region for an ``area`` / ``mask_areas`` entry or a patch-table row.
+
+    Aperture convention (one definition for every producer and consumer)
+    --------------------------------------------------------------------
+    ``a_arcsec`` and ``b_arcsec`` are the FULL axis lengths of the ellipse
+    (major and minor diameters), the same meaning as ``width`` / ``height`` of
+    ``regions.EllipseSkyRegion``. They are NOT semi-axes: an entry of 10 and 6
+    arcsec encloses points up to 5 arcsec from the centre along the major axis
+    and 3 arcsec along the minor axis. The ``A_world`` / ``B_world`` columns of
+    a patch table (degrees) follow the same rule.
+
+    ``angle_deg`` is the position angle in degrees, counter-clockwise.
+    """
+    from astropy.coordinates import Angle, SkyCoord
+    from regions import EllipseSkyRegion
+
+    return EllipseSkyRegion(
+        center=SkyCoord(ra_deg, dec_deg, frame="icrs", unit="deg"),
+        width=Angle(a_arcsec, "arcsec"),
+        height=Angle(b_arcsec, "arcsec"),
+        angle=Angle(angle_deg, "deg"),
+    )
+
+
 def gen_targlist(
     infile,
     mode,
@@ -2463,14 +2489,11 @@ def gen_targlist(
             # id_in_area = np.ravel(np.where( ((aps_info['TARGRA'] - area[0])**2) + ((aps_info['TARGDEC'] - area[1])**2)  < (area[2]/3600.0)**2.0 ))
 
             if area_wmode == 2:
-                from astropy.coordinates import Angle, SkyCoord
-                from regions import EllipsePixelRegion, EllipseSkyRegion, PixCoord
+                from astropy.coordinates import SkyCoord
 
-                ellipse_area = EllipseSkyRegion(
-                    center=SkyCoord(area[0], area[1], frame="icrs", unit="deg"),
-                    width=Angle(area[2], "arcsec"),
-                    height=Angle(area[3], "arcsec"),
-                    angle=Angle(area[4], "deg"),
+                # area[2], area[3] are FULL axis lengths (see aperture_sky_region)
+                ellipse_area = aperture_sky_region(
+                    area[0], area[1], area[2], area[3], area[4]
                 )
 
 
@@ -2524,16 +2547,12 @@ def gen_targlist(
             for each_mask in mask_areas:
 
                 if area_wmode == 2:
-                    from astropy.coordinates import Angle, SkyCoord
-                    from regions import EllipsePixelRegion, EllipseSkyRegion, PixCoord
+                    from astropy.coordinates import SkyCoord
 
-                    ellipse_each_mask = EllipseSkyRegion(
-                        center=SkyCoord(
-                            each_mask[0], each_mask[1], frame="icrs", unit="deg"
-                        ),
-                        width=Angle(each_mask[2], "arcsec"),
-                        height=Angle(each_mask[3], "arcsec"),
-                        angle=Angle(each_mask[4], "deg"),
+                    # each_mask[2], each_mask[3] are FULL axis lengths
+                    ellipse_each_mask = aperture_sky_region(
+                        each_mask[0], each_mask[1], each_mask[2], each_mask[3],
+                        each_mask[4],
                     )
 
                     skycoords = SkyCoord(
