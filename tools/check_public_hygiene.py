@@ -133,7 +133,12 @@ SELF_FILES = ("tools/check_public_hygiene.py", "tools/public_hygiene_allowlist.j
 MAX_BYTES = 3_000_000
 
 # Rules that may never be waived by the allow-list (a secret is never "intentional").
-NEVER_ALLOW = {"SECRET-KEY", "SECRET-TOKEN", "SECRET-URLCRED", "SECRET-ASSIGN", "FORBIDDEN-FILE"}
+NEVER_ALLOW = {"SECRET-KEY", "SECRET-TOKEN", "SECRET-URLCRED", "SECRET-ASSIGN", "FORBIDDEN-FILE", "EXAMPLE-VALUE"}
+
+# In *.example templates every value whose key looks sensitive must be a placeholder.
+EXAMPLE_KEY = re.compile(r"(?i)secret|pass(?:word|wd)?\b|passw|pwd|token|api[_-]?key|_key\b|^key$|user|host|url|e?mail|addr|credential|dsn|connection")
+EXAMPLE_LINE = re.compile(r"""^\s*["']?([A-Za-z_][\w.-]*)["']?\s*[:=]\s*(.*?),?\s*$""")
+EXAMPLE_OK = re.compile(r"""^["']?\s*$|<[^<>]+>|\$\{?[A-Za-z_(]|\*{3,}|^["']?(?:None|none|null|True|False|true|false|\d+)["']?$""")
 
 PLACEHOLDER_HINT = re.compile(r"(?i)<[^>]+>|\$\{?[A-Za-z_]|\*{3,}|\.{3}|xxx|changeme|your[_-]|example|placeholder|dummy|not-for-production|fake|test")
 
@@ -250,6 +255,10 @@ def scan_text(rel: str, text: str, allow: list[dict]) -> list[tuple[str, int, st
                 if rule == "INFRA-IP" and re.match(r"(?:192\.0\.2|198\.51\.100|203\.0\.113)\.", m.group(0)):
                     continue
                 emit(rule, i, line, m)
+        if rel.endswith(TEMPLATE_SUFFIXES) and not line.lstrip().startswith("#"):
+            m = EXAMPLE_LINE.match(line)
+            if m and EXAMPLE_KEY.search(m.group(1)) and not EXAMPLE_OK.search(m.group(2)):
+                findings.append((rel, i, "EXAMPLE-VALUE", f"{m.group(1)}: <non-placeholder value>"))
         if i in demo_lines and not self_file:
             for rule, (rx, _msg) in DEMO_RULES.items():
                 for m in rx.finditer(line):
@@ -312,6 +321,7 @@ def main(argv=None) -> int:
         for k, (_, msg) in {**RULES, **DEMO_RULES}.items():
             print(f"{k:16s} {msg}")
         print(f"{'FORBIDDEN-FILE':16s} tracked file that should be host-local (templates: *.example)")
+        print(f"{'EXAMPLE-VALUE':16s} *.example template with a real-looking value for a sensitive key (only <...> placeholders allowed)")
         return 0
     allow = load_allowlist()
     if a.history:

@@ -2249,7 +2249,7 @@ if __name__ == "__main__":
     single_file = "<PYAPS_DATA>/CAL/<night>/wave_<runid>_all.fit"
     blue_file = "<PYAPS_DATA>/CAL/<night>/wave_<runid>_all.fit"
     red_file = "<PYAPS_DATA>/CAL/<night>/wave_<runid>_all.fit"
-    output_dir = "<PYAPS_DATA>/L2_dev/fwhm_test"
+    output_dir = "<PYAPS_DATA>/L2<env_suffix>/fwhm_test"
 
     # Create output directory
     os.makedirs(output_dir, exist_ok=True)

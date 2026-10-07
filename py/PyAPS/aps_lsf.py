@@ -2490,7 +2490,7 @@ if __name__ == "__main__":
     print("="*80)
 
     lsfdir = "<PYAPS_DATA>/LSF/<night>"
-    output_dir = "<PYAPS_DATA>/L2_dev/lsf_test"
+    output_dir = "<PYAPS_DATA>/L2<env_suffix>/lsf_test"
     os.makedirs(output_dir, exist_ok=True)
 
     # =========================================================================
