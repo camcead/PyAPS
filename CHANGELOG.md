@@ -6,6 +6,11 @@ All notable changes to PyAPS are documented here. The format follows
 
 ## Unreleased
 
+### Security / public hygiene
+- New guard `tools/check_public_hygiene.py` (+ `tests/test_public_hygiene.py`, pre-commit hook, CI step) that fails on secrets, internal hosts/IPs, personal account names, e-mail addresses and absolute machine paths in tracked files, and applies a stricter check to module headers and `__main__` demo blocks. Rules, placeholders and allow-list: `doc/PUBLIC_HYGIENE.md`.
+- Docs, README, examples, tests and the demo blocks of the `aps_*.py` modules use placeholders (`<PYAPS_DATA>`, `$PYAPS_DATA`, `<night>`, `<runid>`, `<obid>`) instead of absolute paths and real run identifiers.
+- `aps_squeze` finds its default SQUEzE data files through `PYAPS_CS_DIR` / `PYAPS_HOME` / the source checkout instead of a hard-coded path. The contributor e-mail written to the `CS_MAIL` FITS keyword by `aps_amy`, `aps_squeze` and `aps_alfa-neat` now comes from `PYAPS_CS_MAIL_AMY` / `PYAPS_CS_MAIL_SQUEZE` / `PYAPS_CS_MAIL_ALFA` (or `PYAPS_CS_MAIL`) and is empty when unset.
+
 ### Changed (dependencies, Python)
 - Rebuilt on the newest released versions of every dependency (numpy 2.5, scipy 1.18, pandas 3.0, astropy 8.0, matplotlib 3.11, scikit-learn 1.9, plotly 7.1, dash 4.4, kaleido 1.5, flask 3.1, numba 0.68, gunicorn 26, ...). Python 3.12 is now the minimum (3.12 and 3.13 in CI; 3.14 also passes); the Docker image uses `python:3.12-slim`. Dependency floors in `pyproject.toml` follow the new versions; `requirements.txt` (loose) and `requirements-lock-20261006.txt` (frozen, tested) are new. `setuptools>=77` and an SPDX `license = "MIT"` in the packaging metadata.
 - `ssppop_fitting.py` imports `scipy.spatial.Delaunay` instead of the deprecated `scipy.spatial.qhull` module; `aps_amy.py` uses timezone-aware `datetime.now(timezone.utc)` (`utcnow()` is deprecated in 3.12).

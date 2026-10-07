@@ -21,7 +21,7 @@ filters (Gaussian spatial PSF x Gaussian spectral line profile) ->
 empirical purity self-check via the sign-flipped cube.
 
 Everything here was iteratively validated against a real WEAVE LIFU cube
-(stackcube_3067087.fit, BLUE arm) before being wired in. Two findings from
+(stackcube_<runid>.fit, BLUE arm) before being wired in. Two findings from
 that validation are baked into the defaults and are worth knowing before
 changing them:
 

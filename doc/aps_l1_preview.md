@@ -267,15 +267,15 @@ python aps_l1_preview.py --help
 ```bash
 # Directory for input catalogs
 --catdir PATH
-  --catdir /data/catalogs
+  --catdir $PYAPS_DATA/catalogs
 
 # Directory for calibration files
 --caldir PATH
-  --caldir /data/calibrations
+  --caldir $PYAPS_DATA/calibrations
 
 # Directory for configuration files
 --configdir PATH
-  --configdir /data/configs
+  --configdir $PYAPS_DATA/configs
 ```
 
 ### Visualization
@@ -304,7 +304,7 @@ python aps_l1_preview.py \
 ### Example 2: Dual-Arm with Wavelength Ranges
 ```bash
 python aps_l1_preview.py \
-    --infiles /data/L1/blue_3097086.fit /data/L1/red_3097085.fit \
+    --infiles $PYAPS_DATA/L1/blue_3097086.fit $PYAPS_DATA/L1/red_3097085.fit \
     --wlranges 3800,5950 5900,9270 \
     --aladin False
 ```
@@ -315,8 +315,8 @@ python aps_l1_preview.py \
 ### Example 3: Galaxy Survey with Aladin
 ```bash
 python aps_l1_preview.py \
-    --infiles /data/L1/stackcube.fit \
-    --l1_reference /data/L1/reference_20240515.fits \
+    --infiles $PYAPS_DATA/L1/stackcube.fit \
+    --l1_reference $PYAPS_DATA/L1/reference_20240515.fits \
     --targclass GALAXY \
     --aladin True
 ```
@@ -327,7 +327,7 @@ python aps_l1_preview.py \
 ### Example 4: IFU Observation with Area Selection
 ```bash
 python aps_l1_preview.py \
-    --infiles /data/L1/LIFU/stackcube_blue.fit /data/L1/LIFU/stackcube_red.fit \
+    --infiles $PYAPS_DATA/L1/LIFU/stackcube_blue.fit $PYAPS_DATA/L1/LIFU/stackcube_red.fit \
     --area 234.666,59.355,157.99,91.50,0.0 \
     --collapse True \
     --aladin False
@@ -1045,7 +1045,7 @@ python aps_l1_preview.py --infiles data.fit --targclass GALAXY
 ```bash
 # Create script: process_all.sh
 #!/bin/bash
-for file in /data/L1/*.fit; do
+for file in $PYAPS_DATA/L1/*.fit; do
     echo "Processing $file"
     python aps_l1_preview.py --infiles $file --aladin False
     # Add screenshot or logging here
@@ -1381,7 +1381,7 @@ python aps_l1_preview.py --infiles blue.fit red.fit \
 **Solution:** Create batch script
 ```bash
 #!/bin/bash
-for file in /data/L1/*.fit; do
+for file in $PYAPS_DATA/L1/*.fit; do
     python aps_l1_preview.py --infiles $file --aladin False &
     # Wait for user to close
     wait

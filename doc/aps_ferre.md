@@ -542,8 +542,8 @@ script looks like:
 
 ```bash
 python aps_ferre.py \
-  --infiles /data/L1/stack_3095664.fit /data/L1/stack_3095663.fit \
-  --outdir /data/L2/20250630/OB12345/ \
+  --infiles $PYAPS_DATA/L1/stack_3095664.fit $PYAPS_DATA/L1/stack_3095663.fit \
+  --outdir $PYAPS_DATA/L2/20250630/OB12345/ \
   --configdir <PYAPS_DIR>/configs/MOS_LR/ \
   --rootname stack_3095664__stack_3095663 \
   --wlranges 3800.0,5950.0 5900.0,9280.0 \
@@ -555,8 +555,8 @@ For IFU mode:
 
 ```bash
 python aps_ifu_ferre.py \
-  --infiles /data/L1/stackcube_3123971.fit /data/L1/stackcube_3123970.fit \
-  --outdir /data/L2/20250630/OB12345/ \
+  --infiles $PYAPS_DATA/L1/stackcube_3123971.fit $PYAPS_DATA/L1/stackcube_3123970.fit \
+  --outdir $PYAPS_DATA/L2/20250630/OB12345/ \
   --configdir <PYAPS_DIR>/configs/LIFU_LR/ \
   --rootname stackcube_3123971__stackcube_3123970 \
   --wlranges 3800.0,5950.0 5900.0,9280.0 \
@@ -574,9 +574,9 @@ from PyAPS.aps_ferre import proc_ferre
 
 proc_ferre(
     nthreads   = 8,
-    infiles    = ["/data/L1/stack_3095664.fit",
-                  "/data/L1/stack_3095663.fit"],
-    outdir     = "/data/L2/20250630/OB12345/",
+    infiles    = ["<PYAPS_DATA>/L1/stack_3095664.fit",
+                  "<PYAPS_DATA>/L1/stack_3095663.fit"],
+    outdir     = "<PYAPS_DATA>/L2/20250630/OB12345/",
     configdir  = "<PYAPS_DIR>/configs/MOS_LR/",
     rootname   = "stack_3095664__stack_3095663",
     configs    = {...},          # loaded from script_params.yaml
@@ -600,9 +600,9 @@ from PyAPS.aps_ifu_ferre import proc_ferre_ifu
 
 proc_ferre_ifu(
     nthreads   = 4,
-    infiles    = ["/data/L1/stackcube_3123971.fit",
-                  "/data/L1/stackcube_3123970.fit"],
-    outdir     = "/data/L2/20250630/OB12345/",
+    infiles    = ["<PYAPS_DATA>/L1/stackcube_3123971.fit",
+                  "<PYAPS_DATA>/L1/stackcube_3123970.fit"],
+    outdir     = "<PYAPS_DATA>/L2/20250630/OB12345/",
     configdir  = "<PYAPS_DIR>/configs/LIFU_LR/",
     rootname   = "stackcube_3123971__stackcube_3123970",
     configs    = {...},
@@ -620,7 +620,7 @@ result = opfmerge(
     pixel            = "stack_3095664__stack_3095663",
     grid_ids         = ["1", "2", "3", "4", "5", "6", "7", "8", "9"],
     grid_prefix      = "n",          # 'n' for normal, 'm' for modified, 'p' for PCA
-    path             = "/data/L2/workdir/",
+    path             = "<PYAPS_DATA>/L2/workdir/",
     min_grids_required = 5,
     wait_time        = 10,           # seconds between polls
     max_wait         = 300,          # maximum wait time in seconds
@@ -642,7 +642,7 @@ result = opfmerge(
 from PyAPS.aps_ferre import ferre_exe_worker
 
 success, return_code, error_msg = ferre_exe_worker(
-    ["/data/L2/workdir/input.nml_1",   # namelist file path
+    ["<PYAPS_DATA>/L2/workdir/input.nml_1",   # namelist file path
      "<FERRE_DIR>/src/ferre.x",    # FERRE executable path
      True]                              # capture_output flag
 )

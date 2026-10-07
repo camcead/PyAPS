@@ -2123,16 +2123,16 @@ def run_fwhm_analysis(file_paths, figdir=None, figname="analysis", debug=False, 
     --------
     # Single file (one arm)
     interp = run_fwhm_analysis(
-        file_paths='/data/CAL/wave_3100962_all.fit',
-        figdir='/output/plots',
+        file_paths='<PYAPS_DATA>/CAL/wave_<runid>_all.fit',
+        figdir='<OUTPUT_DIR>/plots',
         figname='blue_arm',
         debug=True
     )
 
     # Multiple files (two arms)
     interp = run_fwhm_analysis(
-        file_paths=['/data/CAL/wave_blue.fit', '/data/CAL/wave_red.fit'],
-        figdir='/output/plots',
+        file_paths=['<PYAPS_DATA>/CAL/wave_blue.fit', '<PYAPS_DATA>/CAL/wave_red.fit'],
+        figdir='<OUTPUT_DIR>/plots',
         figname='combined',
         debug=True,
         overwrite=False  # Load from cache if available
@@ -2236,6 +2236,8 @@ def run_fwhm_analysis(file_paths, figdir=None, figname="analysis", debug=False, 
 # =============================================================================
 
 if __name__ == "__main__":
+    # DEMO settings: edit for your setup. Replace the <PYAPS_DATA>, <PYAPS_DIR>, <night>, <runid>, <obid>
+    # markers below with your own locations and identifiers (no machine paths belong in this repository).
 
     print("\n" + "="*80)
     print("🎯 FWHM INTERPOLATOR - RUNNABLE EXAMPLES")
@@ -2244,9 +2246,9 @@ if __name__ == "__main__":
     # =========================================================================
     # INPUT FILES - UPDATE THESE FOR YOUR DATA
     # =========================================================================
-    single_file = "<PYAPS_DATA>/CAL/20250630/wave_3100961_all.fit"
-    blue_file = "<PYAPS_DATA>/CAL/20250630/wave_3100962_all.fit"
-    red_file = "<PYAPS_DATA>/CAL/20250630/wave_3100961_all.fit"
+    single_file = "<PYAPS_DATA>/CAL/<night>/wave_<runid>_all.fit"
+    blue_file = "<PYAPS_DATA>/CAL/<night>/wave_<runid>_all.fit"
+    red_file = "<PYAPS_DATA>/CAL/<night>/wave_<runid>_all.fit"
     output_dir = "<PYAPS_DATA>/L2_dev/fwhm_test"
 
     # Create output directory
@@ -2496,21 +2498,21 @@ if __name__ == "__main__":
     # Single arm:
     interp = run_fwhm_analysis(
         file_paths='/path/to/wave_file.fit',
-        figdir='/output/dir',
+        figdir='<OUTPUT_DIR>',
         debug=True
     )
 
     # Two arms (with gap handling):
     interp = run_fwhm_analysis(
         file_paths=['/path/to/blue.fit', '/path/to/red.fit'],
-        figdir='/output/dir',
+        figdir='<OUTPUT_DIR>',
         debug=True
     )
 
     # Load from cache:
     interp = run_fwhm_analysis(
         file_paths=[...],
-        figdir='/output/dir',
+        figdir='<OUTPUT_DIR>',
         overwrite=False  # Load from pickle if exists
     )
 

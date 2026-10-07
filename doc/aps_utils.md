@@ -513,11 +513,11 @@ from PyAPS.aps_utils import APSOB
 
 targs = APSOB(
     infiles=[
-        "/data/L1/20240808/stackcube_3071431.fit",   # blue arm
-        "/data/L1/20240808/stackcube_3071430.fit",   # red arm
+        "<PYAPS_DATA>/L1/20240808/stackcube_3071431.fit",   # blue arm
+        "<PYAPS_DATA>/L1/20240808/stackcube_3071430.fit",   # red arm
     ],
     join_arms=True,
-    caldir="/data/CAL",
+    caldir="<PYAPS_DATA>/CAL",
 )
 
 print("Mode:", targs.mode())          # LIFU
@@ -589,8 +589,8 @@ for target in targs.data():
 ```python
 targs_mos = APSOB(
     infiles=[
-        "/data/L1/20240515/stacked_3059328.fit",   # blue
-        "/data/L1/20240515/stacked_3059327.fit",   # red
+        "<PYAPS_DATA>/L1/20240515/stacked_3059328.fit",   # blue
+        "<PYAPS_DATA>/L1/20240515/stacked_3059327.fit",   # red
     ],
     targsrvy=["WA"],                  # only WEAVE-Apertif targets
     targclass=["GALAXY"],             # only galaxies
@@ -598,7 +598,7 @@ targs_mos = APSOB(
     sens_corr=True,
     mask_gaps=True,
     tellurics=True,
-    caldir="/data/CAL",
+    caldir="<PYAPS_DATA>/CAL",
 )
 
 print("N galaxy fibres selected:", len(targs_mos.id()))
@@ -614,7 +614,7 @@ targs_aperture = APSOB(
           60.0, 40.0,               # semi-major, semi-minor axes (arcsec)
           45.0],                    # position angle (degrees)
     join_arms=True,
-    caldir="/data/CAL",
+    caldir="<PYAPS_DATA>/CAL",
 )
 ```
 
@@ -625,7 +625,7 @@ targs_collapsed = APSOB(
     infiles=[...],
     collapse=True,
     join_arms=True,
-    caldir="/data/CAL",
+    caldir="<PYAPS_DATA>/CAL",
 )
 
 # There is now only one target with APS_ID = -999
@@ -678,9 +678,9 @@ Pass only one file and set `join_arms=False`:
 
 ```python
 targs_blue = APSOB(
-    infiles=["/data/L1/20240808/stackcube_3071431.fit"],  # blue only
+    infiles=["<PYAPS_DATA>/L1/20240808/stackcube_3071431.fit"],  # blue only
     join_arms=False,
-    caldir="/data/CAL",
+    caldir="<PYAPS_DATA>/CAL",
 )
 print("Setups:", targs_blue.setups())   # ['BLUELR11']
 ```
@@ -690,7 +690,7 @@ print("Setups:", targs_blue.setups())   # ['BLUELR11']
 Use the non-sky-subtracted extensions (e.g. for sky spectrum analysis):
 
 ```python
-targs_nss = APSOB(infiles=[...], skysub=False, caldir="/data/CAL")
+targs_nss = APSOB(infiles=[...], skysub=False, caldir="<PYAPS_DATA>/CAL")
 ```
 
 ### Restricting to a specific wavelength range
@@ -700,7 +700,7 @@ targs = APSOB(
     infiles=["blue.fit", "red.fit"],
     wlranges=[[3800.0, 5950.0], [5900.0, 9280.0]],
     join_arms=True,
-    caldir="/data/CAL",
+    caldir="<PYAPS_DATA>/CAL",
 )
 ```
 
@@ -711,7 +711,7 @@ targs = APSOB(
 targs = APSOB(
     infiles=[...],
     mask_aps_ids=[100, 200, 300],
-    caldir="/data/CAL",
+    caldir="<PYAPS_DATA>/CAL",
 )
 ```
 

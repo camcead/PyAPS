@@ -9,3 +9,13 @@ repos:
       - id: check-added-large-files
         args: [--maxkb=5000]
       - id: detect-private-key
+  # Public-hygiene guard: no secrets, internal hosts/IPs or absolute machine paths in tracked files
+  # (see doc/PUBLIC_HYGIENE.md). Needs only the Python standard library.
+  - repo: local
+    hooks:
+      - id: public-hygiene
+        name: public hygiene (secrets, hosts, absolute paths)
+        entry: python tools/check_public_hygiene.py
+        language: system
+        pass_filenames: false
+        always_run: true

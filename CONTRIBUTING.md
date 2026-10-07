@@ -28,7 +28,8 @@ To run the data-dependent tests point `PYAPS_TEST_DATA` at a directory containin
 3. Run `pytest` and, if you touched packaging, `python -m build && twine check dist/*`.
 4. Do not commit machine-specific paths, host names, credentials or real data. Use the placeholders
    documented in the README (`<PYAPS_DIR>`, `<PYAPS_DATA>`, ...) and the environment variables
-   (`PYAPS_HOME`, ...).
+   (`PYAPS_HOME`, ...). `python tools/check_public_hygiene.py` (also part of `pytest` and CI) fails on
+   secrets, internal hosts/IPs and absolute paths; see [doc/PUBLIC_HYGIENE.md](doc/PUBLIC_HYGIENE.md).
 5. Add a line to `CHANGELOG.md` under "Unreleased".
 6. Open a pull request against `develop` and fill in the template.
 

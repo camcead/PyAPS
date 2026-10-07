@@ -204,7 +204,7 @@ from PyAPS.aps_lsf import run_lsf_analysis
 # Build interpolator from two-arm solar twilight LSF files
 interpolator = run_lsf_analysis(
     file_input    = ["lsf_BLUEL11_LIFU.fits", "lsf_REDL11_LIFU.fits"],
-    figdir        = "/data/L2/figs",
+    figdir        = "<PYAPS_DATA>/L2/figs",
     figname       = "lsf_lifu",
     overwrite     = False,     # load from cached pickle if available
     save_pickle   = True,
@@ -230,7 +230,7 @@ from PyAPS.aps_fwhm import run_fwhm_analysis
 
 interpolator = run_fwhm_analysis(
     file_paths  = ["wave_3100962_all.fit", "wave_3100961_all.fit"],
-    figdir      = "/data/L2/figs",
+    figdir      = "<PYAPS_DATA>/L2/figs",
     figname     = "fwhm_combined",
     overwrite   = False,
     save_pickle = True,
@@ -347,9 +347,9 @@ docker run -d --name pyaps-explorer -p 8080:8080 \
 curl http://localhost:8080/healthz   # {"status": "ok"}
 ```
 
-- Bind-mount your real `caldir`/`catdir`/`configdir`/data root read-only
+- Bind-mount your real `caldir`/`catdir`/`configdir` and the data root read-only
   (`-v host_path:container_path:ro`) rather than baking data into the
-  image — swap `<PYAPS_DATA>` above for wherever your data lives. Inside the container it is then `/data`.
+  image — swap `<PYAPS_DATA>` above for wherever your data lives. Inside the container it is then the container-side mount point shown after the colon (`-v <PYAPS_DATA>:/data:ro`).
 - Runs a single gunicorn worker (multiple threads for concurrency) — this
   is a deliberate design choice, not a temporary limitation: per-session
   state lives in server memory for performance (see the module docstring
@@ -557,8 +557,8 @@ builds and runs them for you.
 
 ```bash
 python aps_runner.py \
-  --infiles /data/L1/20250630/stack_3095664.fit \
-            /data/L1/20250630/stack_3095663.fit \
+  --infiles $PYAPS_DATA/L1/20250630/stack_3095664.fit \
+            $PYAPS_DATA/L1/20250630/stack_3095663.fit \
   --config_file configs/script_params.yaml \
   --cat_list None \
   --headname stack_3095664__stack_3095663 \
@@ -751,8 +751,8 @@ dependency - and that failure is captured and turned into `aps_runner.py`'s own 
 
 ```bash
 python aps_runner.py \
-  --infiles /data/L1/20250630/stack_3095664.fit \
-            /data/L1/20250630/stack_3095663.fit \
+  --infiles $PYAPS_DATA/L1/20250630/stack_3095664.fit \
+            $PYAPS_DATA/L1/20250630/stack_3095663.fit \
   --config_file configs/script_params.yaml \
   --cat_list None \
   --mod_wlranges True \

@@ -1287,21 +1287,23 @@ def spaceweave(options=None):
 
 ########################################################################
 if __name__ == '__main__':
+    # DEMO settings: edit for your setup. Replace the <PYAPS_DATA>, <PYAPS_DIR>, <night>, <runid>, <obid>
+    # markers below with your own locations and identifiers (no machine paths belong in this repository).
 
 
 
     option= [
     #APSOB options
-    '--infiles', '<PYAPS_DATA>/opr4_jan2022/20160908/stack_1002214.fit', '<PYAPS_DATA>/opr4_jan2022/20160908/stack_1002213.fit',
+    '--infiles', '<PYAPS_DATA>/opr4_jan2022/<night>/stack_<runid>.fit', '<PYAPS_DATA>/opr4_jan2022/<night>/stack_<runid>.fit',
     '--wlranges', '4915.0,6200.0','5800.0,6860.0',
     '--targsrvy', 'GA-OC',
     '--targclass', 'STAR', #with the present L1 there is no targclass specified.
     '--aps_ids', 'None',
-    '--apsfile', '<PYAPS_DIR>/PyAPS_results/20160908/3191/stack_1002214__stack_1002213_APS.fits',
-    '--working_dir', '<PYAPS_DIR>/PyAPS_results/20160908/3191/space_wd/',
+    '--apsfile', '<PYAPS_DIR>/PyAPS_results/<night>/<obid>/stack_<runid>__stack_<runid>_APS.fits',
+    '--working_dir', '<PYAPS_DIR>/PyAPS_results/<night>/<obid>/space_wd/',
     '--space_exe', '<PYAPS_DIR>/CS/SPACE/SPACE_v1.4W',
-    '--outpath', '<PYAPS_DIR>/PyAPS_results/20160908/3191/',
-    '--headname', 'stacked_1002214__stacked_1002213',
+    '--outpath', '<PYAPS_DIR>/PyAPS_results/<night>/<obid>/',
+    '--headname', 'stacked_<runid>__stacked_<runid>',
     '--outspec', 'False', #if True, the code also produces plots of the best fitted model
     '--fig', 'True', #if true, it output diagnostic plots in .png format
     '--overwrite', 'True', #overwrite the HDUlist result
