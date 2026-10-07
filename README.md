@@ -73,10 +73,10 @@ extra you installed is simply not needed (e.g. no database driver is required).
 
 | Variable | Meaning | Default |
 |---|---|---|
-| `PYAPS_HOME` | Root of your PyAPS working tree (holds `configs/`, `externals/`, `CS/`, `PyAPS_local/`). Used to expand `${PYAPS_HOME}` in `configs/script_params.yaml` | the source checkout, else `~/PyAPS` |
+| `PYAPS_HOME` | Root of your PyAPS working tree (holds `configs/`, `externals/`, `CS/` and the data and template trees). Used to expand `${PYAPS_HOME}` in `configs/script_params.yaml` | the source checkout, else `~/PyAPS` |
 | `PYAPS_PKG_DIR` | Directory holding the `aps_*.py` modules (`${PYAPS_PKG_DIR}` in `script_params.yaml`) | set automatically |
 | `PYAPS_CONFIGDIR` | Directory holding the instrument configuration (`ExGal_configs`) and interpolator caches. **A regular (non-editable) `pip install` does not bundle it: copy the repository's `configs/ExGal_configs` somewhere and point this variable at it.** | the checkout's `configs/ExGal_configs` (source / `pip install -e .` only) |
-| `PYAPS_RVS_TEMPLATES` | Directory of the RVS (rvspecfit) template library. The generated job scripts export it from the `templates_RVS` key of the `script_params` file in use; it wins over `template_lib` in `configs/rvs_config.yaml`, which in turn is followed by `$PYAPS_HOME/PyAPS_templates/templates_RVS` and `$PYAPS_HOME/PyAPS_local/PyAPS_templates/templates_RVS` | set by the job scripts |
+| `PYAPS_RVS_TEMPLATES` | Directory of the RVS (rvspecfit) template library. The generated job scripts export it from the `templates_RVS` key of the `script_params` file in use, and `template_lib` of `configs/rvs_config.yaml` refers to it. Export it yourself only when running `aps_rvs.py` by hand. A missing directory stops the job with an error naming the key; there is no fallback location | set by the job scripts |
 | `PYAPS_DATA_DIR` | Start folder of the explorer's file browser | `$PYAPS_HOME`, then `~` |
 | `PYAPS_CS_MAIL` | Contact e-mail written into the `CS_MAIL` FITS header keyword by the RR Lyrae contributed modules (`aps_rrlew`, `aps_rrlgv`) | empty |
 | `PYAPS_TEST_DATA` | Root of real WEAVE data for the data-dependent tests (they skip when unset) | unset |
@@ -558,7 +558,7 @@ PyAPS/
 ├── tests/                # Test suite
 ├── py/PyAPS/             # Source code
 ├── CS/                   # Contributed software (installed by you, see CS/README.md)
-└── PyAPS_local/          # Your local templates and data (never committed, see below)
+└── PyAPS_local/          # Your personal scratch area (untracked; never read by the official dev/prod runs)
 ```
 
 ---

@@ -996,6 +996,6 @@ if __name__ == "__main__":
         "--catdir","<PYAPS_DATA>/CAT",
         "--RVS_CONFIG","<PYAPS_DIR>/configs/rvs_config.yaml",
         "--FERRE_EXE", "<PYAPS_DIR>/externals/ferre/bin/ferre.x",
-        "--FERRE_TEMPLATES", "<PYAPS_DIR>/PyAPS_local/PyAPS_templates/templates_FR/"
+        "--FERRE_TEMPLATES", "<PYAPS_DIR>/PyAPS_templates/templates_FR/"
     ]
     gal_runner(options=debug_LIFU)

@@ -97,7 +97,7 @@ def _mk(tmp_path, *parts):
 
 def test_env_templates_dir_wins_over_config_template_lib(tmp_path, clean_env):
     configured = _mk(tmp_path, "shared", "templates_RVS")
-    in_cfg = _mk(tmp_path, "PyAPS_local", "PyAPS_templates", "templates_RVS")
+    in_cfg = _mk(tmp_path, "other", "templates_RVS")
     clean_env.setenv(RVS_TEMPLATES_ENV, str(configured))
     got = resolve_rvs_template_lib(str(in_cfg) + "/", verbose=False)
     assert Path(got) == configured
@@ -109,31 +109,6 @@ def test_config_template_lib_used_when_no_env(tmp_path, clean_env):
     assert Path(resolve_rvs_template_lib(str(in_cfg), verbose=False)) == in_cfg
 
 
-def test_missing_config_dir_falls_back_to_pyaps_home_layouts(tmp_path, clean_env):
-    # layout 1: <home>/PyAPS_templates/templates_RVS (the dev host layout)
-    home = _mk(tmp_path, "home1")
-    flat = _mk(home, "PyAPS_templates", "templates_RVS")
-    clean_env.setenv("PYAPS_HOME", str(home))
-    missing = str(home / "PyAPS_local" / "PyAPS_templates" / "templates_RVS") + "/"
-    assert Path(resolve_rvs_template_lib(missing, verbose=False)) == flat
-    # layout 2: <home>/PyAPS_local/PyAPS_templates/templates_RVS
-    home2 = _mk(tmp_path, "home2")
-    local = _mk(home2, "PyAPS_local", "PyAPS_templates", "templates_RVS")
-    clean_env.setenv("PYAPS_HOME", str(home2))
-    assert Path(resolve_rvs_template_lib("/nonexistent/templates_RVS/", verbose=False)) == local
-
-
-def test_unresolvable_returns_config_value_unchanged(tmp_path, clean_env, capsys):
-    clean_env.setenv("PYAPS_HOME", str(tmp_path))
-    value = "/nonexistent/templates_RVS/"
-    got = resolve_rvs_template_lib(value, verbose=True)
-    out = capsys.readouterr().out
-    if got != value:
-        # the checkout this test runs from ships its own templates_RVS: nothing to assert
-        pytest.skip("a default template directory exists in this checkout")
-    assert "no RVS template directory found" in out
-
-
 def test_env_value_is_expanded(tmp_path, clean_env):
     tdir = _mk(tmp_path, "t")
     clean_env.setenv("MY_TEST_TEMPLATE_ROOT", str(tmp_path))
@@ -141,8 +116,34 @@ def test_env_value_is_expanded(tmp_path, clean_env):
     assert Path(resolve_rvs_template_lib(None, verbose=False)) == tdir
 
 
+def test_missing_configured_directory_is_an_error_naming_the_key(tmp_path, clean_env):
+    clean_env.setenv(RVS_TEMPLATES_ENV, str(tmp_path / "nope"))
+    with pytest.raises(RuntimeError, match="templates_RVS"):
+        resolve_rvs_template_lib("/also/missing/", verbose=False)
+    clean_env.delenv(RVS_TEMPLATES_ENV)
+    with pytest.raises(RuntimeError, match="template_lib"):
+        resolve_rvs_template_lib(str(tmp_path / "nope"), verbose=False)
+
+
+def test_unset_placeholder_is_an_error_not_a_fallback(tmp_path, clean_env):
+    """No environment value and the tracked placeholder unresolved: stop, never search
+    other locations (even if a templates_RVS directory sits under PYAPS_HOME)."""
+    _mk(tmp_path, "PyAPS_templates", "templates_RVS")
+    clean_env.setenv("PYAPS_HOME", str(tmp_path))
+    with pytest.raises(RuntimeError, match="templates_RVS"):
+        resolve_rvs_template_lib("${PYAPS_RVS_TEMPLATES}", verbose=False)
+    with pytest.raises(RuntimeError):
+        resolve_rvs_template_lib(None, verbose=False)
+
+
+def test_tracked_rvs_config_refers_to_the_configured_variable():
+    cfg = Path(__file__).resolve().parent.parent / "configs" / "rvs_config.yaml"
+    first = [ln for ln in cfg.read_text().splitlines() if ln.startswith("template_lib")]
+    assert first and "${" + RVS_TEMPLATES_ENV + "}" in first[0]
+
+
 def test_read_config_resolves_template_lib(tmp_path, clean_env):
-    """The reader used by aps_rvs and aps_ifu_rvs must hand the resolved directory to
+    """The reader used by aps_rvs and aps_ifu_rvs must hand the configured directory to
     rvspecfit (the 'Filename .../ccf_*.h5 does not exist' failure)."""
     pytest.importorskip("rvspecfit")
     import PyAPS.aps_ifu_rvs as aps_ifu_rvs
@@ -150,12 +151,16 @@ def test_read_config_resolves_template_lib(tmp_path, clean_env):
 
     configured = _mk(tmp_path, "shared", "templates_RVS")
     cfg = tmp_path / "rvs_config.yaml"
-    cfg.write_text("template_lib: '/nonexistent/PyAPS_local/templates_RVS/'\nmin_vel: -1000\n")
+    cfg.write_text("template_lib: '${PYAPS_RVS_TEMPLATES}'\nmin_vel: -1000\n")
     clean_env.setenv(RVS_TEMPLATES_ENV, str(configured))
     for reader in (aps_rvs.read_config_APS_RVS, aps_ifu_rvs.read_config_APS_RVS):
         conf = reader(str(cfg))
         assert Path(conf["template_lib"]) == configured
         assert conf["min_vel"] == -1000
+    clean_env.delenv(RVS_TEMPLATES_ENV)
+    for reader in (aps_rvs.read_config_APS_RVS, aps_ifu_rvs.read_config_APS_RVS):
+        with pytest.raises(RuntimeError, match="templates_RVS"):
+            reader(str(cfg))
 
 
 def test_job_scripts_export_configured_rvs_templates(tmp_path):
@@ -275,3 +280,83 @@ def test_run_lsf_analysis_rebuilds_an_unusable_cache(tmp_path, monkeypatch):
                                       pickle_dir=str(tmp_path), overwrite=False)
     assert built, "an unusable cache must trigger a rebuild"
     assert result is None  # the fake rebuild reports failure
+
+
+# --------------------------------------------------------------------------------------
+# 5. Failure visibility in the runner log
+# --------------------------------------------------------------------------------------
+def _stage_script(tmp_path, runner_log, post_command=None, command="bash -c 'exit 3'"):
+    import subprocess
+
+    aps_runner = pytest.importorskip("PyAPS.aps_runner")
+    conf = {"use_venv": "False", "templates_RVS": None, "runner_log": runner_log}
+    logs = tmp_path / "logs"
+    script = tmp_path / "stage.sh"
+    aps_runner.write_bash("head", script, command, "abc123", conf, log=False, logs_path=logs,
+                          log_prefix="MOS_RVS", post_command=post_command)
+    text = script.read_text().replace("sleep 30\n", "true\n")   # do not wait in the test
+    script.write_text(text)
+    return script, subprocess
+
+
+def test_failed_stage_appends_error_line_to_runner_log(tmp_path):
+    log = tmp_path / "runner.log"
+    script, subprocess = _stage_script(tmp_path, str(log))
+    env = dict(os.environ, SLURM_JOB_ID="4711", SLURM_JOB_NAME="RVS_L2_abc123")
+    subprocess.run(["bash", str(script)], env=env, capture_output=True)
+    lines = log.read_text().splitlines()
+    assert len(lines) == 1
+    line = lines[0]
+    assert "ERROR: SLURM job 4711 RVS_L2_abc123 failed with exit code 3" in line
+    assert str(tmp_path / "logs" / "RVS_L2_abc123.4711.err") in line
+    assert line.startswith("[") and line[5] == "-" and line[20] == "]"
+
+
+def test_successful_stage_writes_nothing_and_off_switch_works(tmp_path):
+    log = tmp_path / "runner.log"
+    script, subprocess = _stage_script(tmp_path, str(log), command="true")
+    subprocess.run(["bash", str(script)], capture_output=True)
+    assert not log.exists()
+    off = tmp_path / "off"
+    off.mkdir()
+    script2, subprocess = _stage_script(off, "None")
+    assert "export PYAPS_RUNNER_LOG" not in script2.read_text()
+
+
+def test_post_command_runs_and_never_changes_the_exit_status(tmp_path):
+    script, subprocess = _stage_script(tmp_path, "None", post_command="false", command="true")
+    res = subprocess.run(["bash", str(script)], capture_output=True)
+    assert res.returncode == 0
+    marker = tmp_path / "ran"
+    script, subprocess = _stage_script(tmp_path, "None", post_command=f"touch {marker}", command="bash -c 'exit 4'")
+    res = subprocess.run(["bash", str(script)], capture_output=True)
+    assert marker.exists() and res.returncode == 4
+
+
+SACCT_SAMPLE = """\
+101|RR_L2_abc123|COMPLETED|0:0
+102|RVS_L2_abc123|TIMEOUT|0:0
+103|FR_L2_abc123|CANCELLED by 1000|0:15
+104|PPXF_L2_abc123|FAILED|1:0
+105|PPXF_L2_other999|TIMEOUT|0:0
+106|EMI_L2_abc123|OUT_OF_MEMORY|0:125
+"""
+
+
+def test_job_report_lists_killed_jobs_of_the_tag_only(tmp_path):
+    from PyAPS import aps_job_report
+
+    rows = aps_job_report.parse_sacct(SACCT_SAMPLE, "abc123")
+    assert [(r["job_id"], r["state"]) for r in rows] == [("102", "TIMEOUT"), ("103", "CANCELLED"),
+                                                          ("106", "OUT_OF_MEMORY")]
+    log = tmp_path / "runner.log"
+    lines = aps_job_report.report("abc123", tmp_path / "logs", runner_log=str(log), sacct_text=SACCT_SAMPLE)
+    assert len(lines) == 3 and log.read_text().splitlines() == lines
+    assert "ERROR: SLURM job 102 RVS_L2_abc123 TIMEOUT exit code 0:0; stderr: " in lines[0]
+    assert lines[0].endswith(str(tmp_path / "logs" / "RVS_L2_abc123.102.err"))
+    assert aps_job_report.report("nomatch", tmp_path, sacct_text=SACCT_SAMPLE) == []
+
+
+def test_mos_l2merge_script_calls_the_job_report():
+    text = (Path(__file__).resolve().parent.parent / "py" / "PyAPS" / "aps_runner.py").read_text()
+    assert "aps_job_report.py" in text and "post_command=post_cmd" in text
