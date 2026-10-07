@@ -44,6 +44,22 @@ python3 -m pip install -e .              # recommended: links to the source tree
 # python3 -m pip install .               # regular install: also set PYAPS_CONFIGDIR (see below)
 ```
 
+### Updating an existing installation
+
+A virtual environment does not follow the code: after `git pull` or a switch to another branch the packages it holds can be older
+than the ones the code now imports, and the processing jobs then fail a few seconds after they start (for example `No module named
+'torch'` or `'desiutil'`). After every code update, in the same environment:
+
+```bash
+pip install --upgrade -e ".[pipeline]"      # processing host; add ",cs" for aps_amy. Linux host without a GPU: add --extra-index-url https://download.pytorch.org/whl/cpu
+pip check                                   # must print "No broken requirements found."
+python tools/check_env.py                   # the pipeline profile; --profile explorer for a viewer-only host, --profile all for everything
+```
+
+`tools/check_env.py` reads the package lists from `pyproject.toml` (so it cannot drift from `pip install ".[pipeline]"`), reports a
+missing or out-of-range package, a missing dependency of an installed package, and a key module that does not import. Exit status 0
+means the environment is complete. Run it on every host that processes data before a night is handed over.
+
 ### Choosing what to install
 
 PyAPS is the WEAVE processing pipeline: `aps_runner` and the scientific modules are its main purpose. The pipeline calls a number of
