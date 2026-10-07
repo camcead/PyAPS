@@ -100,6 +100,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY --from=builder /install /usr/local
 
+# Build-time guard: fail the build (instead of shipping a broken image) when a package the explorer
+# or the server needs is missing or does not import. Same tool as for a processing host (README, "Updating an existing installation").
+COPY pyproject.toml /tmp/envcheck/pyproject.toml
+COPY tools/check_env.py /tmp/envcheck/check_env.py
+RUN python /tmp/envcheck/check_env.py --profile explorer --pyproject /tmp/envcheck/pyproject.toml --lock none --quiet \
+    && python /tmp/envcheck/check_env.py --profile server --pyproject /tmp/envcheck/pyproject.toml --lock none --quiet \
+    && rm -rf /tmp/envcheck
+
 ENV PYAPS_EXPLORER_MULTI_SESSION=1 \
     PYTHONUNBUFFERED=1
 
