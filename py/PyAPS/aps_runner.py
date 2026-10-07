@@ -17,6 +17,7 @@ import datetime
 import gc
 import multiprocessing as mp
 import pickle
+import shlex
 import subprocess
 import time
 import uuid
@@ -346,6 +347,11 @@ def write_bash(headname, script_filename, commands, JOB_ID_HEADNAME, conf, l1_in
         out_script.write("export MKL_NUM_THREADS=1 \n")
         out_script.write("export NUMEXPR_NUM_THREADS=1 \n")
         out_script.write("export HDF5_USE_FILE_LOCKING=FALSE \n")
+        # The templates_RVS key of the script_params file in use wins over template_lib of
+        # rvs_config.yaml (aps_utils.resolve_rvs_template_lib reads this variable).
+        rvs_templates = conf.get('templates_RVS')
+        if rvs_templates is not None and str(rvs_templates).strip().upper() not in ('', 'NONE'):
+            out_script.write("export PYAPS_RVS_TEMPLATES=%s \n" % shlex.quote(str(rvs_templates).strip()))
 
         if l1_info is not None:
             for keys in l1_info.keys():

@@ -1495,6 +1495,14 @@ def ferre_write_fits(outdict, infiles, setups, join_arms, units_str, param_file,
 #################################################################################################
 
 
+def check_rvs_input(rvsfile):
+    """Exit with a clear message when the RVS table that FERRE depends on does not exist."""
+    if rvsfile is None or not os.path.isfile(rvsfile):
+        sys.exit(f"ERROR: the RVS output required by FERRE does not exist: {rvsfile}. "
+                 f"The RVS step of this OB did not produce it (check the RVS_L2_* job log); "
+                 f"rerun RVS before FERRE.")
+
+
 def proc_ferre(infiles, classfile, param_fits, aps_ids=None, targsrvy=None, targclass=None,
                mask_aps_ids=None, area=None, mask_areas=None, figdir=None, wlranges=None,
                use_rvs=True, rvsfile=None, path=None, outpath=None, spec_fits=None,
@@ -1526,6 +1534,12 @@ def proc_ferre(infiles, classfile, param_fits, aps_ids=None, targsrvy=None, targ
     ## Check if ids_in_class is OK or not
     if aps_ids_in_class is None or not aps_ids_in_class.size:
         return
+
+    # FERRE starts from the RVS result. The SLURM chain submits FR with --dependency=afterany
+    # on the RVS job (so L2merge still runs), which means FR also starts when RVS failed:
+    # stop here with a readable message instead of a traceback from deep inside astropy.
+    if use_rvs:
+        check_rvs_input(rvsfile)
 
 
     if grid_ids is None:
