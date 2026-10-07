@@ -52,6 +52,24 @@ set that the test suite passed on (Python 3.12); to reproduce that environment e
 `pip install -r requirements-lock-20261006.txt && pip install --no-deps -e .` (add
 `--extra-index-url https://download.pytorch.org/whl/cpu` on a Linux host without a GPU).
 
+### Updating an existing installation
+
+A virtual environment does not follow the code: after `git pull` or a switch to another branch the packages it holds can be older
+than the ones the code now imports, and the processing jobs then fail a few seconds after they start (for example `No module named
+'torch'` or `'desiutil'`). After every code update, in the same environment:
+
+```bash
+pip install -r requirements-lock-20261006.txt        # the frozen set; add --extra-index-url https://download.pytorch.org/whl/cpu on a Linux host without a GPU
+pip install --no-deps -e .
+pip check                                            # must print "No broken requirements found."
+python tools/check_env.py                            # the pipeline profile; --profile explorer for a viewer-only host, --profile all for everything
+```
+
+`tools/check_env.py` reads the package lists from `pyproject.toml` (so it cannot drift from `pip install ".[pipeline]"`), reports a
+missing or out-of-range package, a missing dependency of an installed package, a key module that does not import, and (as warnings)
+versions that differ from the frozen set. Exit status 0 means the environment is complete. Run it on every host that processes data
+before a night is handed over; the production runner does so at the start of each cycle.
+
 ### Choosing what to install
 
 PyAPS is the WEAVE processing pipeline: `aps_runner` and the scientific modules are its main purpose. The pipeline calls a number of
