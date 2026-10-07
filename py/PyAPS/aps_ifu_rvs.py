@@ -22,6 +22,14 @@ def read_config_APS_RVS(fname=None):
     with open(fname) as fp:
         config = yaml.safe_load(fp)
 
+        # The configured templates_RVS (exported by the job scripts as PYAPS_RVS_TEMPLATES)
+        # wins over template_lib of the file; see aps_utils.resolve_rvs_template_lib.
+        if isinstance(config, dict):
+            from PyAPS.aps_utils import resolve_rvs_template_lib
+            _lib = resolve_rvs_template_lib(config.get("template_lib"))
+            if _lib is not None:
+                config["template_lib"] = _lib
+
         # Expand environment variables in paths
         def expand_paths(d):
             if isinstance(d, dict):

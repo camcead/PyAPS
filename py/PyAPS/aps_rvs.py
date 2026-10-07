@@ -95,7 +95,7 @@ import datetime
 import yaml
 from rvspecfit import fitter_ccf, vel_fit, spec_fit, utils, frozendict
 import PyAPS
-from PyAPS.aps_utils import APSOB, makeR, print_args, none_or_str, str2bool, aps_ids_class,l1_fileinfo, gen_targlist, add_extra_columns, makeR_from_fwhm_array
+from PyAPS.aps_utils import resolve_rvs_template_lib, APSOB, makeR, print_args, none_or_str, str2bool, aps_ids_class,l1_fileinfo, gen_targlist, add_extra_columns, makeR_from_fwhm_array
 from PyAPS.aps_common_args import build_common_parser, resolve_common_args
 from PyAPS import aps_constants
 from PyAPS.apsPlot.rvs import make_rvs_plot
@@ -284,7 +284,14 @@ def read_config_APS_RVS(fname=None):
     if fname is None:
         fname = 'config.yaml'
     with open(fname) as fp:
-        return freezeDict_APS_RVS(yaml.safe_load(fp))
+        config = yaml.safe_load(fp)
+    # The configured templates_RVS (exported by the job scripts as PYAPS_RVS_TEMPLATES) wins
+    # over template_lib of the file; see aps_utils.resolve_rvs_template_lib.
+    if isinstance(config, dict):
+        _lib = resolve_rvs_template_lib(config.get('template_lib'))
+        if _lib is not None:
+            config['template_lib'] = _lib
+    return freezeDict_APS_RVS(config)
 
 #################################################
 

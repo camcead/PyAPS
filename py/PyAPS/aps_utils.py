@@ -191,6 +191,77 @@ def validate_and_set_configdir(configdir=None, verbose=True):
             f"   Please provide a valid configdir path explicitly."
         )
 ###########################################################################
+RVS_TEMPLATES_ENV = "PYAPS_RVS_TEMPLATES"
+
+
+def resolve_rvs_template_lib(template_lib=None, verbose=True):
+    """
+    Decide which directory holds the RVS (rvspecfit) template library.
+
+    ``configs/rvs_config.yaml`` carries a ``template_lib`` default, but the runner's
+    ``script_params*.yaml`` has its own ``templates_RVS`` key, and the two layouts can
+    differ (e.g. templates under ``<PYAPS_HOME>/PyAPS_templates`` on a host that did not
+    move them into ``PyAPS_local``). Resolution order, first existing directory wins:
+
+    1. ``$PYAPS_RVS_TEMPLATES`` -- exported by the generated job scripts from the
+       ``templates_RVS`` key of the script_params file in use, so the configured value wins;
+    2. ``template_lib`` of the RVS config file;
+    3. ``<PYAPS_HOME>/PyAPS_templates/templates_RVS`` and
+       ``<PYAPS_HOME>/PyAPS_local/PyAPS_templates/templates_RVS``, with ``PYAPS_HOME`` from
+       the environment, else the repository root of this checkout.
+
+    When nothing exists the config value is returned unchanged (so the downstream error
+    names the configured path) and the candidates that were tried are printed.
+
+    Returns the directory as a string with a trailing separator (or ``template_lib``
+    unchanged if there was nothing to resolve).
+    """
+    def _clean(path):
+        return os.path.expanduser(os.path.expandvars(str(path)))
+
+    def _with_sep(path):
+        return path if path.endswith(os.sep) else path + os.sep
+
+    tried = []
+
+    def _check(path, origin):
+        if not path:
+            return None
+        path = _clean(path)
+        tried.append(f"{origin}: {path}")
+        return _with_sep(path) if os.path.isdir(path) else None
+
+    found = _check(os.environ.get(RVS_TEMPLATES_ENV), "$" + RVS_TEMPLATES_ENV)
+    if found is None:
+        found = _check(template_lib, "template_lib")
+    if found is None:
+        roots = []
+        if os.environ.get("PYAPS_HOME"):
+            roots.append(os.environ["PYAPS_HOME"])
+        try:
+            roots.append(get_pyaps_repo_root())
+        except RuntimeError:
+            pass
+        for root in roots:
+            for sub in ("PyAPS_templates", os.path.join("PyAPS_local", "PyAPS_templates")):
+                found = _check(os.path.join(root, sub, "templates_RVS"), "default")
+                if found is not None:
+                    break
+            if found is not None:
+                break
+
+    if found is None:
+        if verbose:
+            print("[RVS] WARNING: no RVS template directory found; tried:\n  "
+                  + "\n  ".join(tried))
+        return template_lib
+    if verbose and template_lib and _clean(template_lib).rstrip(os.sep) != found.rstrip(os.sep):
+        print(f"[RVS] Using RVS templates from {found} (template_lib in the RVS config "
+              f"is {_clean(template_lib)})")
+    return found
+
+
+###########################################################################
 def check_and_fix_overlap(wlranges):
     """
     Check if wavelength ranges overlap and fix them if they do.

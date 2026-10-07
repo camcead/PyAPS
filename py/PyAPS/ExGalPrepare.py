@@ -2102,7 +2102,10 @@ def prepare_spec_file(binNum, spec, espec, rootname, outdir, wave, flag, verbose
 
         bin_data[:, i] = np.ravel(spec[:, k])
         bin_error[:, i] = np.ravel(espec[:, k])
-        bin_flux[i] = np.mean(spec[:, k], axis=0)
+        # one scalar per bin: mean over the pixels (and spectra) of the bin. spec[:, k] has
+        # shape (npix, len(k)), so a per-column mean with axis=0 is an array, and recent NumPy
+        # 2.x refuses to store a size-1 array in a scalar element (deprecated since 1.25).
+        bin_flux[i] = np.mean(spec[:, k])
 
     if verbose:
         ExGalutil.prettyOutput_Done(
@@ -2162,7 +2165,7 @@ def voronoi_binning(binNum, spec, error):
 
         bin_data[:, i] = np.ravel(av_spec)
         bin_error[:, i] = np.ravel(av_err_spec)
-        bin_flux[i] = np.mean(av_spec, axis=0)
+        bin_flux[i] = np.mean(av_spec)  # scalar (av_spec is (npix, 1) or (npix,))
         ExGalutil.printProgress(i + 1, nbins, barLength=50)
 
     return (bin_data, bin_error, bin_flux)
