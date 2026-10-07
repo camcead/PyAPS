@@ -120,3 +120,16 @@ class TestGalApertureFactor:
         patch_file_area = a * 3600.0 * self.f(1.0, False)
         patch_array_area = a * 3600.0 * self.f(1.0, True)
         assert patch_file_area == patch_array_area
+
+
+def test_add_mask_region_typed_radius_is_the_masked_radius(wcs):
+    from astropy.table import Table
+    from PyAPS.aps_ifu_ExGal import make_patch_array
+    from PyAPS.aps_ifu_utils import add_mask_region, ensure_table
+
+    tbl = ensure_table(make_patch_array(RA0, DEC0, 10.0, 6.0, 0.1, 1e-4, "GALAXY"))
+    tbl = add_mask_region(tbl, RA0, DEC0, 3.0)
+    row = tbl[tbl["type"] == "M"][0]
+    reg = aperture_sky_region(RA0, DEC0, float(row["A_world"]) * 3600.0,
+                              float(row["B_world"]) * 3600.0, float(row["angle"]))
+    assert _inside(reg, wcs, 2.8, 0.0) and not _inside(reg, wcs, 3.2, 0.0)

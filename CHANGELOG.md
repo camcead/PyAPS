@@ -46,6 +46,12 @@ All notable changes to PyAPS are documented here. The format follows
   (`seg3d_merge_aperture_arcsec`, default 2.0) has always been a diameter (1.0" extraction radius). Past L2 products
   therefore need no reprocessing; read those numbers as diameters.
 
+### Fixed (interactive mask tool)
+- `aps_ifu_utils.add_mask_region` (the `mask <ra> <dec> <radius_arcsec>` command of the patch-table editor) stored the
+  typed radius as the full axis length, so the masked radius was half of what was typed. It now stores the diameter, like
+  the Gaia mask rows, so the typed radius is the real masked radius. Only mask rows added by hand with that command are
+  affected: they masked half the intended radius.
+
 ### Added (Galactic aperture factor)
 - `gal_aperture_factor` (CLI `--gal_aperture_factor`) for the Galactic IFU route: an explicit factor applied to both
   full aperture axis lengths. The default (`None`) keeps the old behaviour, 0.5 for patch-file rows and 1.0 for a
