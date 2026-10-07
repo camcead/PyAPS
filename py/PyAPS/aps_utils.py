@@ -196,69 +196,39 @@ RVS_TEMPLATES_ENV = "PYAPS_RVS_TEMPLATES"
 
 def resolve_rvs_template_lib(template_lib=None, verbose=True):
     """
-    Decide which directory holds the RVS (rvspecfit) template library.
+    Return the directory that holds the RVS (rvspecfit) template library.
 
-    ``configs/rvs_config.yaml`` carries a ``template_lib`` default, but the runner's
-    ``script_params*.yaml`` has its own ``templates_RVS`` key, and the two layouts can
-    differ (e.g. templates under ``<PYAPS_HOME>/PyAPS_templates`` on a host that did not
-    move them into ``PyAPS_local``). Resolution order, first existing directory wins:
+    The only sources are configuration values, there is no fallback to any other location:
 
-    1. ``$PYAPS_RVS_TEMPLATES`` -- exported by the generated job scripts from the
-       ``templates_RVS`` key of the script_params file in use, so the configured value wins;
-    2. ``template_lib`` of the RVS config file;
-    3. ``<PYAPS_HOME>/PyAPS_templates/templates_RVS`` and
-       ``<PYAPS_HOME>/PyAPS_local/PyAPS_templates/templates_RVS``, with ``PYAPS_HOME`` from
-       the environment, else the repository root of this checkout.
+    1. ``$PYAPS_RVS_TEMPLATES``: the generated job scripts export it from the ``templates_RVS``
+       key of the ``script_params`` file in use, so the configured value wins;
+    2. ``template_lib`` of the RVS config file (``configs/rvs_config.yaml`` references
+       ``${PYAPS_RVS_TEMPLATES}``; a standalone user may set a real path there instead).
 
-    When nothing exists the config value is returned unchanged (so the downstream error
-    names the configured path) and the candidates that were tried are printed.
-
-    Returns the directory as a string with a trailing separator (or ``template_lib``
-    unchanged if there was nothing to resolve).
+    Raises ``RuntimeError`` naming the configuration key when the directory is not set or does
+    not exist. Returns the directory as a string with a trailing separator.
     """
     def _clean(path):
         return os.path.expanduser(os.path.expandvars(str(path)))
 
-    def _with_sep(path):
-        return path if path.endswith(os.sep) else path + os.sep
-
-    tried = []
-
-    def _check(path, origin):
-        if not path:
-            return None
-        path = _clean(path)
-        tried.append(f"{origin}: {path}")
-        return _with_sep(path) if os.path.isdir(path) else None
-
-    found = _check(os.environ.get(RVS_TEMPLATES_ENV), "$" + RVS_TEMPLATES_ENV)
-    if found is None:
-        found = _check(template_lib, "template_lib")
-    if found is None:
-        roots = []
-        if os.environ.get("PYAPS_HOME"):
-            roots.append(os.environ["PYAPS_HOME"])
-        try:
-            roots.append(get_pyaps_repo_root())
-        except RuntimeError:
-            pass
-        for root in roots:
-            for sub in ("PyAPS_templates", os.path.join("PyAPS_local", "PyAPS_templates")):
-                found = _check(os.path.join(root, sub, "templates_RVS"), "default")
-                if found is not None:
-                    break
-            if found is not None:
-                break
-
-    if found is None:
-        if verbose:
-            print("[RVS] WARNING: no RVS template directory found; tried:\n  "
-                  + "\n  ".join(tried))
-        return template_lib
-    if verbose and template_lib and _clean(template_lib).rstrip(os.sep) != found.rstrip(os.sep):
-        print(f"[RVS] Using RVS templates from {found} (template_lib in the RVS config "
-              f"is {_clean(template_lib)})")
-    return found
+    env_value = os.environ.get(RVS_TEMPLATES_ENV)
+    if env_value:
+        path, origin = _clean(env_value), f"${RVS_TEMPLATES_ENV} (the templates_RVS key of the script_params file)"
+    elif template_lib and "${" not in str(template_lib) and "$" + RVS_TEMPLATES_ENV not in str(template_lib):
+        path, origin = _clean(template_lib), "template_lib of the RVS config file"
+    else:
+        raise RuntimeError(
+            "The RVS template directory is not configured: set the templates_RVS key in your "
+            "script_params file (the job scripts export it as " + RVS_TEMPLATES_ENV + "), or "
+            "set template_lib in the RVS config file to a real directory.")
+    if not os.path.isdir(path):
+        raise RuntimeError(
+            f"The RVS template directory does not exist: {path} (from {origin}). "
+            f"Fix the templates_RVS key of your script_params file, or template_lib of the RVS "
+            f"config file when running aps_rvs.py by hand.")
+    if verbose:
+        print(f"[RVS] Using RVS templates from {path} (from {origin})")
+    return path if path.endswith(os.sep) else path + os.sep
 
 
 ###########################################################################

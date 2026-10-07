@@ -261,7 +261,7 @@ def update_arms_ratio(infiles, res_mode, camera, arms_ratio, GR_ratio_HR=0.85, B
 ############################################################################################
 def write_bash(headname, script_filename, commands, JOB_ID_HEADNAME, conf, l1_info=None,
                log=True, logs_path=None, log_prefix=None,
-               sbatch_ntasks=None, sbatch_mem=None, sbatch_depends_on=None):
+               sbatch_ntasks=None, sbatch_mem=None, sbatch_depends_on=None, post_command=None):
     """
     Write a single-command or multi-command (kiko-ready) bash script for
     one processing stage (or the full OB, when `commands` is a dict).
@@ -288,6 +288,15 @@ def write_bash(headname, script_filename, commands, JOB_ID_HEADNAME, conf, l1_in
         stage alone. Only meaningful for per-stage scripts (log_prefix is
         not None) -- the combined kiko-ready script is never `sbatch`-ed
         directly as one job, so it's skipped there.
+
+    post_command : optional shell command run after the stage command (single-command
+        scripts only), its status ignored. Used by the last MOS stage to report killed
+        jobs of the OB (aps_job_report.py).
+
+    When the script_params file has a `runner_log` key (a file, or 'None'), the script
+    exports it as PYAPS_RUNNER_LOG and a stage that ends with a non-zero exit code appends
+    one ERROR line (job id, job name, exit code, path of its .err file) to that file, so
+    the failure is visible in the runner log and not only in the job's own .err file.
     """
 
     # check if logs_path is available
@@ -352,6 +361,10 @@ def write_bash(headname, script_filename, commands, JOB_ID_HEADNAME, conf, l1_in
         rvs_templates = conf.get('templates_RVS')
         if rvs_templates is not None and str(rvs_templates).strip().upper() not in ('', 'NONE'):
             out_script.write("export PYAPS_RVS_TEMPLATES=%s \n" % shlex.quote(str(rvs_templates).strip()))
+        runner_log = conf.get('runner_log')
+        has_runner_log = runner_log is not None and str(runner_log).strip().upper() not in ('', 'NONE')
+        if has_runner_log:
+            out_script.write("export PYAPS_RUNNER_LOG=%s \n" % shlex.quote(str(runner_log).strip()))
 
         if l1_info is not None:
             for keys in l1_info.keys():
@@ -401,8 +414,19 @@ def write_bash(headname, script_filename, commands, JOB_ID_HEADNAME, conf, l1_in
             out_script.write("# Check exit status and log if failed\n")
             out_script.write("if [ $EXIT_STATUS -ne 0 ]; then\n")
             out_script.write("    echo 'ERROR: Command failed with exit code '$EXIT_STATUS >&2\n")
+            # no-op unless PYAPS_RUNNER_LOG is set (exported above or inherited from the submitter)
+            stage_name = f"{log_prefix}_L2_{JOB_ID_HEADNAME}" if log_prefix else str(JOB_ID_HEADNAME)
+            out_script.write('    if [ -n "$PYAPS_RUNNER_LOG" ]; then\n')
+            out_script.write(
+                '        echo "[$(date \'+%%Y-%%m-%%d %%H:%%M:%%S\')] ERROR: SLURM job ${SLURM_JOB_ID:-n/a} '
+                '${SLURM_JOB_NAME:-%s} failed with exit code $EXIT_STATUS; stderr: %s/${SLURM_JOB_NAME:-%s}.${SLURM_JOB_ID:-0}.err" '
+                '>> "$PYAPS_RUNNER_LOG" 2>/dev/null || true\n' % (stage_name, str(logs_path), stage_name))
+            out_script.write("    fi\n")
             out_script.write("fi\n")
             out_script.write("\n")
+            if post_command:
+                out_script.write("# report killed/failed jobs of this OB (never changes the exit status)\n")
+                out_script.write(f"{post_command} || true\n\n")
 
         else:
             sys.exit('Wrong commands format: acceptable formats: dict or str')
@@ -427,8 +451,8 @@ def _set_pyaps_env_defaults():
     """Make ${PYAPS_PKG_DIR} and ${PYAPS_HOME} usable inside script_params YAML files.
 
     PYAPS_PKG_DIR -> the directory holding the aps_*.py modules (always known).
-    PYAPS_HOME    -> the working tree that holds configs/, externals/, CS/ and
-                     PyAPS_local/. Defaults to the source checkout this module lives in,
+    PYAPS_HOME    -> the working tree that holds configs/, externals/, CS/ and the data and
+                     template trees. Defaults to the source checkout this module lives in,
                      otherwise ~/PyAPS. Export PYAPS_HOME yourself to override.
     """
     pkg_dir = Path(__file__).resolve().parent
@@ -882,8 +906,15 @@ def mos_scriptGEN(infiles, config_file, cat_list=None, aps_ids=None, wlranges=No
 
         script_name = scripts_path.joinpath(f"{JOB_ID_HEADNAME}_{cmd_keys}").with_suffix('.sh')
         meta = MOS_SBATCH_META.get(cmd_keys, {})
+        # L2merge runs (afterany) once every other stage has ended: it also reports the jobs of this
+        # OB that were killed (TIMEOUT, CANCELLED, out of memory, ...) into the runner log.
+        post_cmd = None
+        if cmd_keys == 'MOS_L2merge':
+            post_cmd = (str(python_interp)+' '+str(Path(conf['PyAPS_DIR']).joinpath('aps_job_report.py'))
+                        +' --tag '+str(JOB_ID_HEADNAME)+' --logs-path '+str(logs_path))
         write_bash(headname, script_name , command_dict[cmd_keys], JOB_ID_HEADNAME,conf, l1_info = l1_info, log=log,logs_path=logs_path, log_prefix=cmd_keys,
-                   sbatch_ntasks=meta.get('ntasks'), sbatch_mem=meta.get('mem'), sbatch_depends_on=meta.get('depends_on'))
+                   sbatch_ntasks=meta.get('ntasks'), sbatch_mem=meta.get('mem'), sbatch_depends_on=meta.get('depends_on'),
+                   post_command=post_cmd)
 
     #########################################################################################
     ## Generate the slurm script

@@ -1,4 +1,7 @@
-template_lib : '${PYAPS_HOME}/PyAPS_local/PyAPS_templates/templates_RVS/'
+# RVS template directory: taken from the templates_RVS key of your script_params file (the job scripts
+# export it as PYAPS_RVS_TEMPLATES). When running aps_rvs.py by hand, export PYAPS_RVS_TEMPLATES or
+# replace the value below with the real directory.
+template_lib : '${PYAPS_RVS_TEMPLATES}'
 min_vel: -1000 # minimum velocity to consider
 max_vel: 1000 # maximum velocity to consider
 min_vel_step: 0.2 # The smallest step for the final P(v|D) evaluation

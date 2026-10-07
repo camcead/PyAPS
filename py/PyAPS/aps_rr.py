@@ -1199,7 +1199,7 @@ def _apply_archetype_fallback(zfitall, scandata, apsmeta,
     Verified on the real catastrophic-redshift regression set this
     trigger was built against (WC OB 20250630/16287,
     stack_3095664__stack_3095663, catastrophic_redshifts_apsmod.txt /
-    PyAPS_local/<investigation_dir>): the two genuine galaxy-flipped-to-STAR cases in
+    a personal investigation directory): the two genuine galaxy-flipped-to-STAR cases in
     that set (FIBREID/APS_ID 791, 938) are UNCHANGED by this addition
     (TARGCLASS=GALAXY there, archetype says STAR, so targeting_override
     never applies) -- no regression. Those two are not actually fixed by

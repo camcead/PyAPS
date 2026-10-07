@@ -35,9 +35,9 @@ tree (exported, or defaulted by `aps_runner` to the checkout), `<env_suffix>` = 
 | Key(s) | Enter |
 |---|---|
 | `PyAPS_DIR` | leave as `${PYAPS_PKG_DIR}` (the folder with the `aps_*.py` modules, set by the runner) |
-| `PyAPS_RES`, `CS_RES`, `PyAPS_CAT`, `PyAPS_CAL`, `PyAPS_XML` | the folders for L2 results, CS results, catalogues, calibration files and XML, normally `${PYAPS_HOME}/PyAPS_local/PyAPS_data/<name><env_suffix>`. Replace `<env_suffix>` (below) |
+| `PyAPS_RES`, `CS_RES`, `PyAPS_CAT`, `PyAPS_CAL`, `PyAPS_XML` | the folders for L2 results, CS results, catalogues, calibration files and XML, normally `${PYAPS_HOME}/PyAPS_data/<name><env_suffix>` (`PyAPS_data` is a git-ignored directory or a symlink to the data volume). Replace `<env_suffix>` (below) |
 | `PyAPS_CONFIG`, `PyAPS_EXGALCONFIG` | normally unchanged (`${PYAPS_HOME}/configs`, `.../ExGal_configs`) |
-| `templates_*`, `IFU_templates_*`, `SQ_templates`, `FESWI_*` grids | where your template libraries live (default: under `${PYAPS_HOME}/PyAPS_local/PyAPS_templates`) |
+| `templates_*`, `IFU_templates_*`, `SQ_templates`, `FESWI_*` grids | where your template libraries live (default: under `${PYAPS_HOME}/PyAPS_templates`, a git-ignored directory or symlink). `templates_RVS` is also what the RVS jobs use: the job scripts export it as `PYAPS_RVS_TEMPLATES`, which `template_lib: '${PYAPS_RVS_TEMPLATES}'` of `configs/rvs_config.yaml` refers to. A missing directory stops the job with an error naming this key; there is no fallback location |
 | `FERRE_EXE`, `FESWI_path`, `SQ_model`, `config_RVS` ... | location of the external programs / models (default: under `${PYAPS_HOME}/externals` and `${PYAPS_HOME}/CS`) |
 | `use_venv`, `venv_path` | `'True'` plus the activate script if generated scripts must activate a virtual environment |
 | `*_RR`, `*_RVS`, `*_FR`, `*_ExGal`, `IFU_*`, `SQ_*`, `FESWI_*`, `SPACE_*`, `AMY_*` ... | per-module processing defaults (booleans and numbers as quoted strings). The shipped values are the project defaults; change them only to change processing behaviour |

@@ -26,9 +26,7 @@ def read_config_APS_RVS(fname=None):
         # wins over template_lib of the file; see aps_utils.resolve_rvs_template_lib.
         if isinstance(config, dict):
             from PyAPS.aps_utils import resolve_rvs_template_lib
-            _lib = resolve_rvs_template_lib(config.get("template_lib"))
-            if _lib is not None:
-                config["template_lib"] = _lib
+            config["template_lib"] = resolve_rvs_template_lib(config.get("template_lib"))
 
         # Expand environment variables in paths
         def expand_paths(d):
