@@ -53,6 +53,7 @@ than the ones the code now imports, and the processing jobs then fail a few seco
 ```bash
 pip install --upgrade -e ".[pipeline]"      # processing host; add ",cs" for aps_amy. Linux host without a GPU: add --extra-index-url https://download.pytorch.org/whl/cpu
 pip check                                   # must print "No broken requirements found."
+plotly_get_chrome -y                        # once per host and user: the Chrome that kaleido needs to write plot images (not a pip package)
 python tools/check_env.py                   # the pipeline profile; --profile explorer for a viewer-only host, --profile all for everything
 ```
 
