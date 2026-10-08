@@ -62,6 +62,7 @@ than the ones the code now imports, and the processing jobs then fail a few seco
 pip install -r requirements-lock-20261006.txt        # the frozen set; add --extra-index-url https://download.pytorch.org/whl/cpu on a Linux host without a GPU
 pip install --no-deps -e .
 pip check                                            # must print "No broken requirements found."
+plotly_get_chrome -y                                 # once per host and user: the Chrome that kaleido needs to write plot images (not a pip package)
 python tools/check_env.py                            # the pipeline profile; --profile explorer for a viewer-only host, --profile all for everything
 ```
 
