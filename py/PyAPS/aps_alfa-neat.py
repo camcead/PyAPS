@@ -17,7 +17,7 @@ versions:
 
 How to run:
 Mode1.  Through the command line (bash mode):
-python3 aps_alfa-neat.py --infiles <PYAPS_DATA>/AMY/4365/stacked_1003690.fit <PYAPS_DATA>/AMY/4365/stacked_1003689.fit --aps_ids 995,989,984,998,987,978 --targsrvy None --targclass None --mask_aps_ids None --area None --mask_areas None --wlranges None --sens_corr True --mask_gaps True --safe_mask_gaps True --tellurics False --vacuum False --fill_gap False --arms_ratio None --outpath <PYAPS_DIR>/PyAPS_results/20170911/4356/ --neat_null <PYAPS_DIR>/CS/ALFA-NEAT/neat_null.fits --alfa_exe <PYAPS_DIR>/CS/ALFA-NEAT/ALFA/alfa --neat_exe <PYAPS_DIR>/CS/ALFA-NEAT/NEAT/neat --columnnames <PYAPS_DIR>/configs/alfa_neat_columnnames.json --headname stacked_1003690__stacked_1003689 --overwrite True --mproc 1
+python3 aps_alfa-neat.py --infiles <PYAPS_DATA>/AMY/<obid>/stacked_<runid>.fit <PYAPS_DATA>/AMY/<obid>/stacked_<runid>.fit --aps_ids 995,989,984,998,987,978 --targsrvy None --targclass None --mask_aps_ids None --area None --mask_areas None --wlranges None --sens_corr True --mask_gaps True --safe_mask_gaps True --tellurics False --vacuum False --fill_gap False --arms_ratio None --outpath <PYAPS_DIR>/PyAPS_results/<night>/<obid>/ --neat_null <PYAPS_DIR>/CS/ALFA-NEAT/neat_null.fits --alfa_exe <PYAPS_DIR>/CS/ALFA-NEAT/ALFA/alfa --neat_exe <PYAPS_DIR>/CS/ALFA-NEAT/NEAT/neat --columnnames <PYAPS_DIR>/configs/alfa_neat_columnnames.json --headname stacked_<runid>__stacked_<runid> --overwrite True --mproc 1
 
 Mode2.  (Develop/debug mode): Update the parameters at the bottom of this file and then, directly call this file from python
 
@@ -294,7 +294,7 @@ def alfa_neat_serial_worker(infiles, outpath, working_dir, neat_null, columnname
         hdr['CS_DOI'] = ""
         hdr['CS_NME1'] = "Roger"
         hdr['CS_NME2'] = "Wesson"
-        hdr['CS_MAIL'] = "rw@nebulousresearch.org"
+        hdr['CS_MAIL'] = os.environ.get('PYAPS_CS_MAIL_ALFA', os.environ.get('PYAPS_CS_MAIL', ''))  # contributor contact, set via env (not hardcoded)
         hdr['PROV0001'] = ",".join(infiles)
         hdr['PROV0002'] = "-"
       
@@ -514,7 +514,7 @@ def make_output_fits(infiles, working_dir, outpath, headname, overwrite=True):
     hdr['CS_DOI'] = ""
     hdr['CS_NME1'] = "Roger"
     hdr['CS_NME2'] = "Wesson"
-    hdr['CS_MAIL'] = "rw@nebulousresearch.org"
+    hdr['CS_MAIL'] = os.environ.get('PYAPS_CS_MAIL_ALFA', os.environ.get('PYAPS_CS_MAIL', ''))  # contributor contact, set via env (not hardcoded)
     hdr['PROV0001'] = str(infiles[0])
     try:
         hdr['PROV0002'] = str(infiles[1])
@@ -722,7 +722,10 @@ if __name__ == '__main__':
 
 # READ DATA and put them in the APSOBJ OBJECT
 
-    debug_demo= ['--infiles', '/scratch/aps/PyAPS/PyAPS_data_dev/L1/AMY/4365/stacked_1003690.fit', '/scratch/aps/PyAPS/PyAPS_data_dev/L1/AMY/4365/stacked_1003689.fit',
+    # --- DEMO settings: edit for your setup (or export PYAPS_DATA_DIR / PYAPS_HOME) -------------
+    DEMO_DATA = os.environ.get('PYAPS_DATA_DIR', '<PYAPS_DATA>')
+    DEMO_HOME = os.environ.get('PYAPS_HOME', '<PYAPS_DIR>')
+    debug_demo= ['--infiles', os.path.join(DEMO_DATA, 'L1/AMY/<obid>/stacked_<runid>.fit'), os.path.join(DEMO_DATA, 'L1/AMY/<obid>/stacked_<runid>.fit'),
     '--aps_ids', '995,989,984,998,987,978', # or 'None' to run for all available fibreids
     '--targsrvy', 'None',
     '--targclass', 'None',
@@ -730,8 +733,8 @@ if __name__ == '__main__':
     '--area', 'None',
     '--mask_areas', 'None',
     # '--wlranges',  '4000.0,6000.0','6200.0,9000.0',
-    '--alfa_exe', '<PYAPS_DIR>/CS/ALFA-NEAT/ALFA/alfa',
-    '--neat_exe', '<PYAPS_DIR>/CS/ALFA-NEAT/NEAT/neat',
+    '--alfa_exe', os.path.join(DEMO_HOME, 'CS/ALFA-NEAT/ALFA/alfa'),
+    '--neat_exe', os.path.join(DEMO_HOME, 'CS/ALFA-NEAT/NEAT/neat'),
     '--wlranges', 'None',
     '--sens_corr', 'True',
     '--safe_mask_gaps', 'True',
@@ -740,10 +743,10 @@ if __name__ == '__main__':
     '--vacuum', 'False',
     '--fill_gap', 'False',
     '--arms_ratio', '1.0, 0.83',
-    '--outpath', '<PYAPS_DATA>_dev/L2/20170911/4356/',
-    '--neat_null', '<PYAPS_DIR>/CS/ALFA-NEAT/neat_null.fits',
-    '--columnnames', '<PYAPS_DIR>/configs/alfa_neat_columnnames.json',
-    '--headname', 'stacked_1003690__stacked_1003689',
+    '--outpath', os.path.join(DEMO_DATA, 'L2/<night>/<obid>/'),
+    '--neat_null', os.path.join(DEMO_HOME, 'CS/ALFA-NEAT/neat_null.fits'),
+    '--columnnames', os.path.join(DEMO_HOME, 'configs/alfa_neat_columnnames.json'),
+    '--headname', 'stacked_<runid>__stacked_<runid>',
     '--overwrite', 'True',
     '--mproc' ,'2']
 

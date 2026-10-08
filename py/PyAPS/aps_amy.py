@@ -29,7 +29,7 @@ from scipy import interpolate
 import scipy
 import astropy
 import matplotlib
-from datetime import datetime
+from datetime import datetime, timezone
 from scipy.stats.mstats import mquantiles
 # from parameters import *
 from astropy.table import Table
@@ -170,7 +170,7 @@ def prepare_templates():
 
     # The starting and ending indexed of temperature, logg, vsini information in
     # the listed templates. E.g. for a listed template called 
-    # 'C:/Users/me/Documents/templates/t05000g3.00-vsini000.dat', the indices would
+    # '<template_dir>/t05000g3.00-vsini000.dat', the indices would
     # be (33, 38), (39,43), (49, 52) respectively.
     temp_ind = (30, 36)
     logg_ind = (37, 41)
@@ -641,7 +641,7 @@ def modheader(hdul):
 
 def createDAT(outpath, headname, infiles, aps_ids, overwrite):
     tab = open(outpath+'/amy_wd/'+ headname+'_AMY.dat', "w")
-    tab.write("Date of creation: {}\n".format(datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')))
+    tab.write("Date of creation: {}\n".format(datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')))
     tab.write("\n")
     tab.write("######## OB info and inputs ###########\n")
     tab.write("OB: {}\n".format(os.path.splitext(os.path.basename(infiles[0]))[0].split('_')[1]))
@@ -682,13 +682,13 @@ def make_output_fits(outpath, headname, infiles, aps_ids, overwrite=True):
     hdr.comments['CS_NME1']='CS author forename'
     hdr['CS_NME2'] = 'Harris, Monguio'
     hdr.comments['CS_NME2']='CS author surname(s)'
-    hdr['CS_MAIL'] = 'm.monguio@icc.ub.edu'
+    hdr['CS_MAIL'] = os.environ.get('PYAPS_CS_MAIL_AMY', os.environ.get('PYAPS_CS_MAIL', ''))  # contributor contact, set via env (not hardcoded)
     hdr.comments['CS_MAIL']='CS author email'
     hdr['PROV1001'] = os.path.splitext(os.path.basename(infiles[0]))[0]+'.fit'
     hdr.comments['PROV1001']='L1 file used'
     hdr['PROV2001'] = ''
     hdr.comments['PROV2001']='L2 file used'
-    hdr['DATETIME'] = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+    hdr['DATETIME'] = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
     hdr.comments['DATETIME']='Datetime file created'
     print(hdr['PROV1001'],hdr['DATETIME'])
     empty_primary = fits.PrimaryHDU(header=hdr)
@@ -1236,12 +1236,14 @@ def amy_runner(options=None):
 
 #################################################################################################
 if __name__ == '__main__':
+    # DEMO settings: edit for your setup. Replace the <PYAPS_DATA>, <PYAPS_DIR>, <night>, <runid>, <obid>
+    # markers below with your own locations and identifiers (no machine paths belong in this repository).
 
 # READ DATA and put them in the APSOBJ OBJECT
 
 
-#    debug_demo= ['--infiles', '<PYAPS_DATA>/AMY/4365/stacked_1003689.fit',
-    debug_demo= ['--infiles', '<PYAPS_DATA>/AMY/4365/stacked_1003690.fit','<PYAPS_DATA>/AMY/4365/stacked_1003689.fit',
+#    debug_demo= ['--infiles', '<PYAPS_DATA>/AMY/<obid>/stacked_<runid>.fit',
+    debug_demo= ['--infiles', '<PYAPS_DATA>/AMY/<obid>/stacked_<runid>.fit','<PYAPS_DATA>/AMY/<obid>/stacked_<runid>.fit',
     '--aps_ids', '184,185,187,192', # or 'None' to run for all available fibreids
     '--targsrvy', 'None',
     '--targclass', 'None',
@@ -1256,11 +1258,11 @@ if __name__ == '__main__':
     '--arms_ratio', '1.0,1.0',
     '--join_arms', 'False',
     # '--config', '<PYAPS_DIR>/CS/AMY/AMY/parameters.py', ## at the moment, we ignore this, but kept it as may be used later
-    '--outpath', '<PYAPS_DIR>/PyAPS_results/20170911/4365/',
+    '--outpath', '<PYAPS_DIR>/PyAPS_results/<night>/<obid>/',
     '--templates_dir', '<PYAPS_DIR>/PyAPS_templates/templates_AMY/',
     '--template_flux', 'template_grid.npy',
     '--template_wave','wavelength_data.dat',
-    '--headname', 'stacked_1003689',
+    '--headname', 'stacked_<runid>',
     '--overwrite', 'True',
     '--progress_bar', 'True',
     '--mproc' ,'4' ]

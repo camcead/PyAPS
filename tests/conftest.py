@@ -26,3 +26,18 @@ def pytest_runtest_makereport(item, call):
         report.wasxfail = None
         report.longrepr = (str(item.fspath), item.location[1] or 0,
                            "Skipped: real WEAVE data not available (set PYAPS_TEST_DATA)")
+
+
+@pytest.fixture(autouse=True)
+def _reset_explorer_state_between_files():
+    """Explorer tests (test_aps_explorer.py) can leave EXPLORER.kind set with no
+    real data behind it; a later test file that renders the layout would then
+    crash in _central_item. Reset the shared default state before every test
+    (only if the explorer module is already imported, so no-explorer runs stay light)."""
+    import sys
+
+    ex = sys.modules.get("PyAPS.aps_explorer")
+    if ex is not None:
+        ex.EXPLORER.kind = None
+        ex.EXPLORER.file_info = None
+    yield

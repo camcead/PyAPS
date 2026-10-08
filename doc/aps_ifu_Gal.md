@@ -103,7 +103,7 @@ This is the most important section for anyone migrating from working with the Ex
 | Spatial bin size | Typically 1.0–2.0 arcsec | **Typically 3.0–5.0 arcsec** |
 | Target SNR per bin | Typically 20–30 | **Typically 50–80** |
 | Fitting modules | pPXF + EMIPPXF + LS | **RVS + FERRE** |
-| Aperture radius enhancement | ×3 for single large targets | **×0.5 (shrunk)** — stellar PSF, not extended |
+| Aperture radius enhancement | ×3 for single large targets | **×0.5 (shrunk) for patch-file rows by default**, set with `gal_aperture_factor` — concentrates on the bright central spaxels |
 | Wavelength window | Adaptive `ppxf_limits()` | Not applicable — FERRE handles its own range |
 | Central target skipping | No | **Yes** — C-type rows skipped when T-type rows exist |
 
@@ -269,11 +269,13 @@ The Gal loop applies three selection rules that differ from ExGal:
 ### 7.4 Aperture shrinkage for stellar targets
 
 ```python
-enhanced_rad_factor = 0.5   # always, for all Gal targets
-rad_factor = 1.0 if patch_array_mode else enhanced_rad_factor
+enhanced_rad_factor = resolve_gal_aperture_factor(gal_aperture_factor, patch_array_mode)
+# None -> 0.5 for patch_file rows, 1.0 for patch_array
 ```
 
-In `patch_array` mode the aperture is used as given. In `patch_file` mode the aperture from the patch table is halved. This is the opposite of ExGal which sometimes enlarges apertures (×3) for single large targets. The reasoning:
+By default, in `patch_array` mode the aperture is used as given, and in `patch_file` mode both full axis lengths from the patch table are multiplied by 0.5 (so the extraction radius is halved). This is a fixed spatial cut, not PSF fitting or S/N optimisation. The `gal_aperture_factor` argument (CLI `--gal_aperture_factor`) sets the factor explicitly on either route, so the same aperture gives the same selection whichever way it is supplied; leaving it unset keeps the historical defaults, so existing runs are unchanged. Gal rows of type `M` are skipped as targets but are not applied as spatial exclusions (ExGal does apply them); `mask_aps_ids` filtering still works.
+
+The default shrink is the opposite of ExGal, which sometimes enlarges apertures (×3) for single large targets. The reasoning:
 
 - Galaxy apertures from `aps_ifu_prepare` are sized to encompass the galaxy's extended emission
 - A stellar target is a point source — the IFU aperture around it will include sky if you use the full galaxy-sized aperture
@@ -325,18 +327,18 @@ Check spatial binning and Voronoi before running FERRE (which can take a long ti
 
 ```bash
 python aps_Gal_worker.py \
-    --infiles /data/L1/20240808/stackcube_3071431.fit \
-              /data/L1/20240808/stackcube_3071430.fit \
+    --infiles $PYAPS_DATA/L1/20240808/stackcube_3071431.fit \
+              $PYAPS_DATA/L1/20240808/stackcube_3071430.fit \
     --headname stackcube_3071431__stackcube_3071430 \
-    --outpath  /data/L2/20240808/11182/ \
-    --patch_file /data/L2/20240808/11182/stackcube_..._targets_mod.fits \
+    --outpath  $PYAPS_DATA/L2/20240808/11182/ \
+    --patch_file $PYAPS_DATA/L2/20240808/11182/stackcube_..._targets_mod.fits \
     --IFU_config_dir <PYAPS_DIR>/configs/ExGal_configs/ \
     --IFU_params     <PYAPS_DIR>/configs/Gal_configs/LIFULR11_GAL.json \
     --wlranges 3800.0,5950.0 5900.0,9280.0 \
     --arms_ratio 1.0,1.0 \
     --sens_corr True --mask_gaps True --safe_mask_gaps True \
     --tellurics True --join_arms True \
-    --caldir /data/CAL --catdir /data/CAT
+    --caldir $PYAPS_DATA/CAL --catdir $PYAPS_DATA/CAT
 ```
 
 > **Note:** Not passing `--rvs_config`, `--ferre_exe`, or `--ferre_templates` skips the fitting modules and runs preparation only. Inspect the figures in `figs_Gal/` before proceeding.
@@ -345,11 +347,11 @@ python aps_Gal_worker.py \
 
 ```bash
 python aps_Gal_worker.py \
-    --infiles /data/L1/20240808/stackcube_3071431.fit \
-              /data/L1/20240808/stackcube_3071430.fit \
+    --infiles $PYAPS_DATA/L1/20240808/stackcube_3071431.fit \
+              $PYAPS_DATA/L1/20240808/stackcube_3071430.fit \
     --headname stackcube_3071431__stackcube_3071430 \
-    --outpath  /data/L2/20240808/11182/ \
-    --patch_file /data/L2/20240808/11182/stackcube_..._targets_mod.fits \
+    --outpath  $PYAPS_DATA/L2/20240808/11182/ \
+    --patch_file $PYAPS_DATA/L2/20240808/11182/stackcube_..._targets_mod.fits \
     --IFU_config_dir <PYAPS_DIR>/configs/ExGal_configs/ \
     --IFU_params     <PYAPS_DIR>/configs/Gal_configs/LIFULR11_GAL.json \
     --rvs_config     <PYAPS_DIR>/configs/rvs_config.yaml \
@@ -361,7 +363,7 @@ python aps_Gal_worker.py \
     --arms_ratio 1.0,1.0 \
     --sens_corr True --mask_gaps True --safe_mask_gaps True \
     --tellurics True --join_arms True \
-    --caldir /data/CAL --catdir /data/CAT
+    --caldir $PYAPS_DATA/CAL --catdir $PYAPS_DATA/CAT
 ```
 
 ### Override binning parameters at runtime
@@ -380,10 +382,10 @@ python aps_Gal_worker.py \
 
 ```bash
 python aps_Gal_worker.py \
-    --infiles /data/L1/20240808/stackcube_3071431.fit \
-              /data/L1/20240808/stackcube_3071430.fit \
+    --infiles $PYAPS_DATA/L1/20240808/stackcube_3071431.fit \
+              $PYAPS_DATA/L1/20240808/stackcube_3071430.fit \
     --headname stackcube_3071431__stackcube_3071430 \
-    --outpath  /data/L2/20240808/11182/ \
+    --outpath  $PYAPS_DATA/L2/20240808/11182/ \
     --IFU_config_dir <PYAPS_DIR>/configs/ExGal_configs/ \
     --IFU_params     <PYAPS_DIR>/configs/Gal_configs/LIFULR11_GAL.json \
     --patch_array "3,185.201,58.093,15.0,15.0,0.0001,0.0001,STAR" \
@@ -394,7 +396,7 @@ python aps_Gal_worker.py \
     --arms_ratio 1.0,1.0 \
     --sens_corr True --mask_gaps True --safe_mask_gaps True \
     --tellurics True --join_arms True \
-    --caldir /data/CAL --catdir /data/CAT
+    --caldir $PYAPS_DATA/CAL --catdir $PYAPS_DATA/CAT
 ```
 
 Note the smaller aperture (15×15 arcsec) appropriate for a point source.
@@ -423,13 +425,13 @@ python aps_Gal_worker.py \
 from PyAPS.aps_ifu_gal import ifu_Gal
 
 ifu_Gal(
-    infiles         = ["/data/L1/20240808/stackcube_3071431.fit",
-                       "/data/L1/20240808/stackcube_3071430.fit"],
+    infiles         = ["<PYAPS_DATA>/L1/20240808/stackcube_3071431.fit",
+                       "<PYAPS_DATA>/L1/20240808/stackcube_3071430.fit"],
     headname        = "stackcube_3071431__stackcube_3071430",
-    outpath         = "/data/L2/20240808/11182/",
+    outpath         = "<PYAPS_DATA>/L2/20240808/11182/",
     IFU_config_dir  = "<PYAPS_DIR>/configs/ExGal_configs/",
     IFU_params      = "<PYAPS_DIR>/configs/Gal_configs/LIFULR11_GAL.json",
-    patch_file      = "/data/L2/20240808/11182/stackcube_..._targets_mod.fits",
+    patch_file      = "<PYAPS_DATA>/L2/20240808/11182/stackcube_..._targets_mod.fits",
     rvs_config      = "<PYAPS_DIR>/configs/rvs_config.yaml",
     ferre_exe       = "<FERRE_DIR>/src/ferre.x",
     ferre_templates = "<PYAPS_DIR>/PyAPS_templates/templates_FERRE/",
@@ -442,7 +444,7 @@ ifu_Gal(
     arms_ratio      = [1.0, 1.0],
     sens_corr=True, mask_gaps=True, safe_mask_gaps=True,
     tellurics=True, join_arms=True,
-    caldir="/data/CAL", catdir="/data/CAT",
+    caldir="<PYAPS_DATA>/CAL", catdir="<PYAPS_DATA>/CAT",
 )
 ```
 
@@ -474,7 +476,7 @@ ifu_Gal(
     nthreads        = 4,
     wlranges=[[3800.0, 5950.0], [5900.0, 9280.0]],
     arms_ratio=[1.0, 1.0],
-    caldir="/data/CAL",
+    caldir="<PYAPS_DATA>/CAL",
 )
 ```
 
@@ -486,11 +488,11 @@ For inspection of the preparation stage only:
 from PyAPS.aps_ifu_gal import ifu_Gal_prepare
 
 prep = ifu_Gal_prepare(
-    infiles        = ["/data/L1/20240808/stackcube_3071431.fit",
-                      "/data/L1/20240808/stackcube_3071430.fit"],
+    infiles        = ["<PYAPS_DATA>/L1/20240808/stackcube_3071431.fit",
+                      "<PYAPS_DATA>/L1/20240808/stackcube_3071430.fit"],
     headname       = "stackcube_3071431__stackcube_3071430_P0003",
     IFU_params     = "<PYAPS_DIR>/configs/Gal_configs/LIFULR11_GAL.json",
-    outpath        = "/data/L2/20240808/11182/",
+    outpath        = "<PYAPS_DATA>/L2/20240808/11182/",
     z_input        = [0.0, 0.001],
     area           = [185.201, 58.093, 15.0, 15.0, 0.0],
     spbin_size_gal = 3.0,
@@ -502,7 +504,7 @@ prep = ifu_Gal_prepare(
     sens_corr=True, mask_gaps=True, safe_mask_gaps=True,
     tellurics=True,
     IFU_config_dir = "<PYAPS_DIR>/configs/ExGal_configs/",
-    caldir         = "/data/CAL",
+    caldir         = "<PYAPS_DATA>/CAL",
 )
 
 if prep is not None:
@@ -583,6 +585,7 @@ These are identical to the ExGal module. See `aps_ifu_exgal_README.md` Section 9
 | `class_templates_ARC` | str or None | `None` | Redrock archetype template directory. |
 | `class_z_rad` | float | `1.5` | Search radius in arcsec for catalogue redshift prior. |
 | `class_ntop` | int | `1` | Number of top Redrock solutions to store. |
+| `gal_aperture_factor` | float or None | `None` | Factor applied to both full aperture axis lengths. `None` = 0.5 for `patch_file` rows, 1.0 for `patch_array`. |
 | `mp_prep` | int | `1` | Threads for the re-classification step. |
 
 ### Loop control
@@ -676,7 +679,7 @@ In `aps_ifu_prepare`, the segmentation step fits an elliptical aperture to each 
 - Too large (the star is in the same field as a large galaxy, and the default minimum aperture is set for that galaxy's size)
 - Correctly small (the star was detected and fitted independently)
 
-In practice, stellar targets in LIFU fields where the primary science target is a galaxy will have patch-table apertures sized for the galaxy scale (~30–100 arcsec semi-major axis). Extracting a stellar spectrum with a 100-arcsec aperture would include hundreds of IFU spaxels that are dominated by sky or galaxy light, not the star.
+In practice, stellar targets in LIFU fields where the primary science target is a galaxy will have patch-table apertures sized for the galaxy scale (~30–100 arcsec major-axis length). Extracting a stellar spectrum with a 100-arcsec aperture would include hundreds of IFU spaxels that are dominated by sky or galaxy light, not the star.
 
 The `×0.5` shrinkage is a conservative default that works in most cases. If you have a specific stellar target where the full aperture is correct (e.g. a star in a pure MIFU stellar field), use `patch_array` mode and specify the correct aperture size directly.
 

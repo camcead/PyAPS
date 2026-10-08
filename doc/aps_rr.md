@@ -521,25 +521,80 @@ fully_clean = (zwarn == 0)
 
 ---
 
-## Monkey Patch: Per-arm Chi2
+## Per-arm chi2 modification (monkey patch)
 
-PyAPS applies a monkey patch to Redrock's `calc_zchi2_batch` function to
-solve each arm independently and sum the chi2. This fixes a known issue
-where the joint PCA coefficient solve is biased toward whichever arm has
-higher IVAR, making the archetype starting point sensitive to the IVAR
-normalisation mode.
+PyAPS replaces `calc_zchi2_batch` in Redrock's `zscan` module at import (CPU, multi-arm
+input only). Upstream solves ONE template-coefficient vector jointly for all arms at each
+trial redshift. PyAPS solves one vector **per arm**:
 
-Key design decision: the per-arm coefficient mean uses **equal weights**
-(not IVAR-weighted), ensuring the fitz starting point is completely
-independent of IVAR scaling.
-
-```python
-# Equal weight mean (not IVAR-weighted):
-zcoeff[i] = sum(c_arm for each arm) / n_arms_valid
-
-# This gives fitz a neutral starting point regardless of
-# whether balanced, hybrid, or pixels normalisation is used.
 ```
+upstream : c*   = argmin_c  sum_a (f_a - T_a c  )^T W_a (f_a - T_a c  )
+PyAPS    : c_a* = argmin_ca       (f_a - T_a c_a)^T W_a (f_a - T_a c_a)    (per arm)
+           reported chi2   = sum_a  residual_chi2(c_a*)
+           returned coeffs = mean over arms of c_a*   (see below)
+```
+
+### Scope (verified; pinned by `test_patch_scope_is_zscan_only`)
+
+Redrock's `fitz.py` and `archetypes.py` import `calc_zchi2_batch` *by name* before PyAPS patches
+`redrock.zscan`, so they keep the **upstream joint solver**. The per-arm solve is active only in:
+
+| Stage | Redrock function | Solver |
+|---|---|---|
+| Coarse redshift scan (all PCA templates) | `zscan.calc_zchi2` | **per-arm** |
+| Fine scan around each minimum, parabola fit, final single-z PCA coefficients (`zerr`, PCA `chi2`, PCA `COEFF`) | `fitz.fitz` | upstream joint |
+| Archetype fit, `per_camera=True` (PyAPS default; archetype `chi2`, archetype amplitudes and per-camera Legendre terms) | `zscan.per_camera_coeff_with_least_square_batch` | **per-arm** |
+| Archetype fit, non-per-camera paths | `archetypes.py` | upstream joint |
+
+Consequences: the PCA result stored for a candidate (`chi2`, `COEFF`, `zerr`) is internally consistent
+(joint); the per-arm freedom influences (i) which minima the coarse scan hands to the fine scan and
+(ii) the archetype chi2/amplitudes that the archetype fallback compares and may adopt. The [OII]
+penalty on galaxy templates in the coarse scan is computed from the *mean* coefficients. Archetype
+`COEFF` stores the mean archetype amplitude(s); the negative-coefficient `ZWARN` checks in `zfind`
+use those means. Single-spectrum input and GPU mode use the upstream function, and
+`--rr_solver joint` (or `APS_RR_SOLVER=joint`) selects the upstream solve everywhere for CPU multi-arm
+input too, for A/B comparison. Default is `perarm`.
+
+### What the modification does and does not do (see `tests/test_rr_perarm_patch.py`)
+
+- **More freedom.** `n_arm x n_basis` coefficients instead of `n_basis`. Unregularised, the minimum
+  chi2 can only be lower than the joint fit. A lower chi2 is not by itself evidence of a better
+  answer; a wrong redshift or template can also profit from relaxing the shared spectral shape.
+- **Coefficients are invariant to a uniform IVAR rescale of an arm; the score is not.** The per-arm
+  coefficients are unchanged (no prior) but the arm's contribution to the summed chi2 scales with it.
+  Rankings and DELTACHI2 still depend on arm weighting (`--arms_ratio`, IVAR `balanced`
+  normalisation). The patch does **not** make results "independent of IVAR scaling" and no
+  "joint coefficient bias" has been demonstrated; legitimately higher S/N should still weigh more.
+- **Absorbs relative flux calibration / scale errors between arms** (a 15% multiplicative offset
+  removes almost all of the extra chi2 in synthetic tests). It does not calibrate the offset; it
+  simply does not penalise it.
+- **The returned coefficients do not reproduce the reported chi2** where the patch is active. On the
+  tested OB (12 fibres), applying the returned mean coefficients to every arm gives a chi2 that is a
+  median 3.18x the reported coarse-scan minimum (132 scans) and a median 1.75x for archetype
+  per-camera solves (19955 calls). Equal averaging is not an unbiased estimator of a shared vector.
+- **Priors.** A supplied prior matrix (archetype fits: `prior_sigma`) is scaled in each arm by that
+  arm's fraction of the total weight. This is not equivalent to regularising one shared vector, and
+  the reported chi2 contains no penalty term (as upstream).
+- **Arms with no template support** (all-zero template columns in that arm) contribute `sum(w f^2)`
+  (model = 0) as in the upstream chi2; arms with zero total weight are omitted; solver failure or no
+  valid arm returns `HUGE_CHI2`.
+- **Per-camera (arm-specific) columns.** Each column is solved on the arms where it is non-zero and
+  averaged only over those arms (fix of 2 Oct 2026; before it the stored Legendre coefficients were
+  diluted by `1/n_arm`; reported chi2 and rankings were not affected).
+- **Archetype amplitudes.** In per-camera archetype mode each arm also gets its own archetype
+  amplitude(s), so arm scale errors are absorbed there too.
+- **Delivered spectra.** The model spectra written to ZSPEC are re-synthesised in `gen_zspec`
+  (archetype Legendre terms are re-fitted additively). For *both* solvers the chi2 of the delivered
+  model differs from the reported chi2 (median ratio 0.97 per-arm / 0.96 joint, 10-90% range
+  0.76-1.01 / 0.77-1.03), so ZSPEC models should not be used to recompute `CHI2`.
+
+Diagnostics: set `aps_rr._RR_DIAG = []` (single process, `--mp 1`); each multi-arm call then appends the
+reported chi2, the chi2 of the returned mean coefficients, the calling Redrock stage, the per-arm
+coefficients at the best redshift and a data fingerprint (it never alters the returned values).
+
+The historical motivation text ("fixes joint PCA coefficient bias for WEAVE blue+red arms", "fitz
+starting point") is not supported by a documented failing case or by the call graph. See
+`PyAPS_local/PyAPS_redrock_concern/requested_outputs/FINDINGS.md` for the audit and A/B results.
 
 ---
 
@@ -1218,3 +1273,4 @@ simultaneously via an internal threading lock.
 | 3.9 | Opt-in Galactic (SFD98+Fitzpatrick99) extinction correction, off by default (`--extinction_corr`/`--extinction_ebv_scale`/`--extinction_mapdir`). See "Galactic Extinction Correction" above. Population-scale GA-LRDISC result: 67.1%->86.3% correctly STAR (513->660 of 765, 165 fixed/18 regressed). WC/GALAXY side (44-target batch): 5 fixed/3 regressed, including one class flip. Large net positive on both, but individual regressions are real on both sides -- stays opt-in, not a default. |
 | 3.10 | Opt-in TARGCLASS-based coarse-scan z=0 redshift prior for STAR targets (`--star_z_prior_sigma`), off by default. See "TARGCLASS-Based Coarse-Scan Redshift Prior" above -- complementary to the archetype/targeting fixes (3.7), fixes an additional case (APS_ID 6, coarse=GALAXY/archetype=QSO) they cannot reach alone. Also fixed `read_spectra`'s dead `skysub_mask_residuals` parameter (was hardcoded `True`, ignoring the value actually passed in). |
 | 3.11 | Second-tier BAD_MINFIT relaxation in the fallback rank-substitution search (default-on, not opt-in -- see "Fallback rank selection" above), gated to `class_mismatch and not targeting_override` after real testing caught an ungated version actively regressing 20 correct STAR classifications in the GA-LRDISC population batch. Verified: WC 43-target batch fixes APS_ID 948 (STAR->GALAXY) and 931 (QSO->GALAXY), zero change to the other 41; GA-LRDISC 765-target population batch shows zero STAR-count change (601->601) and only 9 lateral QSO<->GALAXY relabellings among targets already wrong on both sides. Also corrected the Redrock-native ZWARN bit-value table in this document, which didn't match the installed redrock version at all. Also: verified CCD-gap handling needs no redrock-side changes (ivar=0 masking is structurally sufficient for redrock's IVAR-weighted fitting) and verified/fixed collapse (IFU) mode -- see "CCD Gap Handling" and "Collapse Mode (IFU)" above; found and fixed a real bug where a collapsed target's TARGSRVY was silently overwritten with its own TARGCLASS string. |
+| 3.12 | Branch `redrock-perarm-audit` (not merged): per-arm chi2 patch audited and corrected (per-camera columns no longer diluted by 1/n_arm in the stored coefficients; arm with no template support adds its full weighted flux^2 instead of HUGE_CHI2), `--rr_solver perarm\|joint` switch (default unchanged), docs rewritten, 14 synthetic tests. Real-data A/B (OB 20250630/16287, 840 fibres): final galaxy z within 1000 km/s of the consensus reference 94.8% per-arm vs 82.4% joint; scope: coarse scan and per-camera archetype solve only; see PyAPS_local/PyAPS_redrock_concern/requested_outputs/FINDINGS.md. |

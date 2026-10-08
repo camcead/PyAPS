@@ -68,7 +68,7 @@ cache_Rcsr  (Optional)    |     -           |  --cache_Rcsr       (Optional)    
 
 Example:
 
-python3 aps_squeze.py --infiles <PYAPS_DATA>/squeze/4011/stacked_1004074.fit <PYAPS_DATA>/squeze/4011/stacked_1004073.fit --outpath <PYAPS_DIR>/PyAPS_results/20170930/4011/ --headname stacked_1004074__stacked_1004073 --wlranges 4200.0,6000.0 6000.0,8000.0 --aps_ids 1002,9,1007,1006 --targsrvy WL,WQ --targclass None --mask_aps_ids None --area None --mask_areas None --templates <PYAPS_DIR>/PyAPS_templates/templates_SQ/ --srvyconf <PYAPS_DIR>/configs/weave_cls.json --join_arms False --mp 2 --archetypes None --zall False --chi2_scan None --nminima 3 --cache_Rcsr False --debug False --overwrite True --safe_mask_gaps True --fig True --sens_corr True --mask_gaps True --tellurics False --vacuum True --fill_gap False --arms_ratio 1.0,0.83 --model <PYAPS_DIR>/CS/SQUEzE/data/BOSS_train_64plates_model.json --prob_cut 0.0 --clean_dir False
+python3 aps_squeze.py --infiles <PYAPS_DATA>/squeze/<obid>/stacked_<runid>.fit <PYAPS_DATA>/squeze/<obid>/stacked_<runid>.fit --outpath <PYAPS_DIR>/PyAPS_results/<night>/<obid>/ --headname stacked_<runid>__stacked_<runid> --wlranges 4200.0,6000.0 6000.0,8000.0 --aps_ids 1002,9,1007,1006 --targsrvy WL,WQ --targclass None --mask_aps_ids None --area None --mask_areas None --templates <PYAPS_DIR>/PyAPS_templates/templates_SQ/ --srvyconf <PYAPS_DIR>/configs/weave_cls.json --join_arms False --mp 2 --archetypes None --zall False --chi2_scan None --nminima 3 --cache_Rcsr False --debug False --overwrite True --safe_mask_gaps True --fig True --sens_corr True --mask_gaps True --tellurics False --vacuum True --fill_gap False --arms_ratio 1.0,0.83 --model <PYAPS_DIR>/CS/SQUEzE/data/BOSS_train_64plates_model.json --prob_cut 0.0 --clean_dir False
 
 
 
@@ -96,7 +96,7 @@ topcat is the preferable function for QSO but the redrock code right now cannot 
 12 Oct 2023: GPU support added to the redrock worker.
 12 Oct 2023: Redrock now can return top n results instead of the best results, using the ntop > 1 keyword
 """
-__author__ = "Ignasi Perez-Rafols (iprafols@gmail.com)"
+__author__ = "Ignasi Perez-Rafols"
 __version__ = "0.2"
 
 import argparse
@@ -116,6 +116,22 @@ from PyAPS.aps_common_args import build_common_parser, resolve_common_args
 from PyAPS.aps_rr import rrweave_worker
 from PyAPS import aps_constants
 import warnings
+
+
+def _squeze_data_dir():
+    """Folder holding SQUEzE's default_lines.json / default_random_forest_options.json.
+
+    Resolution order: ``$PYAPS_CS_DIR/SQUEzE/data``, then ``$PYAPS_HOME/CS/SQUEzE/data``, then the
+    ``CS/SQUEzE/data`` folder of the source checkout this module is imported from (which is the
+    location every existing deployment used before this was made configurable).
+    """
+    cs_dir = os.environ.get("PYAPS_CS_DIR")
+    if not cs_dir:
+        home = os.environ.get("PYAPS_HOME")
+        cs_dir = os.path.join(home, "CS") if home else os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "CS")
+    return os.path.join(cs_dir, "SQUEzE", "data")
+
 
 from redrock.utils import elapsed, get_mp, distribute_work
 from redrock.targets import Spectrum, Target, DistTargetsCopy
@@ -177,9 +193,9 @@ def squeze_worker(infiles, model, aps_ids, targsrvy, targclass, mask_aps_ids,
     # Following the discussion with ignasi, we temporarily replace this with the default_config from the config.py file
     config_dict = default_config.copy()
     config_dict["general"]["mode"] = "operation"
-    default_config["candidates"]["lines"] = "/scratch/aps/PyAPS/CS/SQUEzE/data/default_lines.json"
+    default_config["candidates"]["lines"] = os.path.join(_squeze_data_dir(), "default_lines.json")
     config_dict["model"]["filename"] = model
-    config_dict["model"]["random forest options"] = "/scratch/aps/PyAPS/CS/SQUEzE/data/default_random_forest_options.json",
+    config_dict["model"]["random forest options"] = os.path.join(_squeze_data_dir(), "default_random_forest_options.json"),
 
     if save_file is not None:
         config_dict["general"]["output"] = save_file
@@ -226,7 +242,7 @@ def write_results(zbest, candidates_df, args):
     primary_hdu.header["CS_VER"] = ("0.4", "CS version")
     primary_hdu.header["CS_NME1"] = ("Ignasi", "CS author forename")
     primary_hdu.header["CS_NME1"] = ("Perez Rafols", "CS author surname(s)")
-    primary_hdu.header["CS_MAIL"] = ("iprafols@gmail.com", "CS author email")
+    primary_hdu.header["CS_MAIL"] = (os.environ.get("PYAPS_CS_MAIL_SQUEZE", os.environ.get("PYAPS_CS_MAIL", "")), "CS author email")
     # TODO: update the files used
     primary_hdu.header["PROV1001"] = ("", "L1 file used")
     primary_hdu.header["PROV2001"] = ("", "L2 file used")
@@ -731,8 +747,11 @@ def main(options=None, comm=None):
 ##########################################################
 if __name__ == '__main__':
 
+    # --- DEMO settings: edit for your setup (or export PYAPS_DATA_DIR / PYAPS_HOME) -------------
+    DEMO_DATA = os.environ.get('PYAPS_DATA_DIR', '<PYAPS_DATA>')
+    DEMO_HOME = os.environ.get('PYAPS_HOME', '<PYAPS_DIR>')
     option = [
-    '--infiles', '/scratch/aps/PyAPS/PyAPS_data_dev/L1/squeze/4011/stacked_1004074.fit','/scratch/aps/PyAPS/PyAPS_data_dev/L1/squeze/4011/stacked_1004073.fit',
+    '--infiles', os.path.join(DEMO_DATA, 'L1/squeze/<obid>/stacked_<runid>.fit'), os.path.join(DEMO_DATA, 'L1/squeze/<obid>/stacked_<runid>.fit'),
     '--aps_ids', '1004,1002,9,1003,1007',
     '--targsrvy', 'WL',
     '--targclass', 'None',
@@ -748,11 +767,11 @@ if __name__ == '__main__':
     '--fill_gap', 'False',
     '--arms_ratio', '1.0,0.83',
     '--join_arms', 'True',
-    '--templates', '<PYAPS_DIR>/PyAPS_templates/templates_SQ/',
-    '--srvyconf', '<PYAPS_DIR>/configs/weave_cls.json',
+    '--templates', os.path.join(DEMO_HOME, 'PyAPS_templates/templates_SQ/'),
+    '--srvyconf', os.path.join(DEMO_HOME, 'configs/weave_cls.json'),
     '--archetypes', 'None',
-    '--outpath', '/scratch/aps/PyAPS/PyAPS_data_dev/L2/test2_OPR4_Jan2022/20170930/4011/',
-    '--headname', 'stacked_1004074__stacked_1004073',
+    '--outpath', os.path.join(DEMO_DATA, 'L2/<night>/<obid>/'),
+    '--headname', 'stacked_<runid>__stacked_<runid>',
     '--zall', 'False',
     '--chi2_scan', 'None',
     '--nminima' , '3',
@@ -761,9 +780,9 @@ if __name__ == '__main__':
     '--debug', 'False',
     '--overwrite', 'True',
     '--mp' ,'2',
-    '--model', '<PYAPS_DIR>/PyAPS_templates/templates_SQ/BOSS_train_64plates_model.json',
+    '--model', os.path.join(DEMO_HOME, 'PyAPS_templates/templates_SQ/BOSS_train_64plates_model.json'),
     "--prob_cut", '0.0',
-    # "--output_catalogue", 'stacked_1004074__stacked_1004073_SQUEZE.fits',
+    # "--output_catalogue", 'stacked_<runid>__stacked_<runid>_SQUEZE.fits',
     "--clean_dir", 'False',
     ]
 

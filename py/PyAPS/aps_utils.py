@@ -191,6 +191,47 @@ def validate_and_set_configdir(configdir=None, verbose=True):
             f"   Please provide a valid configdir path explicitly."
         )
 ###########################################################################
+RVS_TEMPLATES_ENV = "PYAPS_RVS_TEMPLATES"
+
+
+def resolve_rvs_template_lib(template_lib=None, verbose=True):
+    """
+    Return the directory that holds the RVS (rvspecfit) template library.
+
+    The only sources are configuration values, there is no fallback to any other location:
+
+    1. ``$PYAPS_RVS_TEMPLATES``: the generated job scripts export it from the ``templates_RVS``
+       key of the ``script_params`` file in use, so the configured value wins;
+    2. ``template_lib`` of the RVS config file (``configs/rvs_config.yaml`` references
+       ``${PYAPS_RVS_TEMPLATES}``; a standalone user may set a real path there instead).
+
+    Raises ``RuntimeError`` naming the configuration key when the directory is not set or does
+    not exist. Returns the directory as a string with a trailing separator.
+    """
+    def _clean(path):
+        return os.path.expanduser(os.path.expandvars(str(path)))
+
+    env_value = os.environ.get(RVS_TEMPLATES_ENV)
+    if env_value:
+        path, origin = _clean(env_value), f"${RVS_TEMPLATES_ENV} (the templates_RVS key of the script_params file)"
+    elif template_lib and "${" not in str(template_lib) and "$" + RVS_TEMPLATES_ENV not in str(template_lib):
+        path, origin = _clean(template_lib), "template_lib of the RVS config file"
+    else:
+        raise RuntimeError(
+            "The RVS template directory is not configured: set the templates_RVS key in your "
+            "script_params file (the job scripts export it as " + RVS_TEMPLATES_ENV + "), or "
+            "set template_lib in the RVS config file to a real directory.")
+    if not os.path.isdir(path):
+        raise RuntimeError(
+            f"The RVS template directory does not exist: {path} (from {origin}). "
+            f"Fix the templates_RVS key of your script_params file, or template_lib of the RVS "
+            f"config file when running aps_rvs.py by hand.")
+    if verbose:
+        print(f"[RVS] Using RVS templates from {path} (from {origin})")
+    return path if path.endswith(os.sep) else path + os.sep
+
+
+###########################################################################
 def check_and_fix_overlap(wlranges):
     """
     Check if wavelength ranges overlap and fix them if they do.
@@ -1769,7 +1810,7 @@ def add_extra_columns(input_table, match_table=None):
     """
     inputs:
     input: the original table (in astropy.table form)
-    match_table: a dictionary in the format {'path': '/data/m1_table.fits', 'hdu':1 ,'match_keys':['APS_ID', 'CNAME', 'TARGID'] , 'new_keys':['BIN_ID']}
+    match_table: a dictionary in the format {'path': '<PYAPS_DATA>/m1_table.fits', 'hdu':1 ,'match_keys':['APS_ID', 'CNAME', 'TARGID'] , 'new_keys':['BIN_ID']}
     We use it to add extra columns to the final fits file (e.g. BIN_D for IFU mode)
     """
 
@@ -2167,6 +2208,32 @@ def l1_fileinfo(infiles, wlranges=None, arms_ratio=None, catdir=None, caldir=Non
 
 
 ###########################################################################################################
+def aperture_sky_region(ra_deg, dec_deg, a_arcsec, b_arcsec, angle_deg):
+    """
+    Elliptical sky region for an ``area`` / ``mask_areas`` entry or a patch-table row.
+
+    Aperture convention (one definition for every producer and consumer)
+    --------------------------------------------------------------------
+    ``a_arcsec`` and ``b_arcsec`` are the FULL axis lengths of the ellipse
+    (major and minor diameters), the same meaning as ``width`` / ``height`` of
+    ``regions.EllipseSkyRegion``. They are NOT semi-axes: an entry of 10 and 6
+    arcsec encloses points up to 5 arcsec from the centre along the major axis
+    and 3 arcsec along the minor axis. The ``A_world`` / ``B_world`` columns of
+    a patch table (degrees) follow the same rule.
+
+    ``angle_deg`` is the position angle in degrees, counter-clockwise.
+    """
+    from astropy.coordinates import Angle, SkyCoord
+    from regions import EllipseSkyRegion
+
+    return EllipseSkyRegion(
+        center=SkyCoord(ra_deg, dec_deg, frame="icrs", unit="deg"),
+        width=Angle(a_arcsec, "arcsec"),
+        height=Angle(b_arcsec, "arcsec"),
+        angle=Angle(angle_deg, "deg"),
+    )
+
+
 def gen_targlist(
     infile,
     mode,
@@ -2422,14 +2489,11 @@ def gen_targlist(
             # id_in_area = np.ravel(np.where( ((aps_info['TARGRA'] - area[0])**2) + ((aps_info['TARGDEC'] - area[1])**2)  < (area[2]/3600.0)**2.0 ))
 
             if area_wmode == 2:
-                from astropy.coordinates import Angle, SkyCoord
-                from regions import EllipsePixelRegion, EllipseSkyRegion, PixCoord
+                from astropy.coordinates import SkyCoord
 
-                ellipse_area = EllipseSkyRegion(
-                    center=SkyCoord(area[0], area[1], frame="icrs", unit="deg"),
-                    width=Angle(area[2], "arcsec"),
-                    height=Angle(area[3], "arcsec"),
-                    angle=Angle(area[4], "deg"),
+                # area[2], area[3] are FULL axis lengths (see aperture_sky_region)
+                ellipse_area = aperture_sky_region(
+                    area[0], area[1], area[2], area[3], area[4]
                 )
 
 
@@ -2483,16 +2547,12 @@ def gen_targlist(
             for each_mask in mask_areas:
 
                 if area_wmode == 2:
-                    from astropy.coordinates import Angle, SkyCoord
-                    from regions import EllipsePixelRegion, EllipseSkyRegion, PixCoord
+                    from astropy.coordinates import SkyCoord
 
-                    ellipse_each_mask = EllipseSkyRegion(
-                        center=SkyCoord(
-                            each_mask[0], each_mask[1], frame="icrs", unit="deg"
-                        ),
-                        width=Angle(each_mask[2], "arcsec"),
-                        height=Angle(each_mask[3], "arcsec"),
-                        angle=Angle(each_mask[4], "deg"),
+                    # each_mask[2], each_mask[3] are FULL axis lengths
+                    ellipse_each_mask = aperture_sky_region(
+                        each_mask[0], each_mask[1], each_mask[2], each_mask[3],
+                        each_mask[4],
                     )
 
                     skycoords = SkyCoord(

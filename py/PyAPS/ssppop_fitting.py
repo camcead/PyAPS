@@ -9,7 +9,7 @@ import emcee
 from   astropy.io          import fits
 #from   joblib              import Parallel, delayed
 import matplotlib.pyplot   as plt
-import scipy.spatial.qhull as qhull
+from scipy.spatial import Delaunay
 #===============================================================================
 #
 # RUN_SSPPOP_FITTING
@@ -65,7 +65,7 @@ def load_models(modelfile, index_names):
     params[:,0] = model.field('AGE')
     params[:,1] = model.field('MET')
     params[:,2] = model.field('ALPHA')
-    tri = qhull.Delaunay(params, qhull_options='QJ')
+    tri = Delaunay(params, qhull_options='QJ')
     #labels = ['LOG_AGE','MET','ALPHA']
     labels = ['AGE','METAL','ALPHA']
 
@@ -199,6 +199,7 @@ def ssppop_fitting(data,error,model_indices,params,tri,labels,nwalkers,nchain,pl
             plt.plot(kk.T)
             plt.ylabel(labels[i])
         plt.savefig(outdir+'maps/MCMC/Chain_BINID'+str(progress)+'.pdf', dpi=30)
+        import corner  # optional dependency, only needed for the diagnostic plots
         corner.corner(good_samples, labels=labels, quantiles=[0.16, 0.5, 0.84], verbose=True, plot_datapoints=False)
         plt.savefig(outdir+'maps/MCMC/Corner_BINID'+str(progress)+'.pdf', dpi=30)
 
@@ -275,6 +276,7 @@ if __name__ == "__main__":
     print("# Running the Markov Chain...")
     print("- Nwalkers:",nwalkers)
     print("- Nchain:",nchain)
+    from joblib import Parallel, delayed  # optional, command-line mode only
     tmp = Parallel(n_jobs=ncores, verbose=50)(delayed(ssppop_fitting)(data[i,:],error[i,:],model_indices,params,tri,labels,nwalkers,nchain,plot,verbose) for i in range(ncases))
     vals, chains = zip(*tmp)
     vals   = numpy.array(vals)
@@ -310,6 +312,7 @@ if __name__ == "__main__":
     if os.path.exists(outhdf5):
         os.remove(outhdf5)
     print("")
+    import h5py  # optional, command-line mode only
     f    = h5py.File(outhdf5, "w")
     dset = f.create_dataset("chains", data=chains, compression="gzip")
     f.close()

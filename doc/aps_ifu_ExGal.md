@@ -263,11 +263,11 @@ Check the spatial binning and Voronoi quality before committing to full fitting:
 
 ```bash
 python aps_ExGal_worker.py \
-    --infiles /data/L1/20240808/stackcube_3071431.fit \
-              /data/L1/20240808/stackcube_3071430.fit \
+    --infiles $PYAPS_DATA/L1/20240808/stackcube_3071431.fit \
+              $PYAPS_DATA/L1/20240808/stackcube_3071430.fit \
     --headname stackcube_3071431__stackcube_3071430 \
-    --outpath  /data/L2/20240808/11182/ \
-    --patch_file /data/L2/20240808/11182/stackcube_..._targets_mod.fits \
+    --outpath  $PYAPS_DATA/L2/20240808/11182/ \
+    --patch_file $PYAPS_DATA/L2/20240808/11182/stackcube_..._targets_mod.fits \
     --IFU_config_dir  <PYAPS_DIR>/configs/ExGal_configs/ \
     --ExGal_templates <PYAPS_DIR>/PyAPS_templates/templates_ExGal/ \
     --IFU_params      <PYAPS_DIR>/configs/ExGal_configs/LIFULR11.json \
@@ -276,7 +276,7 @@ python aps_ExGal_worker.py \
     --arms_ratio 1.0,1.0 \
     --sens_corr True --mask_gaps True --safe_mask_gaps True \
     --tellurics True --join_arms True \
-    --caldir /data/CAL --catdir /data/CAT
+    --caldir $PYAPS_DATA/CAL --catdir $PYAPS_DATA/CAT
 ```
 
 Inspect the figures in `figs_ExGal/` before proceeding.
@@ -285,11 +285,11 @@ Inspect the figures in `figs_ExGal/` before proceeding.
 
 ```bash
 python aps_ExGal_worker.py \
-    --infiles /data/L1/20240808/stackcube_3071431.fit \
-              /data/L1/20240808/stackcube_3071430.fit \
+    --infiles $PYAPS_DATA/L1/20240808/stackcube_3071431.fit \
+              $PYAPS_DATA/L1/20240808/stackcube_3071430.fit \
     --headname stackcube_3071431__stackcube_3071430 \
-    --outpath  /data/L2/20240808/11182/ \
-    --patch_file /data/L2/20240808/11182/stackcube_..._targets_mod.fits \
+    --outpath  $PYAPS_DATA/L2/20240808/11182/ \
+    --patch_file $PYAPS_DATA/L2/20240808/11182/stackcube_..._targets_mod.fits \
     --IFU_config_dir  <PYAPS_DIR>/configs/ExGal_configs/ \
     --ExGal_templates <PYAPS_DIR>/PyAPS_templates/templates_ExGal/ \
     --IFU_params      <PYAPS_DIR>/configs/ExGal_configs/LIFULR11.json \
@@ -299,7 +299,7 @@ python aps_ExGal_worker.py \
     --arms_ratio 1.0,1.0 \
     --sens_corr True --mask_gaps True --safe_mask_gaps True \
     --tellurics True --join_arms True \
-    --caldir /data/CAL --catdir /data/CAT
+    --caldir $PYAPS_DATA/CAL --catdir $PYAPS_DATA/CAT
 ```
 
 ### Single-target debug mode using `--patch_array`
@@ -308,10 +308,10 @@ Process one specific galaxy without a patch file:
 
 ```bash
 python aps_ExGal_worker.py \
-    --infiles /data/L1/20240808/stackcube_3071431.fit \
-              /data/L1/20240808/stackcube_3071430.fit \
+    --infiles $PYAPS_DATA/L1/20240808/stackcube_3071431.fit \
+              $PYAPS_DATA/L1/20240808/stackcube_3071430.fit \
     --headname stackcube_3071431__stackcube_3071430 \
-    --outpath  /data/L2/20240808/11182/ \
+    --outpath  $PYAPS_DATA/L2/20240808/11182/ \
     --IFU_config_dir  <PYAPS_DIR>/configs/ExGal_configs/ \
     --ExGal_templates <PYAPS_DIR>/PyAPS_templates/templates_ExGal/ \
     --IFU_params      <PYAPS_DIR>/configs/ExGal_configs/LIFULR11.json \
@@ -321,7 +321,7 @@ python aps_ExGal_worker.py \
     --arms_ratio 1.0,1.0 \
     --sens_corr True --mask_gaps True --safe_mask_gaps True \
     --tellurics True --join_arms True \
-    --caldir /data/CAL --catdir /data/CAT
+    --caldir $PYAPS_DATA/CAL --catdir $PYAPS_DATA/CAT
 ```
 
 `--patch_array` and `--patch_file` are mutually exclusive. The format is fixed-order, comma-separated:
@@ -340,21 +340,21 @@ python aps_ExGal_worker.py \
 from PyAPS.aps_ifu_exgal import ifu_ExGal
 
 ifu_ExGal(
-    infiles         = ["/data/L1/20240808/stackcube_3071431.fit",
-                       "/data/L1/20240808/stackcube_3071430.fit"],
+    infiles         = ["<PYAPS_DATA>/L1/20240808/stackcube_3071431.fit",
+                       "<PYAPS_DATA>/L1/20240808/stackcube_3071430.fit"],
     headname        = "stackcube_3071431__stackcube_3071430",
-    outpath         = "/data/L2/20240808/11182/",
+    outpath         = "<PYAPS_DATA>/L2/20240808/11182/",
     IFU_config_dir  = "<PYAPS_DIR>/configs/ExGal_configs/",
     ExGal_templates = "<PYAPS_DIR>/PyAPS_templates/templates_ExGal/",
     IFU_params      = "<PYAPS_DIR>/configs/ExGal_configs/LIFULR11.json",
-    patch_file      = "/data/L2/20240808/11182/stackcube_..._targets_mod.fits",
+    patch_file      = "<PYAPS_DATA>/L2/20240808/11182/stackcube_..._targets_mod.fits",
     PPXF=True, EMIPPXF=True, LS=True,
     nthreads        = 6,
     wlranges        = [[3800.0, 5950.0], [5900.0, 9280.0]],
     arms_ratio      = [1.0, 1.0],
     sens_corr=True, mask_gaps=True, safe_mask_gaps=True,
     tellurics=True, join_arms=True,
-    caldir="/data/CAL", catdir="/data/CAT",
+    caldir="<PYAPS_DATA>/CAL", catdir="<PYAPS_DATA>/CAT",
 )
 ```
 
@@ -375,10 +375,10 @@ patch = make_patch_array(
 )
 
 ifu_ExGal(
-    infiles         = ["/data/L1/20240808/stackcube_3071431.fit",
-                       "/data/L1/20240808/stackcube_3071430.fit"],
+    infiles         = ["<PYAPS_DATA>/L1/20240808/stackcube_3071431.fit",
+                       "<PYAPS_DATA>/L1/20240808/stackcube_3071430.fit"],
     headname        = "stackcube_3071431__stackcube_3071430",
-    outpath         = "/data/L2/20240808/11182/",
+    outpath         = "<PYAPS_DATA>/L2/20240808/11182/",
     IFU_config_dir  = "<PYAPS_DIR>/configs/ExGal_configs/",
     ExGal_templates = "<PYAPS_DIR>/PyAPS_templates/templates_ExGal/",
     IFU_params      = "<PYAPS_DIR>/configs/ExGal_configs/LIFULR11.json",
@@ -389,7 +389,7 @@ ifu_ExGal(
     arms_ratio=[1.0, 1.0],
     sens_corr=True, mask_gaps=True, safe_mask_gaps=True,
     tellurics=True, join_arms=True,
-    caldir="/data/CAL", catdir="/data/CAT",
+    caldir="<PYAPS_DATA>/CAL", catdir="<PYAPS_DATA>/CAT",
 )
 ```
 
@@ -401,11 +401,11 @@ If you only want the preparation stage output (cube, binning, Voronoi) without r
 from PyAPS.aps_ifu_exgal import ifu_ExGal_prepare
 
 prep = ifu_ExGal_prepare(
-    infiles        = ["/data/L1/20240808/stackcube_3071431.fit",
-                      "/data/L1/20240808/stackcube_3071430.fit"],
+    infiles        = ["<PYAPS_DATA>/L1/20240808/stackcube_3071431.fit",
+                      "<PYAPS_DATA>/L1/20240808/stackcube_3071430.fit"],
     headname       = "stackcube_3071431__stackcube_3071430_P0001",
     IFU_params     = "<PYAPS_DIR>/configs/ExGal_configs/LIFULR11.json",
-    outpath        = "/data/L2/20240808/11182/",
+    outpath        = "<PYAPS_DATA>/L2/20240808/11182/",
     IFU_config_dir = "<PYAPS_DIR>/configs/ExGal_configs/",
     z_input        = [0.0923, 0.0001],
     area           = [185.198164, 58.092634, 101.52, 47.25, 0.0],
@@ -414,7 +414,7 @@ prep = ifu_ExGal_prepare(
     join_arms      = True,
     sens_corr=True, mask_gaps=True, safe_mask_gaps=True,
     tellurics=True,
-    caldir="/data/CAL",
+    caldir="<PYAPS_DATA>/CAL",
 )
 
 if prep is not None:
@@ -629,8 +629,8 @@ patch = make_patch_array(
     row_id    = 1,           # integer ID (used in output file names: _P0001)
     ra        = 185.198164,  # degrees ICRS
     dec       = 58.092634,   # degrees ICRS
-    a_arcsec  = 101.52,      # semi-major axis (arcsec)
-    b_arcsec  = 47.25,       # semi-minor axis (arcsec)
+    a_arcsec  = 101.52,      # full major-axis length (arcsec), not a semi-axis
+    b_arcsec  = 47.25,       # full minor-axis length (arcsec), not a semi-axis
     z         = 0.0923,      # spectroscopic redshift
     zerr      = 0.0001,      # redshift uncertainty
     class_str = "GALAXY",    # 'GALAXY', 'QSO', 'STAR', etc.

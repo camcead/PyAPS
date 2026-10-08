@@ -21,7 +21,7 @@ filters (Gaussian spatial PSF x Gaussian spectral line profile) ->
 empirical purity self-check via the sign-flipped cube.
 
 Everything here was iteratively validated against a real WEAVE LIFU cube
-(stackcube_3067087.fit, BLUE arm) before being wired in. Two findings from
+(stackcube_<runid>.fit, BLUE arm) before being wired in. Two findings from
 that validation are baked into the defaults and are worth knowing before
 changing them:
 
@@ -1451,7 +1451,12 @@ def merge_into_patch_table(patch_table: Table, seg3d_table: Table, min_snr: floa
     merged target can always be identified/filtered later with
     `patch_table['flag'] == SEG3D_PROVENANCE_FLAG`. Merged targets get a
     circular aperture of aperture_radius_arcsec (default 2.0", matching
-    this module's default spatial_fwhm_arcsec) centred on the group's
+    this module's default spatial_fwhm_arcsec). NOTE on the convention:
+    the value is stored unchanged in A_world/B_world, which are FULL axis
+    lengths (see aps_utils.aperture_sky_region), so the setting is the
+    aperture DIAMETER and the extraction radius is half of it (default
+    2.0" -> 1.0" radius). The parameter keeps its historical name and
+    numerical meaning so existing runs are reproducible. Centred on the group's
     highest-SNR member when merged via the multi-line path (recovers the
     other line(s) too -- they land inside the same aperture by
     construction, since that's exactly what made them a group); Z/ZERR/

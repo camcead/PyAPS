@@ -27,6 +27,7 @@ from astropy.coordinates import SkyCoord, ICRS
 from astropy_healpix import HEALPix
 import astropy.units as u
 
+from PyAPS.aps_ifu_prepare import read_ascii_patchfile
 from PyAPS.aps_utils import APSOB, none_or_str, str2bool, l1_fileinfo, print_args
 from PyAPS.aps_common_args import build_common_parser, resolve_common_args
 from PyAPS import aps_constants
@@ -165,8 +166,8 @@ class CubePreview:
         print(f"  Redshift: {self.z:.6f} ± {self.zerr:.6f}")
         print(f"  RA: {self.patch_info['RA_icrs']:.6f} deg")
         print(f"  DEC: {self.patch_info['DEC_icrs']:.6f} deg")
-        print(f"  Semi-major axis: {self.patch_info['A_world']*3600:.2f} arcsec")
-        print(f"  Semi-minor axis: {self.patch_info['B_world']*3600:.2f} arcsec")
+        print(f"  Major axis (full length): {self.patch_info['A_world']*3600:.2f} arcsec")
+        print(f"  Minor axis (full length): {self.patch_info['B_world']*3600:.2f} arcsec")
         
         return self.patch_info
     

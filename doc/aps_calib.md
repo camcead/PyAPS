@@ -344,9 +344,9 @@ from PyAPS.aps_lsf import LSFInterpolator, run_lsf_analysis
 
 # --- Creation ---
 interpolator = run_lsf_analysis(
-    file_input    = ["/data/CAL/lsf_BLUEH11_LIFU.fits",
-                     "/data/CAL/lsf_REDH11_LIFU.fits"],
-    figdir        = "/data/L2/figs",
+    file_input    = ["<PYAPS_DATA>/CAL/lsf_BLUEH11_LIFU.fits",
+                     "<PYAPS_DATA>/CAL/lsf_REDH11_LIFU.fits"],
+    figdir        = "<PYAPS_DATA>/L2/figs",
     figname       = "lsf_diagnostic",
     debug         = False,
     make_plot     = True,
@@ -669,8 +669,8 @@ if interp_dict.get(933, {}).get("is_copy", False):
 from PyAPS.aps_lsf import run_lsf_analysis
 
 interpolator = run_lsf_analysis(
-    file_input    = "/data/CAL/lsf_BLUEL11_LIFU.fits",
-    figdir        = "/data/L2/20240808/figs",
+    file_input    = "<PYAPS_DATA>/CAL/lsf_BLUEL11_LIFU.fits",
+    figdir        = "<PYAPS_DATA>/L2/20240808/figs",
     figname       = "lsf_blue",
     debug         = True,
     make_plot     = True,
@@ -694,9 +694,9 @@ print(interpolator.get_fwhm(5000.0, specnum=123))
 from PyAPS.aps_lsf import run_lsf_analysis
 
 interpolator = run_lsf_analysis(
-    file_input    = ["/data/CAL/lsf_BLUEL11_LIFU.fits",
-                     "/data/CAL/lsf_REDL11_LIFU.fits"],
-    figdir        = "/data/L2/figs",
+    file_input    = ["<PYAPS_DATA>/CAL/lsf_BLUEL11_LIFU.fits",
+                     "<PYAPS_DATA>/CAL/lsf_REDL11_LIFU.fits"],
+    figdir        = "<PYAPS_DATA>/L2/figs",
     figname       = "lsf_lifu_lr",
     debug         = False,
     make_plot     = True,
@@ -724,10 +724,10 @@ interpolator.print_summary()
 from PyAPS.aps_lsf import load_lsf_interpolator, LSFInterpolator
 
 # Convenience function
-interpolator = load_lsf_interpolator("/data/L2/figs/BLUEL11__REDL11_LIFU.dill")
+interpolator = load_lsf_interpolator("<PYAPS_DATA>/L2/figs/BLUEL11__REDL11_LIFU.dill")
 
 # Class method
-interpolator = LSFInterpolator.load("/data/L2/figs/BLUEL11__REDL11_LIFU.dill")
+interpolator = LSFInterpolator.load("<PYAPS_DATA>/L2/figs/BLUEL11__REDL11_LIFU.dill")
 
 # Use immediately
 fwhm = interpolator.get_fwhm(5000.0, specnum=456)
@@ -739,8 +739,8 @@ fwhm = interpolator.get_fwhm(5000.0, specnum=456)
 from PyAPS.aps_fwhm import run_fwhm_analysis
 
 interpolator = run_fwhm_analysis(
-    file_paths             = "/data/CAL/wave_3100962_all.fit",
-    figdir                 = "/data/L2/figs",
+    file_paths             = "<PYAPS_DATA>/CAL/wave_3100962_all.fit",
+    figdir                 = "<PYAPS_DATA>/L2/figs",
     figname                = "fwhm_blue",
     debug                  = True,
     make_plot              = True,
@@ -764,9 +764,9 @@ print(interpolator.get_fwhm(5000.0))
 from PyAPS.aps_fwhm import run_fwhm_analysis
 
 interpolator = run_fwhm_analysis(
-    file_paths = ["/data/CAL/wave_3100962_all.fit",
-                  "/data/CAL/wave_3100961_all.fit"],
-    figdir     = "/data/L2/figs",
+    file_paths = ["<PYAPS_DATA>/CAL/wave_3100962_all.fit",
+                  "<PYAPS_DATA>/CAL/wave_3100961_all.fit"],
+    figdir     = "<PYAPS_DATA>/L2/figs",
     figname    = "fwhm_combined",
     debug      = True,
     overwrite  = False,
@@ -782,11 +782,11 @@ interpolator.print_summary()
 from PyAPS.aps_fwhm import load_fwhm_interpolator, FWHMInterpolator
 
 interpolator = load_fwhm_interpolator(
-    "/data/L2/figs/wave_3100962_all__wave_3100961_all.dill")
+    "<PYAPS_DATA>/L2/figs/wave_3100962_all__wave_3100961_all.dill")
 
 # Or class method
 interpolator = FWHMInterpolator.load(
-    "/data/L2/figs/wave_3100962_all__wave_3100961_all.dill")
+    "<PYAPS_DATA>/L2/figs/wave_3100962_all__wave_3100961_all.dill")
 ```
 
 ### 14.7 Checking the output pickle path before running
@@ -798,14 +798,14 @@ from PyAPS.aps_fwhm import get_output_pickle_path as fwhm_pickle_path
 # aps_lsf
 path = lsf_pickle_path(
     ["lsf_GREENH11_MOS-A.fits", "lsf_REDH11_MOS-A.fits"],
-    output_dir="/data/output")
-# → "/data/output/GREENH11__REDH11_MOS-A.dill"
+    output_dir="<PYAPS_DATA>/output")
+# → "<PYAPS_DATA>/output/GREENH11__REDH11_MOS-A.dill"
 
 # aps_fwhm
 path = fwhm_pickle_path(
     ["wave_3100962_all.fit", "wave_3100961_all.fit"],
-    output_dir="/data/output")
-# → "/data/output/wave_3100962_all__wave_3100961_all.dill"
+    output_dir="<PYAPS_DATA>/output")
+# → "<PYAPS_DATA>/output/wave_3100962_all__wave_3100961_all.dill"
 ```
 
 ### 14.8 Comparing fiber profiles
@@ -894,7 +894,7 @@ Smoothing pre-computes a smoothed grid for every fiber (including global) once, 
 interpolator.apply_smoothing(smooth_length=10.0, kernel_type="gaussian")
 
 # Store smoothed version to pickle
-interpolator.save("/data/output/LIFU_LR_smoothed10A.dill")
+interpolator.save("<PYAPS_DATA>/output/LIFU_LR_smoothed10A.dill")
 
 # Remove smoothing (restores original B-spline functions)
 interpolator.remove_smoothing()
@@ -1092,7 +1092,7 @@ interpolator.get_file_prefix()       → str
 ### "LSF file not found"
 
 ```
-FileNotFoundError: LSF file not found: /data/CAL/lsf_BLUEL21_LIFU.fits
+FileNotFoundError: LSF file not found: <PYAPS_DATA>/CAL/lsf_BLUEL21_LIFU.fits
 ```
 
 The file does not exist. Either:

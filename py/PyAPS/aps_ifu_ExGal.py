@@ -375,7 +375,12 @@ def make_patch_array(
     ra, dec : float
         Target centre in degrees (ICRS).
     a_arcsec, b_arcsec : float
-        Semi-major / semi-minor axes in **arcsec**.
+        FULL major / minor axis lengths (diameters) in **arcsec**, the
+        same meaning as the ``A_world`` / ``B_world`` columns of a patch
+        table and the ``width`` / ``height`` of the extraction ellipse.
+        They are not semi-axes: ``a_arcsec=10, b_arcsec=6`` extracts up
+        to 5 arcsec from the centre along the major axis and 3 arcsec
+        along the minor axis (see ``aps_utils.aperture_sky_region``).
     z, zerr : float
         Redshift and uncertainty.
     class_str : str
@@ -1463,13 +1468,15 @@ def exgal_runner(options=None):
 
 
 if __name__ == "__main__":
+    # DEMO settings: edit for your setup. Replace the <PYAPS_DATA>, <PYAPS_DIR>, <night>, <runid>, <obid>
+    # markers below with your own locations and identifiers (no machine paths belong in this repository).
     debug_LIFU = [
         "--infiles",
-        "<PYAPS_DATA>/L1/20240515/stackcube_3059328.fit",
-        "<PYAPS_DATA>/L1/20240515/stackcube_3059327.fit",
-        "--headname",        "LWVE_15383969+5921201_01_GR_H1",
-        "--outpath",         "<PYAPS_DATA>/L2/20240515/12958/",
-        "--patch_file",      "<PYAPS_DATA>/L2/20240515/12958/LWVE_15383969+5921201_01_GR_H1_targets_mod.fits",
+        "<PYAPS_DATA>/L1/<night>/stackcube_<runid>.fit",
+        "<PYAPS_DATA>/L1/<night>/stackcube_<runid>.fit",
+        "--headname",        "LWVE_<target>_01_GR_H1",
+        "--outpath",         "<PYAPS_DATA>/L2/<night>/<obid>/",
+        "--patch_file",      "<PYAPS_DATA>/L2/<night>/<obid>/LWVE_<target>_01_GR_H1_targets_mod.fits",
         "--IFU_config_dir",  "<PYAPS_DIR>/configs/ExGal_configs/",
         "--ExGal_templates", "<PYAPS_DIR>/PyAPS_templates/templates_ExGal/",
         "--IFU_params",      "<PYAPS_DIR>/configs/ExGal_configs/LIFUHR11.json",

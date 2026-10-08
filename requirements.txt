@@ -1,0 +1,56 @@
+# PyAPS: loose dependency list = latest released versions (dev branch, Python >= 3.12).
+# Equivalent to `pip install -e ".[all]"` plus SQUEzE; the tested, frozen set is requirements-lock-20261006.txt.
+#   pip install --upgrade -r requirements.txt && pip install --no-deps -e .
+
+# explorer / viewers (core)
+numpy
+scipy
+matplotlib
+pandas
+astropy
+regions
+scikit-learn
+dill
+plotly
+dash
+kaleido
+flask
+werkzeug
+itsdangerous
+# explorer server (Docker image)
+gunicorn
+# processing pipeline
+astropy-healpix
+specutils
+photutils
+reproject
+astroquery
+numba
+emcee
+sep
+ppxf
+powerbin
+pyqtgraph
+PyQt5
+PyYAML
+torch
+desiutil
+redrock @ git+https://github.com/desihub/redrock.git
+rvspecfit @ git+https://github.com/segasai/rvspecfit.git
+squeze @ git+https://github.com/iprafols/SQUEzE.git
+# contributed-software helpers
+ptemcee
+PyAstronomy
+# performance / development / docs
+pyspark
+pytest
+pytest-cov
+black
+isort
+flake8
+mypy
+pre-commit
+sphinx
+sphinx-rtd-theme
+numpydoc
+sphinx-autoapi

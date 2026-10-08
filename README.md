@@ -1,7 +1,7 @@
 # PyAPS - Python-based Advance Processing System for WEAVE
 
 [![CI](https://github.com/camcead/PyAPS/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/camcead/PyAPS/actions/workflows/ci.yml)
-[![Python](https://img.shields.io/badge/Python-3.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-blue)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/Python-3.12%20%7C%203.13-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Documentation](https://img.shields.io/badge/docs-latest-brightgreen.svg)](doc/)
 [![DOI](https://zenodo.org/badge/1394828963.svg)](https://doi.org/10.5281/zenodo.23042510)
@@ -26,7 +26,7 @@ PyAPS is a Python-based platform for processing and analyzing WEAVE survey data,
 
 ### Prerequisites
 
-- Python 3.9 - 3.12 (3.11 recommended)
+- Python 3.12 or newer (3.12 is the production target; 3.13 and 3.14 are tested too)
 - `pip`; a Fortran compiler (`gfortran`) if a compiled dependency has no wheel for your platform
 - Git
 - [FERRE](externals/README.md) (only for the stellar-parameter module `aps_ferre`)
@@ -44,6 +44,14 @@ python3 -m pip install -e .              # recommended: links to the source tree
 # python3 -m pip install .               # regular install: also set PYAPS_CONFIGDIR (see below)
 ```
 
+### Dependency versions
+
+The package follows the newest released versions of its dependencies (numpy 2.5, scipy 1.18, pandas 3, astropy 8, matplotlib 3.11,
+dash 4, plotly 7, ...). `requirements.txt` is the loose list (latest of everything) and `requirements-lock-20261006.txt` is the frozen
+set that the test suite passed on (Python 3.12); to reproduce that environment exactly:
+`pip install -r requirements-lock-20261006.txt && pip install --no-deps -e .` (add
+`--extra-index-url https://download.pytorch.org/whl/cpu` on a Linux host without a GPU).
+
 ### Updating an existing installation
 
 A virtual environment does not follow the code: after `git pull` or a switch to another branch the packages it holds can be older
@@ -51,15 +59,17 @@ than the ones the code now imports, and the processing jobs then fail a few seco
 'torch'` or `'desiutil'`). After every code update, in the same environment:
 
 ```bash
-pip install --upgrade -e ".[pipeline]"      # processing host; add ",cs" for aps_amy. Linux host without a GPU: add --extra-index-url https://download.pytorch.org/whl/cpu
-pip check                                   # must print "No broken requirements found."
-plotly_get_chrome -y                        # once per host and user: the Chrome that kaleido needs to write plot images (not a pip package)
-python tools/check_env.py                   # the pipeline profile; --profile explorer for a viewer-only host, --profile all for everything
+pip install -r requirements-lock-20261006.txt        # the frozen set; add --extra-index-url https://download.pytorch.org/whl/cpu on a Linux host without a GPU
+pip install --no-deps -e .
+pip check                                            # must print "No broken requirements found."
+plotly_get_chrome -y                                 # once per host and user: the Chrome that kaleido needs to write plot images (not a pip package)
+python tools/check_env.py                            # the pipeline profile; --profile explorer for a viewer-only host, --profile all for everything
 ```
 
 `tools/check_env.py` reads the package lists from `pyproject.toml` (so it cannot drift from `pip install ".[pipeline]"`), reports a
-missing or out-of-range package, a missing dependency of an installed package, and a key module that does not import. Exit status 0
-means the environment is complete. Run it on every host that processes data before a night is handed over.
+missing or out-of-range package, a missing dependency of an installed package, a key module that does not import, and (as warnings)
+versions that differ from the frozen set. Exit status 0 means the environment is complete. Run it on every host that processes data
+before a night is handed over; the production runner does so at the start of each cycle.
 
 ### Choosing what to install
 
@@ -90,9 +100,10 @@ extra you installed is simply not needed (e.g. no database driver is required).
 
 | Variable | Meaning | Default |
 |---|---|---|
-| `PYAPS_HOME` | Root of your PyAPS working tree (holds `configs/`, `externals/`, `CS/`, `PyAPS_local/`). Used to expand `${PYAPS_HOME}` in `configs/script_params.yaml` | the source checkout, else `~/PyAPS` |
+| `PYAPS_HOME` | Root of your PyAPS working tree (holds `configs/`, `externals/`, `CS/` and the data and template trees). Used to expand `${PYAPS_HOME}` in `configs/script_params.yaml` | the source checkout, else `~/PyAPS` |
 | `PYAPS_PKG_DIR` | Directory holding the `aps_*.py` modules (`${PYAPS_PKG_DIR}` in `script_params.yaml`) | set automatically |
 | `PYAPS_CONFIGDIR` | Directory holding the instrument configuration (`ExGal_configs`) and interpolator caches. **A regular (non-editable) `pip install` does not bundle it: copy the repository's `configs/ExGal_configs` somewhere and point this variable at it.** | the checkout's `configs/ExGal_configs` (source / `pip install -e .` only) |
+| `PYAPS_RVS_TEMPLATES` | Directory of the RVS (rvspecfit) template library. The generated job scripts export it from the `templates_RVS` key of the `script_params` file in use, and `template_lib` of `configs/rvs_config.yaml` refers to it. Export it yourself only when running `aps_rvs.py` by hand. A missing directory stops the job with an error naming the key; there is no fallback location | set by the job scripts |
 | `PYAPS_DATA_DIR` | Start folder of the explorer's file browser | `$PYAPS_HOME`, then `~` |
 | `PYAPS_CS_MAIL` | Contact e-mail written into the `CS_MAIL` FITS header keyword by the RR Lyrae contributed modules (`aps_rrlew`, `aps_rrlgv`) | empty |
 | `PYAPS_TEST_DATA` | Root of real WEAVE data for the data-dependent tests (they skip when unset) | unset |
@@ -213,7 +224,7 @@ from PyAPS.aps_lsf import run_lsf_analysis
 # Build interpolator from two-arm solar twilight LSF files
 interpolator = run_lsf_analysis(
     file_input    = ["lsf_BLUEL11_LIFU.fits", "lsf_REDL11_LIFU.fits"],
-    figdir        = "/data/L2/figs",
+    figdir        = "<PYAPS_DATA>/L2/figs",
     figname       = "lsf_lifu",
     overwrite     = False,     # load from cached pickle if available
     save_pickle   = True,
@@ -239,7 +250,7 @@ from PyAPS.aps_fwhm import run_fwhm_analysis
 
 interpolator = run_fwhm_analysis(
     file_paths  = ["wave_3100962_all.fit", "wave_3100961_all.fit"],
-    figdir      = "/data/L2/figs",
+    figdir      = "<PYAPS_DATA>/L2/figs",
     figname     = "fwhm_combined",
     overwrite   = False,
     save_pickle = True,
@@ -356,9 +367,9 @@ docker run -d --name pyaps-explorer -p 8080:8080 \
 curl http://localhost:8080/healthz   # {"status": "ok"}
 ```
 
-- Bind-mount your real `caldir`/`catdir`/`configdir`/data root read-only
+- Bind-mount your real `caldir`/`catdir`/`configdir` and the data root read-only
   (`-v host_path:container_path:ro`) rather than baking data into the
-  image — swap `<PYAPS_DATA>` above for wherever your data lives. Inside the container it is then `/data`.
+  image — swap `<PYAPS_DATA>` above for wherever your data lives. Inside the container it is then the container-side mount point shown after the colon (`-v <PYAPS_DATA>:/data:ro`).
 - Runs a single gunicorn worker (multiple threads for concurrency) — this
   is a deliberate design choice, not a temporary limitation: per-session
   state lives in server memory for performance (see the module docstring
@@ -513,11 +524,40 @@ metadata = apsob.get_metadata()
 
 ## Configuration
 
+### Configuration: first-time setup
+
+The repository ships **templates**, not installation-specific configuration. Before the first run you
+**must copy each `*.example` file to its local name and fill in every value for your own installation**:
+
+```bash
+cp configs/script_params.yaml.example configs/script_params.yaml      # pipeline parameters (aps_runner --config_file)
+cp configs/explorer.env.example       configs/explorer.env            # only for the explorer server / Docker
+chmod 600 configs/explorer.env                                        # it holds a shared secret
+python tools/check_config.py                                          # reports every <...> still unfilled
+```
+
+| Local file (git-ignored) | What to enter |
+|---|---|
+| `configs/script_params.yaml` | output / catalogue / calibration / XML folders (`PyAPS_RES`, `CS_RES`, `PyAPS_CAT`, `PyAPS_CAL`, `PyAPS_XML`), template and external-program locations, optional virtual environment (`use_venv`, `venv_path`), per-module processing defaults |
+| `configs/explorer.env` | `PYAPS_EXPLORER_WEAVEOR_SECRET` (a long random secret), upstream app URL, default calibration / catalogue folders, session limits |
+
+Placeholders: `<...>` is a value you must supply (`tools/check_config.py` lists every one left),
+`${PYAPS_HOME}` is the root of your PyAPS working tree, `<env_suffix>` is empty for a production
+environment and `_dev` for a development environment (data trees `L1_dev`, `L2_dev`, ... next to the
+production ones). **The local files are ignored by git: never commit them or paste them into issues.**
+Every key is explained in [doc/CONFIGURATION.md](doc/CONFIGURATION.md), which also has the safe steps for
+migrating a host that used to edit a tracked `configs/script_params.yaml` in place. The public-repository
+rules (no secrets, hosts or absolute paths anywhere in tracked files) are in
+[doc/PUBLIC_HYGIENE.md](doc/PUBLIC_HYGIENE.md).
+
+### Configuration files
+
 Configuration files are located in the `configs/` directory:
 
-- `script_params.yaml` — main pipeline parameters. Paths inside it use `${PYAPS_HOME}` /
+- `script_params.yaml.example` — template of the main pipeline parameters (copy it to the local, git-ignored
+  `script_params.yaml`, see above). Paths inside it use `${PYAPS_HOME}` /
   `${PYAPS_PKG_DIR}` (see [Environment variables](#environment-variables)), so it works unchanged
-  from any checkout. Copy it (e.g. `configs/script_params_mysite.yaml`) and pass the copy with
+  from any checkout. Make further copies (e.g. `configs/script_params_mysite.yaml`, also ignored) and pass them with
   `--config_file` when you want different output directories, module settings or resources.
 - `ExGal_configs/` — per-instrument-mode IFU/MOS extragalactic configuration and LSF settings.
 - `rvs_config.yaml`, `weave_cls.json`, `APS_FLAGS.json`, ... — module-specific configuration.
@@ -545,7 +585,7 @@ PyAPS/
 ├── tests/                # Test suite
 ├── py/PyAPS/             # Source code
 ├── CS/                   # Contributed software (installed by you, see CS/README.md)
-└── PyAPS_local/          # Your local templates and data (never committed, see below)
+└── PyAPS_local/          # Your personal scratch area (untracked; never read by the official dev/prod runs)
 ```
 
 ---
@@ -566,8 +606,8 @@ builds and runs them for you.
 
 ```bash
 python aps_runner.py \
-  --infiles /data/L1/20250630/stack_3095664.fit \
-            /data/L1/20250630/stack_3095663.fit \
+  --infiles $PYAPS_DATA/L1/20250630/stack_3095664.fit \
+            $PYAPS_DATA/L1/20250630/stack_3095663.fit \
   --config_file configs/script_params.yaml \
   --cat_list None \
   --headname stack_3095664__stack_3095663 \
@@ -760,8 +800,8 @@ dependency - and that failure is captured and turned into `aps_runner.py`'s own 
 
 ```bash
 python aps_runner.py \
-  --infiles /data/L1/20250630/stack_3095664.fit \
-            /data/L1/20250630/stack_3095663.fit \
+  --infiles $PYAPS_DATA/L1/20250630/stack_3095664.fit \
+            $PYAPS_DATA/L1/20250630/stack_3095663.fit \
   --config_file configs/script_params.yaml \
   --cat_list None \
   --mod_wlranges True \

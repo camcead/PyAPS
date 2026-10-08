@@ -64,7 +64,7 @@
 # Multi-stage: the build toolchain (gfortran, for the astronomy packages'
 # compiled extensions) isn't retained in the final image.
 
-FROM python:3.11-slim AS builder
+FROM python:3.12-slim AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential gfortran \
@@ -81,7 +81,7 @@ COPY py/ py/
 # bloat this image.
 RUN pip install --no-cache-dir --prefix=/install ".[server]"
 
-FROM python:3.11-slim AS runtime
+FROM python:3.12-slim AS runtime
 
 # libgomp1: OpenMP runtime some of the compiled scientific deps link
 # against (scipy/scikit-learn wheels commonly need it even though it's
