@@ -65,3 +65,12 @@ def test_requirement_name_handles_extras_urls_and_markers():
     assert f("PyYAML>=6.0") == "pyyaml"
     assert f("redrock @ git+https://github.com/desihub/redrock.git") == "redrock"
     assert f("astropy_healpix>=2.0 ; python_version >= '3.12'") == "astropy-healpix"
+
+
+def test_missing_chrome_is_a_warning_not_an_error(monkeypatch, capsys):
+    monkeypatch.setattr(check_env, "chrome_for_kaleido", lambda: None)
+    real = check_env.installed_version
+    monkeypatch.setattr(check_env, "installed_version", lambda n: "9.9" if n == "kaleido" else real(n))
+    check_env.main(["--profile", "explorer", "--no-import", "--lock", "none", "--quiet"])
+    out = capsys.readouterr().out
+    assert "CHROME" in out and "plotly_get_chrome" in out

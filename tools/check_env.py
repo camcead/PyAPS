@@ -15,7 +15,8 @@ what ``pip install ".[pipeline]"`` installs):
   * every package is installed, and its version satisfies the declared range;
   * every package those depend on is installed too (what ``pip check`` reports), including the transitive ones;
   * the key modules really import (a wheel can be installed and still be broken);
-  * versions that differ from the frozen set ``requirements-lock-*.txt`` are listed as warnings (never an error).
+  * versions that differ from the frozen set ``requirements-lock-*.txt`` are listed as warnings (never an error);
+  * a Chrome for kaleido (plot images) is present; if not, a warning says to run ``plotly_get_chrome -y``.
 
 Exit status 0 only when nothing is missing or broken. Standard library only (``packaging`` is used when present). Prints package
 names and versions only.
@@ -49,6 +50,24 @@ IMPORT_CHECKS = {
     "ppxf": "ppxf.ppxf", "powerbin": "powerbin", "pyyaml": "yaml", "torch": "torch", "desiutil": "desiutil.dust",
     "redrock": "redrock", "rvspecfit": "rvspecfit", "ptemcee": "ptemcee", "pyastronomy": "PyAstronomy.pyasl",
 }
+
+def chrome_for_kaleido():
+    """Path of a Chrome that kaleido can use to write plot images (png/pdf), or None. kaleido 1.x does not bundle one:
+    `plotly_get_chrome -y` installs it under ~/.local/share/choreographer (not a pip package, so pip check cannot see it)."""
+    import os
+    import shutil
+    env = os.environ.get("BROWSER_PATH")
+    if env and Path(env).exists():
+        return env
+    cand = Path.home() / ".local" / "share" / "choreographer" / "deps" / "chrome-linux64" / "chrome"
+    if cand.exists():
+        return str(cand)
+    for name in ("google-chrome", "chromium", "chromium-browser", "chrome"):
+        found = shutil.which(name)
+        if found:
+            return found
+    return None
+
 
 try:                                         # optional: exact version and marker handling
     from packaging.requirements import Requirement
@@ -140,7 +159,11 @@ def dependency_closure(names: list[str]):
         seen.add(n)
         if installed_version(n) is None:
             continue
-        for r in md.requires(n) or []:
+        try:
+            requires = md.requires(n) or []
+        except md.PackageNotFoundError:
+            continue
+        for r in requires:
             if not marker_applies(r):
                 continue
             rn = requirement_name(r)
@@ -210,6 +233,10 @@ def main(argv: list[str]) -> int:
                     importlib.import_module(mod)
                 except Exception as exc:          # a broken wheel can raise anything
                     problems.append(f"IMPORT    {mod}: {type(exc).__name__}: {str(exc).splitlines()[0][:120] if str(exc) else ''}")
+
+    if "kaleido" in names and installed_version("kaleido") is not None and chrome_for_kaleido() is None:
+        warnings.append("CHROME    kaleido has no Chrome: plot images (png) cannot be written and the jobs log a RuntimeError per figure; "
+                        "run `plotly_get_chrome -y` in this environment")
 
     lock = read_lock(args.lock)
     if lock:
