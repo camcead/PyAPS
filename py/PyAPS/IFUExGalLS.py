@@ -37,6 +37,14 @@ PURPOSE:
   - Enhanced error reporting
 """
 
+
+def _pixel_index_range(first, last):
+    """All pixel indices from `first` to `last`, both included. `first`/`last` come from np.where(...)[0] (one-element
+    arrays); NumPy 2 no longer turns such an array into a Python scalar, so np.arange(first, last+1) raised
+    "only 0-dimensional arrays can be converted to Python scalars" and every IFU ExGal job of a night failed."""
+    return np.arange(int(np.ravel(first)[0]), int(np.ravel(last)[0]) + 1)
+
+
 def workerLS(inQueue, outQueue):
     """
     Defines the worker process of the parallelisation with multiprocessing.Queue
@@ -736,7 +744,7 @@ def runModule_LINESTRENGTH(LINE_STRENGTH, RESOLUTION, nthreads, configs, velscal
             idx_lamMax = np.where( hdu_emi[1].data.LOGLAM_EMI[-1] == Vor_LOGLAM )[0]
             wave     = np.array( hdu_emi[1].data.LOGLAM_EMI )
 
-        idx_lam    = np.arange(idx_lamMin, idx_lamMax+1)
+        idx_lam    = _pixel_index_range(idx_lamMin, idx_lamMax)
         oldspec  = np.array( hdu_emi[1].data.FLUX_CLEAN_EMI   )
         oldespec = np.sqrt( np.array( hdu_Vor[1].data.ESPEC )[:,idx_lam] )
 
