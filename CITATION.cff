@@ -1,12 +1,13 @@
 cff-version: 1.2.0
 message: >-
   If you use PyAPS in your research, please cite it using the metadata below.
-  The DOI is the archived release on Zenodo; the concept DOI under `identifiers`
-  always resolves to the latest version.
+  The DOI above is the version-specific DOI of the final publication snapshot of 2.0
+  (tag v2.0-rasti, Zenodo version 'v2.0-rasti'); the concept DOI under `identifiers`
+  always resolves to the newest version.
 title: PyAPS
 type: software
 abstract: >-
-  Python-based Advance Processing System for WEAVE: a platform for
+  Python-based Advanced Processing System for WEAVE: a platform for
   processing and analysing WEAVE survey spectroscopic data (MOS, mIFU, and
   LIFU observing modes), developed as part of the WEAVE Science Processing
   and Analysis (SPA) system.
@@ -22,12 +23,15 @@ repository-code: "https://github.com/camcead/PyAPS"
 url: "https://camcead.ast.cam.ac.uk"
 repository-artifact: "https://github.com/camcead/PyAPS/releases"
 version: "2.0"
-doi: "10.5281/zenodo.23042511"
+doi: "10.5281/zenodo.23250780"
 identifiers:
   - type: doi
     value: "10.5281/zenodo.23042510"
-    description: "Concept DOI: all versions of PyAPS (always the latest release)"
-date-released: "2026-09-29"
+    description: "Concept DOI: all versions of PyAPS; it resolves to the newest version"
+  - type: doi
+    value: "10.5281/zenodo.23042511"
+    description: "Superseded: archive of the earlier v2.0 tag (commit 1684edf, 2026-09-29)"
+date-released: "2026-10-09"
 keywords:
   - astronomy
   - spectroscopy

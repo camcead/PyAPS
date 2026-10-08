@@ -4,7 +4,9 @@ All notable changes to PyAPS are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow
 [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR`, patch releases as `MAJOR.MINOR.PATCH`).
 
-## Unreleased
+## [2.0] publication snapshot - 2026-10-09 (tag `v2.0-rasti`)
+
+The version label stays 2.0 (the version cited in the paper). The earlier public release, tag `v2.0` (commit 1684edf, 2026-09-29, Zenodo 10.5281/zenodo.23042511), is kept unchanged; this snapshot supersedes it and additionally contains everything listed below, in particular the corrected Redrock per-arm implementation with its tests, the aperture-convention clarification and `gal_aperture_factor`.
 
 ### Security / public hygiene
 - New guard `tools/check_public_hygiene.py` (+ `tests/test_public_hygiene.py`, pre-commit hook, CI step) that fails on secrets, internal hosts/IPs, personal account names, e-mail addresses and absolute machine paths in tracked files, and applies a stricter check to module headers and `__main__` demo blocks. Rules, placeholders and allow-list: `doc/PUBLIC_HYGIENE.md`.
@@ -64,8 +66,8 @@ All notable changes to PyAPS are documented here. The format follows
 - The README now says plainly that PyAPS is the processing pipeline and that processing needs the `pipeline` installation option; a plain install is the lighter explorer and viewer set. (Whether the pipeline should become the default installation is open for the next release.)
 
 ### Changed
-- Archived on Zenodo: version DOI 10.5281/zenodo.23042511 (2.0), concept DOI 10.5281/zenodo.23042510 (all versions).
-  Added to `CITATION.cff` and the README (badge, citation block, BibTeX).
+- Archived on Zenodo as a new version of the same record: version DOI 10.5281/zenodo.23250780 (2.0, publication snapshot, tag `v2.0-rasti`), concept DOI 10.5281/zenodo.23042510 (all versions); the earlier deposit 10.5281/zenodo.23042511 (tag `v2.0`) is preserved.
+  `CITATION.cff`, the README (badge, citation block, BibTeX) and `.zenodo.json` point to the new version; "Advanced Processing System" corrected in all of them.
 
 ### Known limitations
 - A regular (non-editable) `pip install` does not bundle `configs/ExGal_configs`; set `PYAPS_CONFIGDIR`

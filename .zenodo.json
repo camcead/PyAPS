@@ -1,0 +1,16 @@
+{
+  "title": "PyAPS: Python-based Advanced Processing System for WEAVE (version 2.0, publication snapshot)",
+  "upload_type": "software",
+  "version": "2.0",
+  "license": "MIT",
+  "creators": [
+    {"name": "Molaeinezhad, Alireza", "affiliation": "CAMCEAD, Institute of Astronomy, University of Cambridge"},
+    {"name": "WEAVE APS Team"}
+  ],
+  "description": "PyAPS (Python-based Advanced Processing System) processes and analyses WEAVE survey spectroscopic data (MOS, mIFU and LIFU observing modes) as part of the WEAVE Science Processing and Analysis (SPA) system. This is the final publication snapshot of version 2.0 (git tag v2.0-rasti); it supersedes the earlier v2.0 archive and contains the corrected Redrock per-arm implementation with its tests, the aperture-convention clarification and the gal_aperture_factor option.",
+  "keywords": ["astronomy", "spectroscopy", "WEAVE", "survey", "data analysis"],
+  "related_identifiers": [
+    {"relation": "isSupplementTo", "identifier": "https://github.com/camcead/PyAPS", "scheme": "url"},
+    {"relation": "isNewVersionOf", "identifier": "10.5281/zenodo.23042511", "scheme": "doi"}
+  ]
+}

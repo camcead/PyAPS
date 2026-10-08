@@ -1,6 +1,6 @@
 name: Release
 
-# Push a tag such as v2.1 to publish a GitHub release with the built distributions.
+# Push a tag such as v2.1 (or v2.0-rasti, a labelled snapshot of version 2.0) to publish a GitHub release with the built distributions.
 # (A GitHub release is also what triggers the Zenodo DOI, once the repository is enabled there.)
 on:
   push:
@@ -23,7 +23,7 @@ jobs:
       - name: Check the tag matches version.txt
         run: |
           v="v$(cat version.txt | tr -d '[:space:]')"
-          [ "$GITHUB_REF_NAME" = "$v" ] || { echo "tag $GITHUB_REF_NAME != version.txt ($v)"; exit 1; }
+          case "$GITHUB_REF_NAME" in "$v"|"$v"-*) ;; *) echo "tag $GITHUB_REF_NAME is not $v or $v-<suffix> (version.txt)"; exit 1;; esac
       - uses: softprops/action-gh-release@v2
         with:
           files: dist/*

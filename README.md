@@ -1,4 +1,4 @@
-# PyAPS - Python-based Advance Processing System for WEAVE
+# PyAPS - Python-based Advanced Processing System for WEAVE
 
 [![CI](https://github.com/camcead/PyAPS/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/camcead/PyAPS/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/Python-3.12%20%7C%203.13-blue)](https://www.python.org/)
@@ -931,17 +931,19 @@ the contributions from all WEAVE science teams and the broader astronomical comm
 If you use PyAPS in your research, please cite it — see [CITATION.cff](CITATION.cff)
 for the current metadata. Every release is archived on Zenodo:
 
-- **Cite this exact version (2.0):** [10.5281/zenodo.23042511](https://doi.org/10.5281/zenodo.23042511)
+- **Cite this exact version (2.0, final publication snapshot, tag `v2.0-rasti`):** [10.5281/zenodo.23250780](https://doi.org/10.5281/zenodo.23250780)
+- **Superseded:** the archive of the earlier `v2.0` tag, [10.5281/zenodo.23042511](https://doi.org/10.5281/zenodo.23042511), is kept but does not contain the corrected Redrock implementation
 - **Cite PyAPS in general (all versions, always the latest):** [10.5281/zenodo.23042510](https://doi.org/10.5281/zenodo.23042510)
 
 ```bibtex
 @software{pyaps_2_0,
   author    = {Molaeinezhad, Alireza and {WEAVE APS Team}},
-  title     = {PyAPS: Python-based Advance Processing System for WEAVE},
+  title     = {PyAPS: Python-based Advanced Processing System for WEAVE},
   version   = {2.0},
   year      = {2026},
   publisher = {Zenodo},
-  doi       = {10.5281/zenodo.23042511},
-  url       = {https://doi.org/10.5281/zenodo.23042511}
+  doi       = {10.5281/zenodo.23250780},
+  url       = {https://doi.org/10.5281/zenodo.23250780},
+  note      = {Final publication snapshot, git tag v2.0-rasti}
 }
 ```
