@@ -24,7 +24,7 @@ jobs:
         run: |
           v="v$(cat version.txt | tr -d '[:space:]')"
           [ "$GITHUB_REF_NAME" = "$v" ] || { echo "tag $GITHUB_REF_NAME != version.txt ($v)"; exit 1; }
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           files: dist/*
           # only attaches the built files; the release notes you wrote in the GitHub form are left untouched
