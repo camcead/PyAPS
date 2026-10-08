@@ -64,7 +64,7 @@
 # Multi-stage: the build toolchain (gfortran, for the astronomy packages'
 # compiled extensions) isn't retained in the final image.
 
-FROM python:3.11-slim AS builder
+FROM python:3.12-slim AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential gfortran \
@@ -81,7 +81,7 @@ COPY py/ py/
 # bloat this image.
 RUN pip install --no-cache-dir --prefix=/install ".[server]"
 
-FROM python:3.11-slim AS runtime
+FROM python:3.12-slim AS runtime
 
 # libgomp1: OpenMP runtime some of the compiled scientific deps link
 # against (scipy/scikit-learn wheels commonly need it even though it's
@@ -99,6 +99,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && useradd --create-home --uid ${PYAPS_UID} --gid ${PYAPS_GID} pyaps
 
 COPY --from=builder /install /usr/local
+
+# Build-time guard: fail the build (instead of shipping a broken image) when a package the explorer
+# or the server needs is missing or does not import. Same tool as for a processing host (README, "Updating an existing installation").
+COPY pyproject.toml /tmp/envcheck/pyproject.toml
+COPY tools/check_env.py /tmp/envcheck/check_env.py
+RUN python /tmp/envcheck/check_env.py --profile explorer --pyproject /tmp/envcheck/pyproject.toml --lock none --quiet \
+    && python /tmp/envcheck/check_env.py --profile server --pyproject /tmp/envcheck/pyproject.toml --lock none --quiet \
+    && rm -rf /tmp/envcheck
 
 ENV PYAPS_EXPLORER_MULTI_SESSION=1 \
     PYTHONUNBUFFERED=1

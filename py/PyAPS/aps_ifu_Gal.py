@@ -64,7 +64,12 @@ def make_patch_array(
     ra, dec, a_arcsec, b_arcsec, z, zerr, class_str,
     zwarn=0, angle=0.0, row_id=1, row_type="T",
 ) -> dict:
-    """Build a single-row patch_array dict. See aps_ifu_exgal for details."""
+    """
+    Build a single-row patch_array dict. See aps_ifu_exgal for details.
+
+    ``a_arcsec`` / ``b_arcsec`` are FULL axis lengths (diameters) in arcsec,
+    not semi-axes (same convention as ``A_world`` / ``B_world``).
+    """
     return {
         "id": row_id, "RA_icrs": ra, "DEC_icrs": dec,
         "A_world": a_arcsec / 3600.0, "B_world": b_arcsec / 3600.0,
@@ -72,6 +77,32 @@ def make_patch_array(
         "Z": [float(z)], "ZERR": [float(zerr)],
         "ZWARN": [int(zwarn)], "CLASS": [str(class_str).strip()],
     }
+
+
+GAL_PATCH_FILE_APERTURE_FACTOR = 0.5   # default shrink for patch-table rows
+GAL_PATCH_ARRAY_APERTURE_FACTOR = 1.0  # patch_array is used as supplied
+
+
+def resolve_gal_aperture_factor(gal_aperture_factor, patch_array_mode):
+    """
+    Factor applied to BOTH full axis lengths (A_world, B_world) of a Gal row.
+
+    ``None`` keeps the historical defaults: 0.5 for rows read from a patch
+    table (concentrates the stellar analysis on the bright central spaxels;
+    a fixed spatial cut, not PSF fitting or S/N optimisation) and 1.0 for a
+    ``patch_array`` (used exactly as supplied). A number sets the factor
+    explicitly for either route, so the same aperture gives the same
+    selection whichever way it is passed in.
+    """
+    if gal_aperture_factor is None:
+        return (GAL_PATCH_ARRAY_APERTURE_FACTOR if patch_array_mode
+                else GAL_PATCH_FILE_APERTURE_FACTOR)
+    factor = float(gal_aperture_factor)
+    if not np.isfinite(factor) or factor <= 0.0:
+        raise ValueError(
+            f"gal_aperture_factor must be a positive number, got {gal_aperture_factor!r}"
+        )
+    return factor
 
 
 # =========================================================================== #
@@ -552,6 +583,7 @@ def ifu_Gal(
     caldir=None,
     no_spec_ext=False,
     spaxel_weighted_lsf=None,
+    gal_aperture_factor=None,
 ):
     """
     Gal IFU analysis — loops over a patch table and processes every
@@ -562,6 +594,11 @@ def ifu_Gal(
       2. patch_file  — loaded from disk, split applied.
       3. Neither     → AssertionError.
 
+    gal_aperture_factor : float or None, optional
+        Multiplies both full axis lengths of each extraction aperture.
+        `None` (default) keeps the historical behaviour: 0.5 for rows read
+        from `patch_file`, 1.0 (as supplied) for `patch_array`. Pass a
+        number to apply the same factor on either route.
     spaxel_weighted_lsf : bool or None, optional
         Per-bin resolution for RVS/FERRE. `None` (default): resolved
         per-patch from each patch's own IFU_params JSON
@@ -636,7 +673,9 @@ def ifu_Gal(
     # ------------------------------------------------------------------ #
     # 5. Loop over patch table                                            #
     # ------------------------------------------------------------------ #
-    enhanced_rad_factor = 0.5   # always shrink aperture for Gal sources
+    enhanced_rad_factor = resolve_gal_aperture_factor(
+        gal_aperture_factor, patch_array_mode)
+    print(f"INFO: Gal aperture factor = {enhanced_rad_factor}")
     proper_targets      = len(wp_table)
     fault_counter       = 0
 
@@ -670,7 +709,7 @@ def ifu_Gal(
 
         patch_headname = headname + "_" + ("P%04d" % trgs["id"])
 
-        rad_factor = 1.0 if patch_array_mode else enhanced_rad_factor
+        rad_factor = enhanced_rad_factor
         patch_area = [
             float(trgs["RA_icrs"]),  float(trgs["DEC_icrs"]),
             float(trgs["A_world"]) * 3600.0 * rad_factor,
@@ -866,11 +905,17 @@ def gal_runner(options=None):
             (("--mp_Gal",), dict(type=int, default=1)),
             (("--uapsid",), dict(type=none_or_str, default=None)),
             (("--no_spec_ext",), dict(type=str2bool, default=False)),
+            (("--gal_aperture_factor",), dict(
+                type=float, default=None,
+                help=("Factor applied to both full axis lengths of each Gal aperture. "
+                      "Default: 0.5 for --patch_file rows, 1.0 for --patch_array."),
+            )),
             (("--patch_array",), dict(
                 type=none_or_str, default=None,
                 help=(
                     "Single-target patch row as comma-separated values in fixed order: "
                     "id,RA_deg,Dec_deg,A_arcsec,B_arcsec,Z,ZERR,CLASS "
+                    "(A and B are FULL axis lengths in arcsec, not semi-axes) "
                     "Example: 1,185.198164,58.092634,101.52,47.25,0.01003,0.0001,GALAXY"
                 ),
             )),
@@ -960,6 +1005,7 @@ def gal_runner(options=None):
         safe_mask_gaps=args.safe_mask_gaps, vacuum=args.vacuum,
         tellurics=args.tellurics, fill_gap=args.fill_gap,
         arms_ratio=arms_ratio, join_arms=args.join_arms,
+        gal_aperture_factor=args.gal_aperture_factor,
         class_patch=args.class_patch,
         class_templates=args.class_templates,
         class_templates_ARC=args.class_templates_ARC,
@@ -975,13 +1021,15 @@ def gal_runner(options=None):
 
 
 if __name__ == "__main__":
+    # DEMO settings: edit for your setup. Replace the <PYAPS_DATA>, <PYAPS_DIR>, <night>, <runid>, <obid>
+    # markers below with your own locations and identifiers (no machine paths belong in this repository).
     debug_LIFU = [
         "--infiles",
-        "<PYAPS_DATA>/L1/20240515/stackcube_3059328.fit",
-        "<PYAPS_DATA>/L1/20240515/stackcube_3059327.fit",
-        "--headname",       "LWVE_15383969+5921201_01_GR_H1",
-        "--outpath",        "<PYAPS_DATA>/L2/20240515/12958/",
-        "--patch_file",     "<PYAPS_DATA>/L2/20240515/12958/LWVE_15383969+5921201_01_GR_H1_targets_mod.fits",
+        "<PYAPS_DATA>/L1/<night>/stackcube_<runid>.fit",
+        "<PYAPS_DATA>/L1/<night>/stackcube_<runid>.fit",
+        "--headname",       "LWVE_<target>_01_GR_H1",
+        "--outpath",        "<PYAPS_DATA>/L2/<night>/<obid>/",
+        "--patch_file",     "<PYAPS_DATA>/L2/<night>/<obid>/LWVE_<target>_01_GR_H1_targets_mod.fits",
         "--IFU_config_dir", "<PYAPS_DIR>/configs/ExGal_configs/",
         "--IFU_params",     "<PYAPS_DIR>/configs/ExGal_configs/LIFUHR11.json",
         "--mp_Gal",         "4",
@@ -994,6 +1042,6 @@ if __name__ == "__main__":
         "--catdir","<PYAPS_DATA>/CAT",
         "--RVS_CONFIG","<PYAPS_DIR>/configs/rvs_config.yaml",
         "--FERRE_EXE", "<PYAPS_DIR>/externals/ferre/bin/ferre.x",
-        "--FERRE_TEMPLATES", "<PYAPS_DIR>/PyAPS_local/PyAPS_templates/templates_FR/"
+        "--FERRE_TEMPLATES", "<PYAPS_DIR>/PyAPS_templates/templates_FR/"
     ]
     gal_runner(options=debug_LIFU)

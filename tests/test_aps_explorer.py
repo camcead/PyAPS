@@ -828,8 +828,11 @@ def test_load_panel_style_helper_preserves_sidebar_css():
     visible = ex._load_panel_style(True)
     hidden = ex._load_panel_style(False)
     assert visible["position"] == "fixed" == hidden["position"]
-    assert visible["display"] == "block"
-    assert hidden["display"] == "none"
+    # The drawer slides (transform + visibility), it no longer toggles display.
+    assert visible["transform"] == "translateX(0)"
+    assert visible["visibility"] == "visible"
+    assert hidden["transform"] == "translateX(-100%)"
+    assert hidden["visibility"] == "hidden"
 
 
 def test_main_panel_style_helper_preserves_padding():
@@ -1159,7 +1162,8 @@ def test_open_load_panel_button_reopens_panel():
     from PyAPS import aps_explorer as ex
 
     style = ex.on_open_load_panel(1)
-    assert style["display"] == "block"
+    assert style["transform"] == "translateX(0)"
+    assert style["visibility"] == "visible"
     assert style["position"] == "fixed"
 
 
@@ -1659,7 +1663,7 @@ def test_mos_color_by_values_scalarize_per_rank_columns():
 
     mos_mod.STATE.load(MOS_OUTPATH, MOS_HEADNAME)
     ct = mos_mod.STATE.data["class_table"]
-    values = mos_mod._color_by_values(mos_mod.STATE.data, "Z")
+    values = mos_mod._color_by_values(mos_mod.STATE, "Z")
     assert len(values) == len(ct["APS_ID"])
     finite = values[np.isfinite(values)]
     assert finite.size > 0
@@ -3542,11 +3546,13 @@ def test_map_mode_defaults_to_2d_and_toggles_visibility():
     assert radio is not None
     assert radio.value == "2d"
 
-    aladin_style, cube_style, fig = ex.update_map_mode("2d", 0, None, 0, None, None)
+    aladin_style, cube_style, _panel_class, fig, _rebuild = ex.update_map_mode(
+        "2d", 0, None, 0, None, None, None, None, None)
     assert aladin_style["display"] == "block"
     assert cube_style["display"] == "none"
     assert fig is no_update  # nothing loaded yet: no-op on the figure output
-    aladin_style, cube_style, fig = ex.update_map_mode("3d", 0, None, 0, None, None)
+    aladin_style, cube_style, _panel_class, fig, _rebuild = ex.update_map_mode(
+        "3d", 0, None, 0, None, None, None, None, None)
     assert aladin_style["display"] == "none"
     assert cube_style["display"] == "block"
     assert fig is no_update  # still nothing loaded
@@ -3569,7 +3575,9 @@ def test_update_map_mode_has_prevent_initial_call_and_color_range_version_input(
     import inspect
     import re
 
-    entry = ex.app.callback_map["..aladin-2d-controls.style...flux-cube-container.style...flux-cube-graph.figure.."]
+    entry = ex.app.callback_map[
+        "..aladin-2d-controls.style...flux-cube-container.style...main-panel.className"
+        "...flux-cube-graph.figure...flux-cube-rebuild-version.data.."]
     input_ids = {i["id"] for i in entry["inputs"]}
     # cube-transparency-toggle is deliberately NOT here any more — it
     # moved (this round) from a static, always-present child of
@@ -3588,10 +3596,11 @@ def test_update_map_mode_has_prevent_initial_call_and_color_range_version_input(
     # server rebuild trigger (explicit report: "every time I change the
     # start and end, it reloads the whole 3d view").
     assert input_ids == {"map-mode", "dataset-version", "selected-item",
-                          "color-range-version", "flux-cube-bin-width"}
+                          "color-range-version", "flux-cube-bin-width-debounced",
+                          "flux-cube-bin-width-apply", "flux-cube-depth-mode-debounced"}
 
     state_ids = {i["id"] for i in entry["state"]}
-    assert state_ids == {"flux-cube-camera-store"}
+    assert state_ids == {"flux-cube-camera-store", "flux-cube-rebuild-version"}
 
     src = inspect.getsource(ex)
     decorator_match = re.search(
@@ -3615,10 +3624,10 @@ def test_flux_cube_callback_lazy_and_figure_has_valid_customdata():
     l1_args.infiles = [L1_SMALL_FILE]
     ex._load_l1(l1_args)
 
-    _, _, fig = ex.update_map_mode("2d", 1, None, 0, None, None)
+    _, _, _, fig, _ = ex.update_map_mode("2d", 1, None, 0, None, None, None, None, None)
     assert fig is no_update  # not in 3D mode: no-op
 
-    _, _, fig = ex.update_map_mode("3d", 1, None, 0, None, None)
+    _, _, _, fig, _ = ex.update_map_mode("3d", 1, None, 0, None, None, None, None, None)
     assert fig is not no_update
     assert len(fig.data) >= 1
     real_item = int(fig.data[0].customdata[0])
@@ -3651,10 +3660,10 @@ def test_flux_cube_bin_width_parses_text_input_and_survives_a_real_dash_quirk():
         import numpy as np
         return len(set(np.round(np.asarray(fig.data[0].z, dtype=float), 4)))
 
-    _, _, fig_default = ex.update_map_mode("3d", 1, None, 0, None, None)
-    _, _, fig_50 = ex.update_map_mode("3d", 1, None, 0, "50", None)
-    _, _, fig_garbage = ex.update_map_mode("3d", 1, None, 0, "not a number", None)
-    _, _, fig_empty = ex.update_map_mode("3d", 1, None, 0, "", None)
+    _, _, _, fig_default, _ = ex.update_map_mode("3d", 1, None, 0, None, None, None, None, None)
+    _, _, _, fig_50, _ = ex.update_map_mode("3d", 1, None, 0, "50", None, None, None, None)
+    _, _, _, fig_garbage, _ = ex.update_map_mode("3d", 1, None, 0, "not a number", None, None, None, None)
+    _, _, _, fig_empty, _ = ex.update_map_mode("3d", 1, None, 0, "", None, None, None, None)
 
     assert _n_bins(fig_50) != _n_bins(fig_default)  # a real string genuinely changes the result
     # Garbage/empty input never crashes the callback — falls back to the
@@ -3686,12 +3695,14 @@ def test_update_map_mode_always_builds_the_full_native_wavelength_range():
     ex._load_l1(l1_args)
     assert l1_mod.STATE.loaded()
 
-    entry = ex.app.callback_map["..aladin-2d-controls.style...flux-cube-container.style...flux-cube-graph.figure.."]
+    entry = ex.app.callback_map[
+        "..aladin-2d-controls.style...flux-cube-container.style...main-panel.className"
+        "...flux-cube-graph.figure...flux-cube-rebuild-version.data.."]
     input_ids = {i["id"] for i in entry["inputs"]}
     assert "flux-cube-wave-min" not in input_ids
     assert "flux-cube-wave-max" not in input_ids
 
-    _, _, fig = ex.update_map_mode("3d", 1, None, 0, "50", None)
+    _, _, _, fig, _ = ex.update_map_mode("3d", 1, None, 0, "50", None, None, None, None)
     real_lo, real_hi = ex._flux_cube_wave_bounds()
     z = np.asarray(fig.data[0].z, dtype=float)
     # The built cube's own bin centres must span nearly the dataset's
@@ -3805,25 +3816,25 @@ def test_flux_cube_camera_preserved_across_click_but_reset_on_new_dataset():
 
     # First build for dataset-version=1 (stored_camera=None, as if the
     # store had never been written to before): must use the default camera.
-    _, _, fig1 = ex.update_map_mode("3d", 1, None, 0, None, None)
+    _, _, _, fig1, _ = ex.update_map_mode("3d", 1, None, 0, None, None, None, None, None)
     assert fig1.layout.scene.camera.eye.x == 0.0 and fig1.layout.scene.camera.eye.z == 2.5
 
     # A same-dataset rebuild (still version=1) that reads back a rotated
     # camera from the store must reuse it exactly.
-    _, _, fig2 = ex.update_map_mode("3d", 1, None, 0, None, rotated_camera)
+    _, _, _, fig2, _ = ex.update_map_mode("3d", 1, None, 0, None, None, None, rotated_camera, None)
     assert fig2.layout.scene.camera.eye.x == pytest.approx(-0.15)
     assert fig2.layout.scene.camera.up.x == pytest.approx(-0.8)
 
     # A rebuild for a *different* dataset-version (a genuinely new load)
     # must NOT inherit that same rotated camera, even though the store
     # still (realistically) carries it — must reset to default.
-    _, _, fig3 = ex.update_map_mode("3d", 2, None, 0, None, rotated_camera)
+    _, _, _, fig3, _ = ex.update_map_mode("3d", 2, None, 0, None, None, None, rotated_camera, None)
     assert fig3.layout.scene.camera.eye.x == 0.0 and fig3.layout.scene.camera.eye.z == 2.5
 
     # And now that version=2 is the "current" one, a further same-version
     # rebuild reusing *that* rebuild's own stored camera (still the
     # default, since nothing rotated it yet) stays at the default too.
-    _, _, fig4 = ex.update_map_mode("3d", 2, None, 0, None, default_camera)
+    _, _, _, fig4, _ = ex.update_map_mode("3d", 2, None, 0, None, None, None, default_camera, None)
     assert fig4.layout.scene.camera.eye.x == 0.0 and fig4.layout.scene.camera.eye.z == 2.5
 
 
@@ -3918,7 +3929,7 @@ def test_every_real_table_has_a_registered_export_callback():
         *(f"l1-header-table-{i}" for i in range(ex.l1_mod.HEADER_TABLE_MAX_FILES)),
         "spaxel-values-table", "bin-values-table",
         "class-values-table", "star-values-table", "galaxy-values-table",
-        "ifu-processing-history-table",
+        "ifu-processing-history-table", "l2-info-table",
     }
     registered = {
         k.split(".data")[0]

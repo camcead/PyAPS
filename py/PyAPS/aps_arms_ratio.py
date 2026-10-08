@@ -434,6 +434,8 @@ def calculate_arms_ratio_overlap_weighted(apsob, overlap_trim=50,
 ###########################################################################
 
 if __name__ == "__main__":
+    # DEMO settings: edit for your setup. Replace the <PYAPS_DATA>, <PYAPS_DIR>, <night>, <runid>, <obid>
+    # markers below with your own locations and identifiers (no machine paths belong in this repository).
 
     print("\n" + "="*70)
     print("ARMS RATIO CALIBRATION - ALL METHODS")
@@ -448,40 +450,40 @@ if __name__ == "__main__":
 
     try:
         infiles_lr = [
-            '<PYAPS_DATA>/L1/20250810/stack_3105914.fit',
-            '<PYAPS_DATA>/L1/20250810/stack_3105913.fit'
+            '<PYAPS_DATA>/L1/<night>/stack_<runid>.fit',
+            '<PYAPS_DATA>/L1/<night>/stack_<runid>.fit'
         ]
         # infiles_lr = [
-        #     '<PYAPS_DATA>/L1/20251116/stack_3124070.fit',
-        #     '<PYAPS_DATA>/L1/20251116/stack_3124069.fit'
+        #     '<PYAPS_DATA>/L1/<night>/stack_<runid>.fit',
+        #     '<PYAPS_DATA>/L1/<night>/stack_<runid>.fit'
         # ]
         # infiles_lr = [
-        #     '<PYAPS_DATA>/L1/20251022/single_3120060.fit',
-        #     '<PYAPS_DATA>/L1/20251022/single_3120059.fit'
-        # ]
-
-        # infiles_lr = [
-        #     '<PYAPS_DATA>/L1/20251114/stack_3123893.fit',
-        #     '<PYAPS_DATA>/L1/20251114/stack_3123892.fit'
+        #     '<PYAPS_DATA>/L1/<night>/single_<runid>.fit',
+        #     '<PYAPS_DATA>/L1/<night>/single_<runid>.fit'
         # ]
 
         # infiles_lr = [
-        #     '<PYAPS_DATA>/L1/20251202/stack_3126869.fit',
-        #     '<PYAPS_DATA>/L1/20251202/stack_3126868.fit'
+        #     '<PYAPS_DATA>/L1/<night>/stack_<runid>.fit',
+        #     '<PYAPS_DATA>/L1/<night>/stack_<runid>.fit'
         # ]
 
         # infiles_lr = [
-        #     '<PYAPS_DATA>/SOLAR/20250630/solar_3097703_all.fit',
-        #     '<PYAPS_DATA>/SOLAR/20250630/solar_3097704_all.fit'
+        #     '<PYAPS_DATA>/L1/<night>/stack_<runid>.fit',
+        #     '<PYAPS_DATA>/L1/<night>/stack_<runid>.fit'
         # ]
 
         # infiles_lr = [
-        #     '<PYAPS_DATA>/SOLAR/20250630/solar_3097055.fit',
-        #     '<PYAPS_DATA>/SOLAR/20250630/solar_3097056.fit'
+        #     '<PYAPS_DATA>/SOLAR/<night>/solar_<runid>_all.fit',
+        #     '<PYAPS_DATA>/SOLAR/<night>/solar_<runid>_all.fit'
+        # ]
+
+        # infiles_lr = [
+        #     '<PYAPS_DATA>/SOLAR/<night>/solar_<runid>.fit',
+        #     '<PYAPS_DATA>/SOLAR/<night>/solar_<runid>.fit'
         # ]
 
 
-        debugdir= '<PYAPS_DATA>/L2/SOLAR/20250630/'
+        debugdir= '<PYAPS_DATA>/L2/SOLAR/<night>/'
         caldir='<PYAPS_DATA>/CAL'
         catdir='<PYAPS_DATA>/CAT'
         configdir='<PYAPS_DIR>/configs/ExGal_configs'
@@ -571,8 +573,8 @@ if __name__ == "__main__":
 
     # try:
     #     infiles_comp = [
-    #         '<PYAPS_DATA>/L1/20250810/stack_3105914.fit',
-    #         '<PYAPS_DATA>/L1/20250810/stack_3105913.fit'
+    #         '<PYAPS_DATA>/L1/<night>/stack_<runid>.fit',
+    #         '<PYAPS_DATA>/L1/<night>/stack_<runid>.fit'
     #     ]
 
     #     apsob_comp = APSOB(

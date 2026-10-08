@@ -44,10 +44,10 @@ wholesale, reusing each library's own layout-piece function unchanged.
 
 USAGE
 -----
-    explorer_worker(["--outpath", "/path/to/results", "--headname", "stack_3141346__stack_3141345"])
-    explorer_worker(["--infiles", "stackcube_3006143.fit", "stackcube_3006142.fit"])
-    python aps_explorer.py --outpath /path/to/results --headname stack_3141346__stack_3141345
-    python aps_explorer.py --infiles stackcube_3006143.fit stackcube_3006142.fit
+    explorer_worker(["--outpath", "/path/to/results", "--headname", "stack_<runid>__stack_<runid>"])
+    explorer_worker(["--infiles", "stackcube_<runid>.fit", "stackcube_<runid>.fit"])
+    python aps_explorer.py --outpath /path/to/results --headname stack_<runid>__stack_<runid>
+    python aps_explorer.py --infiles stackcube_<runid>.fit stackcube_<runid>.fit
 
 Then open the printed URL in a browser. Launching with neither
 --outpath/--headname nor --infiles opens straight into the "Load

@@ -1199,7 +1199,7 @@ def _apply_archetype_fallback(zfitall, scandata, apsmeta,
     Verified on the real catastrophic-redshift regression set this
     trigger was built against (WC OB 20250630/16287,
     stack_3095664__stack_3095663, catastrophic_redshifts_apsmod.txt /
-    PyAPS_local/<investigation_dir>): the two genuine galaxy-flipped-to-STAR cases in
+    a personal investigation directory): the two genuine galaxy-flipped-to-STAR cases in
     that set (FIBREID/APS_ID 791, 938) are UNCHANGED by this addition
     (TARGCLASS=GALAXY there, archetype says STAR, so targeting_override
     never applies) -- no regression. Those two are not actually fixed by
@@ -3480,11 +3480,13 @@ def rrweave(options=None, comm=None):
 
 ##########################################################
 if __name__ == '__main__':
+    # DEMO settings: edit for your setup. Replace the <PYAPS_DATA>, <PYAPS_DIR>, <night>, <runid>, <obid>
+    # markers below with your own locations and identifiers (no machine paths belong in this repository).
 
 
 
     ##  TEST 1
-    debug_demo= ['--infiles', '<PYAPS_DATA>_dev/L1/star_test/stacked_1002046.fit', '<PYAPS_DATA>_dev/L1/star_test/stacked_1002045.fit',
+    debug_demo= ['--infiles', '<PYAPS_DATA>/L1<env_suffix>/star_test/stacked_<runid>.fit', '<PYAPS_DATA>/L1<env_suffix>/star_test/stacked_<runid>.fit',
     '--aps_ids', '1006,1007', # or 'None' to run for all available fibreids
     '--targsrvy', 'None',
     '--targclass', 'None',
@@ -3503,8 +3505,8 @@ if __name__ == '__main__':
     '--templates', '<PYAPS_DIR>/PyAPS_templates/templates_RR/',
     '--srvyconf', '<PYAPS_DIR>/configs/weave_cls.json',
     '--archetypes', '<PYAPS_DIR>/PyAPS_templates/templates_ARC_RR/',
-    '--outpath', '<PYAPS_DATA>_dev/L2/20160903/3294/',
-    '--headname', 'stacked_1002046__stacked_1002045',
+    '--outpath', '<PYAPS_DATA>/L2<env_suffix>/<night>/<obid>/',
+    '--headname', 'stacked_<runid>__stacked_<runid>',
     '--zall', 'True',
     '--priors', 'None',
     '--chi2_scan', 'None',
@@ -3524,7 +3526,7 @@ if __name__ == '__main__':
     ]
 
     ## TEST 2
-    debug_demo= ['--infiles', '<PYAPS_DATA>/L1/20240308/single_3048995.fit', '<PYAPS_DATA>/L1/20240308/single_3048994.fit',
+    debug_demo= ['--infiles', '<PYAPS_DATA>/L1/<night>/single_<runid>.fit', '<PYAPS_DATA>/L1/<night>/single_<runid>.fit',
     '--aps_ids', 'None',
     '--targsrvy', 'None',
     '--targclass', 'None',
@@ -3544,8 +3546,8 @@ if __name__ == '__main__':
     '--srvyconf', '<PYAPS_DIR>/configs/weave_cls.json',
     # '--archetypes', '<PYAPS_DIR>/PyAPS_templates/templates_ARC_RR/',
     '--archetypes', 'None',
-    '--outpath', '<PYAPS_DATA>/L2/20240308_test/12052/',
-    '--headname', 'single_3048995__single_3048994_test',
+    '--outpath', '<PYAPS_DATA>/L2<env_suffix>/<night>_test/<obid>/',
+    '--headname', 'single_<runid>__single_<runid>_test',
     '--zall', 'True',
     '--priors', 'None',
     '--chi2_scan', 'None',

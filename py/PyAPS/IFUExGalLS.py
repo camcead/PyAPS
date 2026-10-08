@@ -418,7 +418,7 @@ def save_ls(names, configs, ls_indices, ls_errors, index_names, labels, RESOLUTI
 
     # Load Lick indices file to get index types
     lickfile = config_dir + configs['LS_FILE']
-    lick_table = ascii.read(lickfile, comment='\s*#')
+    lick_table = ascii.read(lickfile, comment='\\s*#')
 
     def get_index_unit(index_name):
         """
@@ -794,7 +794,7 @@ def runModule_LINESTRENGTH(LINE_STRENGTH, RESOLUTION, nthreads, configs, velscal
 
         # Read file defining the LS bands
         lickfile = config_dir+configs['LS_FILE']
-        tab   = ascii.read(lickfile, comment='\s*#')
+        tab   = ascii.read(lickfile, comment='\\s*#')
         names = tab['names']
 
         # Flag spectra for which the total intrinsic dispersion is larger than the LIS measurement resolution

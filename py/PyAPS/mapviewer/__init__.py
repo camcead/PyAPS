@@ -3,7 +3,7 @@
 
 __version__ = "3.0-Enhanced"
 __author__ = "Alireza Molaeinezhad (Enhanced)"
-__email__ = "amolaei_at_st.cam.ac.uk"
+__email__ = "amolaei@ast.cam.ac.uk"
 
 # Import the main classes for easy access
 try:

@@ -107,8 +107,8 @@ print(f"Fiber 100 FWHM: {fiber_fwhm}")
 ```python
 # Read and merge blue + red arms
 interpolator = run_lsf_analysis(
-    ["/data/LSF/lsf_GREENH11_MOS-A.fits",
-     "/data/LSF/lsf_REDH11_MOS-A.fits"],
+    ["<PYAPS_DATA>/LSF/lsf_GREENH11_MOS-A.fits",
+     "<PYAPS_DATA>/LSF/lsf_REDH11_MOS-A.fits"],
     figdir="/output/plots",
     figname="merged",
     debug=True,
@@ -126,8 +126,8 @@ fwhm = interpolator.get_fwhm(wavelengths)
 ```python
 # Apply Gaussian smoothing during creation
 interpolator = run_lsf_analysis(
-    ["/data/LSF/lsf_BLUEL11_MOS-A.fits",
-     "/data/LSF/lsf_REDL11_MOS-A.fits"],
+    ["<PYAPS_DATA>/LSF/lsf_BLUEL11_MOS-A.fits",
+     "<PYAPS_DATA>/LSF/lsf_REDL11_MOS-A.fits"],
     smooth_length=10.0,      # 10 Angstrom smoothing
     kernel_type='gaussian',   # boxcar, gaussian, or hanning
     figdir="/output/plots",
@@ -146,8 +146,8 @@ interpolator.remove_smoothing()
 ```python
 # First run - creates pickle and plots
 interpolator = run_lsf_analysis(
-    ["/data/LSF/lsf_GREENH11_MOS-A.fits",
-     "/data/LSF/lsf_REDH11_MOS-A.fits"],
+    ["<PYAPS_DATA>/LSF/lsf_GREENH11_MOS-A.fits",
+     "<PYAPS_DATA>/LSF/lsf_REDH11_MOS-A.fits"],
     figdir="/output",
     overwrite=False,      # Default: skip if output exists
     save_pickle=True      # Default: save to pickle
@@ -155,16 +155,16 @@ interpolator = run_lsf_analysis(
 
 # Second run - loads from existing pickle (fast!)
 interpolator = run_lsf_analysis(
-    ["/data/LSF/lsf_GREENH11_MOS-A.fits",
-     "/data/LSF/lsf_REDH11_MOS-A.fits"],
+    ["<PYAPS_DATA>/LSF/lsf_GREENH11_MOS-A.fits",
+     "<PYAPS_DATA>/LSF/lsf_REDH11_MOS-A.fits"],
     figdir="/output",
     overwrite=False       # Will skip computation and load pickle
 )
 
 # Force regeneration
 interpolator = run_lsf_analysis(
-    ["/data/LSF/lsf_GREENH11_MOS-A.fits",
-     "/data/LSF/lsf_REDH11_MOS-A.fits"],
+    ["<PYAPS_DATA>/LSF/lsf_GREENH11_MOS-A.fits",
+     "<PYAPS_DATA>/LSF/lsf_REDH11_MOS-A.fits"],
     figdir="/output",
     overwrite=True        # Force recomputation even if pickle exists
 )
@@ -271,7 +271,7 @@ Convenience function to load an LSF interpolator from pickle.
 ```python
 from PyAPS.aps_lsf import load_lsf_interpolator
 
-interpolator = load_lsf_interpolator("/data/output/GREENH11__REDH11_MOS-A.dill")
+interpolator = load_lsf_interpolator("<PYAPS_DATA>/output/GREENH11__REDH11_MOS-A.dill")
 fwhm = interpolator.get_fwhm(5000.0)
 ```
 
@@ -322,9 +322,9 @@ from PyAPS.aps_lsf import get_output_pickle_path
 
 path = get_output_pickle_path(
     ["lsf_GREENH11_MOS-A.fits", "lsf_REDH11_MOS-A.fits"],
-    output_dir="/data/output"
+    output_dir="<PYAPS_DATA>/output"
 )
-# Returns: "/data/output/GREENH11__REDH11_MOS-A.dill"
+# Returns: "<PYAPS_DATA>/output/GREENH11__REDH11_MOS-A.dill"
 ```
 
 ---
@@ -356,7 +356,7 @@ Read pre-computed LSF B-splines from a single FITS file.
 from PyAPS.aps_lsf import read_lsf_splines_file
 
 fiber_splines, metadata, wave_range = read_lsf_splines_file(
-    "/data/LSF/lsf_BLUEL11_MOS-A.fits",
+    "<PYAPS_DATA>/LSF/lsf_BLUEL11_MOS-A.fits",
     debug=True
 )
 
@@ -490,10 +490,10 @@ saved_path = interpolator.save()
 # Saves to input directory as GREENH11__REDH11_MOS-A.dill
 
 # Specify output directory
-saved_path = interpolator.save(output_dir="/data/output")
+saved_path = interpolator.save(output_dir="<PYAPS_DATA>/output")
 
 # Specify exact path
-saved_path = interpolator.save(output_path="/data/output/my_interpolator.dill")
+saved_path = interpolator.save(output_path="<PYAPS_DATA>/output/my_interpolator.dill")
 ```
 
 #### `load(pickle_path)` (NEW - Class Method)
@@ -513,7 +513,7 @@ Load an interpolator from a pickle file.
 **Example:**
 ```python
 # Load from pickle
-interpolator = LSFInterpolator.load("/data/output/GREENH11__REDH11_MOS-A.dill")
+interpolator = LSFInterpolator.load("<PYAPS_DATA>/output/GREENH11__REDH11_MOS-A.dill")
 
 # Use immediately
 fwhm = interpolator.get_fwhm(5000.0)
@@ -747,7 +747,7 @@ from PyAPS.aps_lsf import run_lsf_analysis
 
 # Quick setup - no plots
 interpolator = run_lsf_analysis(
-    "/data/LSF/lsf_BLUEL11_MOS-A.fits",
+    "<PYAPS_DATA>/LSF/lsf_BLUEL11_MOS-A.fits",
     make_plot=False,
     debug=False
 )
@@ -827,8 +827,8 @@ from PyAPS.aps_lsf import run_lsf_analysis, load_lsf_interpolator
 
 # First time: Create and save
 interpolator = run_lsf_analysis(
-    ["/data/LSF/lsf_GREENH11_MOS-A.fits",
-     "/data/LSF/lsf_REDH11_MOS-A.fits"],
+    ["<PYAPS_DATA>/LSF/lsf_GREENH11_MOS-A.fits",
+     "<PYAPS_DATA>/LSF/lsf_REDH11_MOS-A.fits"],
     figdir="/output",
     overwrite=False,
     save_pickle=True
@@ -841,8 +841,8 @@ fwhm = interpolator.get_fwhm(5000.0)
 
 # Or use run_lsf_analysis with overwrite=False (auto-loads if exists)
 interpolator = run_lsf_analysis(
-    ["/data/LSF/lsf_GREENH11_MOS-A.fits",
-     "/data/LSF/lsf_REDH11_MOS-A.fits"],
+    ["<PYAPS_DATA>/LSF/lsf_GREENH11_MOS-A.fits",
+     "<PYAPS_DATA>/LSF/lsf_REDH11_MOS-A.fits"],
     figdir="/output",
     overwrite=False  # Will load existing pickle
 )
@@ -905,7 +905,7 @@ from PyAPS.aps_lsf import run_lsf_analysis, get_output_pickle_path
 
 # Process all LSF files in directory
 lsf_dir = "<PYAPS_DATA>/LSF/20250630"
-output_dir = "/data/output/lsf_cache"
+output_dir = "<PYAPS_DATA>/output/lsf_cache"
 
 # Define file combinations to process
 combinations = [
@@ -1007,11 +1007,11 @@ The code performs extensive validation:
 
 ```python
 # File not found
-FileNotFoundError: LSF file not found: /data/missing.fits
+FileNotFoundError: LSF file not found: <PYAPS_DATA>/missing.fits
 Please check the file path and ensure the file exists.
 
 # Not a file
-ValueError: Path exists but is not a file: /data/LSF/
+ValueError: Path exists but is not a file: <PYAPS_DATA>/LSF/
 Please provide a path to a FITS file, not a directory.
 
 # Missing columns
@@ -1019,15 +1019,15 @@ ValueError: FITS table missing required columns: ['t', 'c']
 Available columns: ['NSPEC', 'k']
 
 # No data
-ValueError: LSF file contains no fiber data: /data/empty.fits
+ValueError: LSF file contains no fiber data: <PYAPS_DATA>/empty.fits
 
 # Pickle not found (NEW)
-FileNotFoundError: LSF interpolator pickle file not found: /data/output/missing.dill
+FileNotFoundError: LSF interpolator pickle file not found: <PYAPS_DATA>/output/missing.dill
 Please run run_lsf_analysis() first to create the interpolator,
 or check that the file path is correct.
 
 # Corrupted pickle (NEW)
-IOError: Failed to load LSF interpolator from: /data/output/corrupted.dill
+IOError: Failed to load LSF interpolator from: <PYAPS_DATA>/output/corrupted.dill
 Error: unpickling error...
 The file may be corrupted or incompatible with current code version.
 ```

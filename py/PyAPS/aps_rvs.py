@@ -95,7 +95,7 @@ import datetime
 import yaml
 from rvspecfit import fitter_ccf, vel_fit, spec_fit, utils, frozendict
 import PyAPS
-from PyAPS.aps_utils import APSOB, makeR, print_args, none_or_str, str2bool, aps_ids_class,l1_fileinfo, gen_targlist, add_extra_columns, makeR_from_fwhm_array
+from PyAPS.aps_utils import resolve_rvs_template_lib, APSOB, makeR, print_args, none_or_str, str2bool, aps_ids_class,l1_fileinfo, gen_targlist, add_extra_columns, makeR_from_fwhm_array
 from PyAPS.aps_common_args import build_common_parser, resolve_common_args
 from PyAPS import aps_constants
 from PyAPS.apsPlot.rvs import make_rvs_plot
@@ -284,7 +284,12 @@ def read_config_APS_RVS(fname=None):
     if fname is None:
         fname = 'config.yaml'
     with open(fname) as fp:
-        return freezeDict_APS_RVS(yaml.safe_load(fp))
+        config = yaml.safe_load(fp)
+    # The configured templates_RVS (exported by the job scripts as PYAPS_RVS_TEMPLATES) wins
+    # over template_lib of the file; see aps_utils.resolve_rvs_template_lib.
+    if isinstance(config, dict):
+        config['template_lib'] = resolve_rvs_template_lib(config.get('template_lib'))
+    return freezeDict_APS_RVS(config)
 
 #################################################
 
@@ -1109,9 +1114,11 @@ def rvsweave(options=None):
 
 #################################################################################################
 if __name__ == '__main__':
+    # DEMO settings: edit for your setup. Replace the <PYAPS_DATA>, <PYAPS_DIR>, <night>, <runid>, <obid>
+    # markers below with your own locations and identifiers (no machine paths belong in this repository).
 
-    MOS_demo= ['--infiles', '<PYAPS_DATA>/star_test/stacked_1002046.fit', '<PYAPS_DATA>/star_test/stacked_1002045.fit',
-    '--classfile' , '<PYAPS_DIR>/PyAPS_results/20160903/3294/zbest_stacked_1002046__stacked_1002045.fits',
+    MOS_demo= ['--infiles', '<PYAPS_DATA>/star_test/stacked_<runid>.fit', '<PYAPS_DATA>/star_test/stacked_<runid>.fit',
+    '--classfile' , '<PYAPS_DIR>/PyAPS_results/<night>/<obid>/zbest_stacked_<runid>__stacked_<runid>.fits',
     '--aps_ids', '1006,1007,1005,1004', # or 'None' to run for all available fibreids
     '--targsrvy', 'None',
     '--targclass', 'None',
@@ -1128,8 +1135,8 @@ if __name__ == '__main__':
     '--arms_ratio', '1.0, 0.83',
     '--join_arms', 'False',
     '--config', '<PYAPS_DIR>/configs/rvs_config.yaml',
-    '--outpath', '<PYAPS_DIR>/PyAPS_results/20160903/3294/',
-    '--headname', 'stacked_1002046__stacked_1002045',
+    '--outpath', '<PYAPS_DIR>/PyAPS_results/<night>/<obid>/',
+    '--headname', 'stacked_<runid>__stacked_<runid>',
     '--outspec', 'True',
     '--fig', 'True',
     '--overwrite', 'True',

@@ -28,7 +28,7 @@ def printProgress (iteration, total, prefix = '', suffix = '', decimals = 2, bar
 #==============================================================================
 def load_inputlist(inlist):
     # Reading inputlist
-    data = ascii.read(inlist,comment='\s*#')
+    data = ascii.read(inlist,comment='\\s*#')
     names = data['col1']
     redshift = data['col2']
     err_redshift = data['col3']
@@ -141,7 +141,7 @@ def calc_index(bands,name,ll,counts,plot):
                 
                 plt.figure()
                 plt.scatter(ll_plot,counts_plot,color='k')
-                plt.xlabel("Wavelength ($\AA$)")
+                plt.xlabel("Wavelength ($\\AA$)")
                 plt.ylabel("Counts")
                 plt.title(f"{name} = {ind:.3f}")
                 plt.xlim([minx,maxx])
@@ -181,7 +181,7 @@ def lsindex(ll, flux_in, noise, z, lickfile, plot=0, sims=0, z_err=0):
     if valid_pixels < 0.1 * total_pixels:  # Less than 10% valid data
         print(f"Warning: Insufficient valid data ({valid_pixels}/{total_pixels} pixels)")
         # Return NaN for all indices
-        tab = ascii.read(lickfile, comment='\s*#')
+        tab = ascii.read(lickfile, comment='\\s*#')
         names = tab['names']
         return names, numpy.full(len(names), numpy.nan), numpy.full(len(names), numpy.nan)
     
@@ -192,7 +192,7 @@ def lsindex(ll, flux_in, noise, z, lickfile, plot=0, sims=0, z_err=0):
     flux = flux_in
 
     # Read index definition table
-    tab    = ascii.read(lickfile, comment='\s*#')
+    tab    = ascii.read(lickfile, comment='\\s*#')
     names = tab['names']
     bands = numpy.zeros((7,len(names)))
     bands[0,:] = tab['b1']

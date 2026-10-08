@@ -303,11 +303,11 @@ This ensures each Python process uses exactly one thread from numpy/scipy/BLAS, 
 
 ```bash
 python aps_rvs.py \
-    --infiles  /data/L1/stacked_1002046.fit \
-               /data/L1/stacked_1002045.fit \
-    --classfile /data/L2/3294/zbest_stacked_1002046__stacked_1002045.fits \
+    --infiles  $PYAPS_DATA/L1/stacked_1002046.fit \
+               $PYAPS_DATA/L1/stacked_1002045.fit \
+    --classfile $PYAPS_DATA/L2/3294/zbest_stacked_1002046__stacked_1002045.fits \
     --config    <PYAPS_DIR>/configs/rvs_config.yaml \
-    --outpath   /data/L2/3294/ \
+    --outpath   $PYAPS_DATA/L2/3294/ \
     --headname  stacked_1002046__stacked_1002045 \
     --wlranges  4200.0,6000.0  6000.0,8000.0 \
     --sens_corr True \
@@ -317,18 +317,18 @@ python aps_rvs.py \
     --join_arms False \
     --mp 1 \
     --overwrite True \
-    --catdir /data/CAT --caldir /data/CAL
+    --catdir $PYAPS_DATA/CAT --caldir $PYAPS_DATA/CAL
 ```
 
 ### 10.2 Full run with plots and spectra output
 
 ```bash
 python aps_rvs.py \
-    --infiles  /data/L1/stacked_1002046.fit \
-               /data/L1/stacked_1002045.fit \
-    --classfile /data/L2/3294/zbest_stacked_1002046__stacked_1002045.fits \
+    --infiles  $PYAPS_DATA/L1/stacked_1002046.fit \
+               $PYAPS_DATA/L1/stacked_1002045.fit \
+    --classfile $PYAPS_DATA/L2/3294/zbest_stacked_1002046__stacked_1002045.fits \
     --config    <PYAPS_DIR>/configs/rvs_config.yaml \
-    --outpath   /data/L2/3294/ \
+    --outpath   $PYAPS_DATA/L2/3294/ \
     --headname  stacked_1002046__stacked_1002045 \
     --wlranges  4200.0,6000.0  6000.0,8000.0 \
     --sens_corr True \
@@ -340,18 +340,18 @@ python aps_rvs.py \
     --overwrite True \
     --outspec True \
     --fig True \
-    --catdir /data/CAT --caldir /data/CAL
+    --catdir $PYAPS_DATA/CAT --caldir $PYAPS_DATA/CAL
 ```
 
 ### 10.3 LIFU run with joined arms
 
 ```bash
 python aps_rvs.py \
-    --infiles  /data/L1/20240808/stackcube_3071431.fit \
-               /data/L1/20240808/stackcube_3071430.fit \
-    --classfile /data/L2/20240808/11182/zbest_stackcube_3071431__stackcube_3071430.fits \
+    --infiles  $PYAPS_DATA/L1/20240808/stackcube_3071431.fit \
+               $PYAPS_DATA/L1/20240808/stackcube_3071430.fit \
+    --classfile $PYAPS_DATA/L2/20240808/11182/zbest_stackcube_3071431__stackcube_3071430.fits \
     --config    <PYAPS_DIR>/configs/rvs_config.yaml \
-    --outpath   /data/L2/20240808/11182/ \
+    --outpath   $PYAPS_DATA/L2/20240808/11182/ \
     --headname  stackcube_3071431__stackcube_3071430 \
     --wlranges  3800.0,5950.0  5900.0,9280.0 \
     --sens_corr True \
@@ -363,7 +363,7 @@ python aps_rvs.py \
     --overwrite True \
     --outspec True \
     --fig True \
-    --caldir /data/CAL --catdir /data/CAT \
+    --caldir $PYAPS_DATA/CAL --catdir $PYAPS_DATA/CAT \
     --configdir <PYAPS_DIR>/configs/ExGal_configs/
 ```
 
@@ -388,12 +388,12 @@ python aps_rvs.py \
 from PyAPS.aps_rvs import proc_rvs
 
 proc_rvs(
-    infiles     = ["/data/L1/stacked_1002046.fit",
-                   "/data/L1/stacked_1002045.fit"],
-    classfile   = "/data/L2/3294/zbest_stacked_1002046__stacked_1002045.fits",
-    param_fits  = "/data/L2/3294/rvs_stacked_1002046__stacked_1002045.fits",
-    spec_fits   = "/data/L2/3294/rvsspec_stacked_1002046__stacked_1002045.fits",
-    figdir      = "/data/L2/3294/figs/",
+    infiles     = ["<PYAPS_DATA>/L1/stacked_1002046.fit",
+                   "<PYAPS_DATA>/L1/stacked_1002045.fit"],
+    classfile   = "<PYAPS_DATA>/L2/3294/zbest_stacked_1002046__stacked_1002045.fits",
+    param_fits  = "<PYAPS_DATA>/L2/3294/rvs_stacked_1002046__stacked_1002045.fits",
+    spec_fits   = "<PYAPS_DATA>/L2/3294/rvsspec_stacked_1002046__stacked_1002045.fits",
+    figdir      = "<PYAPS_DATA>/L2/3294/figs/",
     config      = "<PYAPS_DIR>/configs/rvs_config.yaml",
     nthreads    = 4,
     overwrite   = True,
@@ -406,8 +406,8 @@ proc_rvs(
     tellurics   = True,
     vacuum      = False,
     fill_gap    = True,
-    catdir      = "/data/CAT",
-    caldir      = "/data/CAL",
+    catdir      = "<PYAPS_DATA>/CAT",
+    caldir      = "<PYAPS_DATA>/CAL",
     configdir   = "<PYAPS_DIR>/configs/ExGal_configs/",
 )
 ```
@@ -418,11 +418,11 @@ proc_rvs(
 from PyAPS.aps_rvs import rvsweave
 
 rvsweave(options=[
-    "--infiles",   "/data/L1/stacked_1002046.fit",
-                   "/data/L1/stacked_1002045.fit",
-    "--classfile", "/data/L2/3294/zbest_stacked_1002046__stacked_1002045.fits",
+    "--infiles",   "<PYAPS_DATA>/L1/stacked_1002046.fit",
+                   "<PYAPS_DATA>/L1/stacked_1002045.fit",
+    "--classfile", "<PYAPS_DATA>/L2/3294/zbest_stacked_1002046__stacked_1002045.fits",
     "--config",    "<PYAPS_DIR>/configs/rvs_config.yaml",
-    "--outpath",   "/data/L2/3294/",
+    "--outpath",   "<PYAPS_DATA>/L2/3294/",
     "--headname",  "stacked_1002046__stacked_1002045",
     "--wlranges",  "4200.0,6000.0",  "6000.0,8000.0",
     "--mp",        "4",
@@ -434,8 +434,8 @@ rvsweave(options=[
     "--tellurics", "True", "--vacuum", "False", "--fill_gap", "True",
     "--arms_ratio", "1.0,0.83",
     "--join_arms", "False",
-    "--caldir",    "/data/CAL",
-    "--catdir",    "/data/CAT",
+    "--caldir",    "<PYAPS_DATA>/CAL",
+    "--catdir",    "<PYAPS_DATA>/CAT",
 ])
 ```
 

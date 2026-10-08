@@ -633,12 +633,14 @@ def mosExGal_weave(options=None):
 
 #################################################################################################
 if __name__ == '__main__':
+    # DEMO settings: edit for your setup. Replace the <PYAPS_DATA>, <PYAPS_DIR>, <night>, <runid>, <obid>
+    # markers below with your own locations and identifiers (no machine paths belong in this repository).
 
-    debug_demo= ['--infiles', '<PYAPS_DATA>/gal_test/superstack_100001.fits', '<PYAPS_DATA>/gal_test/superstack_100000.fits',
-        '--classfile' , '<PYAPS_DIR>/PyAPS_results/20170223/3800/zbest_superstack_100001__superstack_100000.fits',
+    debug_demo= ['--infiles', '<PYAPS_DATA>/gal_test/superstack_<runid>.fits', '<PYAPS_DATA>/gal_test/superstack_<runid>.fits',
+        '--classfile' , '<PYAPS_DIR>/PyAPS_results/<night>/<obid>/zbest_superstack_<runid>__superstack_<runid>.fits',
         '--config_dir','<PYAPS_DIR>/configs/Exgal_configs/',
         '--templates_dir','<PYAPS_DIR>/PyAPS_templates/templates_ExGal/',
-        '--outpath', '<PYAPS_DIR>/PyAPS_results/20170223/3800/',
+        '--outpath', '<PYAPS_DIR>/PyAPS_results/<night>/<obid>/',
         '--aps_ids', '1006,1007', # or 'None' to run for all availble fibreids
         '--wlranges', 'None',
         '--targsrvy', 'None',
@@ -646,7 +648,7 @@ if __name__ == '__main__':
         '--mask_aps_ids', 'None',
         '--area', 'None',
         '--mask_areas', 'None',
-        '--headname', 'superstack_100001__superstack_100000',
+        '--headname', 'superstack_<runid>__superstack_<runid>',
         '--params', '<PYAPS_DIR>/configs/Exgal_configs/MOSLR11.json',
         '--PPXF', 'False',
         '--EMIPPXF', 'True',
@@ -671,11 +673,11 @@ if __name__ == '__main__':
 
 
     # ## MOSLIFU mode
-    # debug_demo= ['--infiles', '<PYAPS_DATA>/opr4_test/20170930/stack_1004122.fit','<PYAPS_DATA>/opr4_test/20170930/stack_1004121.fit',
-    #     '--classfile' , '<PYAPS_DIR>/PyAPS_results/20171001/4407/zbest_stack_1004122__stack_1004121_test.fits',
+    # debug_demo= ['--infiles', '<PYAPS_DATA>/opr4_test/<night>/stack_<runid>.fit','<PYAPS_DATA>/opr4_test/<night>/stack_<runid>.fit',
+    #     '--classfile' , '<PYAPS_DIR>/PyAPS_results/<night>/<obid>/zbest_stack_<runid>__stack_<runid>_test.fits',
     #     '--config_dir','<PYAPS_DIR>/configs/Exgal_configs/',
     #     '--templates_dir','<PYAPS_DIR>/PyAPS_templates/templates_ExGal/',
-    #     '--outpath', '<PYAPS_DIR>/PyAPS_results/20170223/3800/',
+    #     '--outpath', '<PYAPS_DIR>/PyAPS_results/<night>/<obid>/',
     #     '--aps_ids', '2', # or 'None' to run for all availble fibreids
     #     '--wlranges', '3900.0,4900', '7000.0,8100', # or 'None' to deploy the whole available wlranges
     #     '--targsrvy', 'None',
@@ -683,7 +685,7 @@ if __name__ == '__main__':
     #     '--mask_aps_ids', 'None',
     #     '--area', 'None',
     #     '--mask_areas', 'None',
-    #     '--headname', 'stack_1004122__stack_1004121_test',
+    #     '--headname', 'stack_<runid>__stack_<runid>_test',
     #     '--params', '<PYAPS_DIR>/configs/ExGal_configs/MOSLIFULR11.json',
     #     '--PPXF', 'True',
     #     '--EMIPPXF', 'False',

@@ -29,7 +29,7 @@ Usage examples
   from PyAPS.aps_ifu_tools import explore_patch_table, edit_patch_table
 
   # Explore
-  result = explore_patch_table('WA_P0001', '/data/L2/12345/')
+  result = explore_patch_table('WA_P0001', '<PYAPS_DATA>/L2/<night>/<obid>/')
 
   # Grab the base table and tweak a row
   tbl = result['targets']
@@ -38,7 +38,7 @@ Usage examples
   save_patch_table(tbl, result['targets_path'])
 
   # Or use the interactive CLI
-  edit_patch_table('WA_P0001', '/data/L2/12345/')
+  edit_patch_table('WA_P0001', '<PYAPS_DATA>/L2/<night>/<obid>/')
 """
 
 import os
@@ -446,8 +446,8 @@ def inspect_row(tbl: Table, row_id: int) -> None:
     print(f"  type         : {str(row['type']).strip()}")
     print(f"  RA_icrs      : {float(row['RA_icrs']):.8f} deg")
     print(f"  DEC_icrs     : {float(row['DEC_icrs']):.8f} deg")
-    print(f"  A_world      : {float(row['A_world'])*3600:.4f} arcsec")
-    print(f"  B_world      : {float(row['B_world'])*3600:.4f} arcsec")
+    print(f"  A_world      : {float(row['A_world'])*3600:.4f} arcsec (full major axis)")
+    print(f"  B_world      : {float(row['B_world'])*3600:.4f} arcsec (full minor axis)")
     print(f"  angle        : {float(row['angle']):.3f} deg")
     print(f"  flag         : {row['flag']}")
 
@@ -617,7 +617,10 @@ def add_mask_region(
     ra, dec : float
         Centre of the mask region in degrees (ICRS).
     radius_arcsec : float
-        Radius of the circular mask in arcsec.
+        Radius of the circular mask in arcsec. A_world/B_world are FULL
+        axis lengths (see aps_utils.aperture_sky_region), so twice this
+        radius is stored, exactly as the Gaia mask rows written by
+        aps_ifu_prepare do.
     angle : float
         Position angle in degrees (default 0).
 
@@ -626,7 +629,8 @@ def add_mask_region(
     Table
     """
     new_id    = int(np.max(tbl["id"])) + 1
-    radius_deg = radius_arcsec / 3600.0
+    # A_world/B_world are full axis lengths: store the diameter
+    radius_deg = 2.0 * radius_arcsec / 3600.0
 
     # Work out the shape of the CLASS/Z/ZERR/ZWARN arrays from an existing row
     ntop = len(np.atleast_1d(tbl[0]["CLASS"]))

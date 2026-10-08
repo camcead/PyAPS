@@ -19,7 +19,7 @@
 [![License](https://img.shields.io/badge/license-MIT-orange.svg)](LICENSE)
 
 **Author:** Alireza Molaeinezhad (APS Team, IOA, Cambridge, UK)
-**Email:** amolaei_at_st.cam.ac.uk
+**Email:** amolaei@ast.cam.ac.uk
 **GitHub:** https://github.com/camcead/PyAPS
 **Institution:** Institute of Astronomy, University of Cambridge
 
@@ -197,7 +197,7 @@ PyAPS_results/20221025/232/
 ```bash
 # Output directory containing results
 --outpath PATH
-  --outpath /data/PyAPS_results/20221025/232/
+  --outpath $PYAPS_DATA/PyAPS_results/20221025/232/
 
 # Filename prefix (headname)
 --headname PREFIX
@@ -299,7 +299,7 @@ PyAPS_results/20221025/232/
 ### Complete Example
 ```bash
 python aps_Mapviewer.py \
-    --outpath /data/PyAPS_results/20221025/232/ \
+    --outpath $PYAPS_DATA/PyAPS_results/20221025/232/ \
     --headname stackcube_2963103__stackcube_2963102_RUN2_P0000 \
     --mode EMI_DETAILED \
     --theme dark \
@@ -318,7 +318,7 @@ python aps_Mapviewer.py \
 ### Example 1: Quick Exploration (All Maps)
 ```bash
 python aps_Mapviewer.py \
-    --outpath /data/PyAPS_results/20221025/232/ \
+    --outpath $PYAPS_DATA/PyAPS_results/20221025/232/ \
     --headname stackcube_2963103_RUN2_P0000 \
     --mode ALL
 ```
@@ -329,7 +329,7 @@ python aps_Mapviewer.py \
 ### Example 2: Stellar Kinematics Analysis
 ```bash
 python aps_Mapviewer.py \
-    --outpath /data/PyAPS_results/galaxy_sample/NGC5194/ \
+    --outpath $PYAPS_DATA/PyAPS_results/galaxy_sample/NGC5194/ \
     --headname LWVE_NGC5194_01_BR_L1_P0001 \
     --mode PPXF \
     --contour_offset 0.2 \
@@ -342,7 +342,7 @@ python aps_Mapviewer.py \
 ### Example 3: Emission Line Kinematics
 ```bash
 python aps_Mapviewer.py \
-    --outpath /data/PyAPS_results/emission_line_galaxies/NGC1068/ \
+    --outpath $PYAPS_DATA/PyAPS_results/emission_line_galaxies/NGC1068/ \
     --headname LWVE_NGC1068_IFU_P0000 \
     --mode EMI_DETAILED \
     --aon_threshold 3.0 \
@@ -362,7 +362,7 @@ python aps_Mapviewer.py \
 ### Example 4: AGN Host Galaxy Study
 ```bash
 python aps_Mapviewer.py \
-    --outpath /data/PyAPS_results/AGN/Mrk509/ \
+    --outpath $PYAPS_DATA/PyAPS_results/AGN/Mrk509/ \
     --headname LWVE_Mrk509_center_P0001 \
     --mode EMIPPXF \
     --contour_offset 0.15 \
@@ -377,7 +377,7 @@ python aps_Mapviewer.py \
 ### Example 5: Line Strength Index Maps
 ```bash
 python aps_Mapviewer.py \
-    --outpath /data/PyAPS_results/early_type/NGC4472/ \
+    --outpath $PYAPS_DATA/PyAPS_results/early_type/NGC4472/ \
     --headname LWVE_NGC4472_L1_P0000 \
     --mode LS \
     --theme default \
@@ -396,7 +396,7 @@ python aps_Mapviewer.py \
 ### Example 6: Star Formation History
 ```bash
 python aps_Mapviewer.py \
-    --outpath /data/PyAPS_results/star_forming/NGC628/ \
+    --outpath $PYAPS_DATA/PyAPS_results/star_forming/NGC628/ \
     --headname LWVE_NGC628_spiral_arm_P0001 \
     --mode SFH \
     --theme default
@@ -429,7 +429,7 @@ python aps_Mapviewer.py
 ### Example 8: High-Resolution IFU with Debug
 ```bash
 python aps_Mapviewer.py \
-    --outpath /data/PyAPS_results/LIFU/M31_nucleus/ \
+    --outpath $PYAPS_DATA/PyAPS_results/LIFU/M31_nucleus/ \
     --headname LWVE_M31_nucleus_LIFU_P0000 \
     --mode ALL \
     --debug \
@@ -450,7 +450,7 @@ python aps_Mapviewer.py \
 ### Example 9: Fast Preview Mode
 ```bash
 python aps_Mapviewer.py \
-    --outpath /data/PyAPS_results/batch_processing/ \
+    --outpath $PYAPS_DATA/PyAPS_results/batch_processing/ \
     --headname observation_quick_P0001 \
     --mode PPXF \
     --performance fast \
@@ -464,7 +464,7 @@ python aps_Mapviewer.py \
 ### Example 10: Publication Figure Generation
 ```bash
 python aps_Mapviewer.py \
-    --outpath /data/PyAPS_results/paper_figures/target123/ \
+    --outpath $PYAPS_DATA/PyAPS_results/paper_figures/target123/ \
     --headname LWVE_target123_final_P0001 \
     --mode EMI_DETAILED \
     --theme high_contrast \
@@ -498,7 +498,7 @@ targets=(
 for target in "${targets[@]}"; do
     echo "Processing $target"
     python aps_Mapviewer.py \
-        --outpath /data/PyAPS_results/batch/ \
+        --outpath $PYAPS_DATA/PyAPS_results/batch/ \
         --headname $target \
         --mode ALL \
         --performance auto \
@@ -1410,7 +1410,7 @@ Three binning levels are typically available:
 ```bash
 # Use fast performance mode
 python aps_Mapviewer.py \
-    --outpath /data/large_ifu/ \
+    --outpath $PYAPS_DATA/large_ifu/ \
     --headname observation \
     --performance fast \
     --mode PPXF
@@ -1436,7 +1436,7 @@ python aps_Mapviewer.py \
 #### Dark Theme for Presentations
 ```bash
 python aps_Mapviewer.py \
-    --outpath /data/ \
+    --outpath $PYAPS_DATA/ \
     --headname obs \
     --theme dark \
     --mode EMI_DETAILED
@@ -2010,7 +2010,7 @@ for target in "${targets[@]}"; do
     echo "Processing $target"
 
     python aps_Mapviewer.py \
-        --outpath /data/PyAPS_results/batch/ \
+        --outpath $PYAPS_DATA/PyAPS_results/batch/ \
         --headname $target \
         --mode EMI_DETAILED \
         --performance fast \
@@ -2056,7 +2056,7 @@ app = QtWidgets.QApplication(sys.argv)
 # Create MapViewer instance
 viewer = EnhancedMapviewer(
     MODE='EMI_DETAILED',
-    outpath='/data/PyAPS_results/target/',
+    outpath='<PYAPS_DATA>/PyAPS_results/target/',
     headname='observation_P0001',
     contour_offset=0.1,
     debug=True,
@@ -2324,7 +2324,7 @@ MIT License
 ## Contact & Support
 
 **Author:** Alireza Molaeinezhad
-**Email:** amolaei_at_st.cam.ac.uk
+**Email:** amolaei@ast.cam.ac.uk
 **Institution:** Institute of Astronomy, University of Cambridge
 **GitHub:** https://github.com/camcead/PyAPS
 

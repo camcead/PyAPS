@@ -1,18 +1,40 @@
+# =====================================================================================================
+# script_params.yaml.example  --  TEMPLATE. Do not edit in place and never commit a filled-in copy.
+#
+# First-time setup:   cp configs/script_params.yaml.example configs/script_params.yaml
+#                     (edit the local copy; it is ignored by git)  then check it with
+#                     python tools/check_config.py
+#
+# Every value below is either a documented default or a placeholder you must replace:
+#   * ${PYAPS_HOME}        root of your PyAPS working tree (export PYAPS_HOME=...; see README, "Environment variables")
+#   * ${PYAPS_PKG_DIR}     folder with the aps_*.py modules (set automatically by aps_runner)
+#   * <...>                a value that has no default: replace it, the checker reports every one left
+#   * <env_suffix>         environment suffix of the data trees: EMPTY for the production environment, `_dev` for the
+#                          development environment (data trees L1_dev, L2_dev, CS_dev, CAT_dev, CAL_dev, XML_dev next to
+#                          the production ones). Replace it in every key that has it; never point dev at the prod trees.
+# Pass the local file to the runner with  --config_file configs/script_params.yaml
+# Section banners (####) and the comments above a key explain what to enter; booleans/numbers are quoted
+# strings on purpose (the runner converts them).
+# =====================================================================================================
 
 # General PARAMS
 PyAPS_DIR: '${PYAPS_PKG_DIR}'
-PyAPS_RES: '${PYAPS_HOME}/PyAPS_local/PyAPS_data/L2'
-CS_RES: '${PYAPS_HOME}/PyAPS_local/PyAPS_data/CS'
-PyAPS_CAT: '${PYAPS_HOME}/PyAPS_local/PyAPS_data/CAT'
-PyAPS_CAL: '${PYAPS_HOME}/PyAPS_local/PyAPS_data/CAL'
-PyAPS_XML: '${PYAPS_HOME}/PyAPS_local/PyAPS_data/XML'
+PyAPS_RES: '${PYAPS_HOME}/PyAPS_data/L2<env_suffix>'
+CS_RES: '${PYAPS_HOME}/PyAPS_data/CS<env_suffix>'
+PyAPS_CAT: '${PYAPS_HOME}/PyAPS_data/CAT<env_suffix>'
+PyAPS_CAL: '${PYAPS_HOME}/PyAPS_data/CAL<env_suffix>'
+PyAPS_XML: '${PYAPS_HOME}/PyAPS_data/XML<env_suffix>'
 PyAPS_CONFIG: '${PYAPS_HOME}/configs'
 PyAPS_EXGALCONFIG: '${PYAPS_HOME}/configs/ExGal_configs'
-templates_RR: '${PYAPS_HOME}/PyAPS_local/PyAPS_templates/templates_RR'
-templates_ARC_RR: '${PYAPS_HOME}/PyAPS_local/PyAPS_templates/templates_ARC_RR'
-templates_RVS: '${PYAPS_HOME}/PyAPS_local/PyAPS_templates/templates_RVS'
-templates_FR: '${PYAPS_HOME}/PyAPS_local/PyAPS_templates/templates_FR'
-templates_ExGal: '${PYAPS_HOME}/PyAPS_local/PyAPS_templates/templates_ExGal'
+templates_RR: '${PYAPS_HOME}/PyAPS_templates/templates_RR'
+templates_ARC_RR: '${PYAPS_HOME}/PyAPS_templates/templates_ARC_RR'
+templates_RVS: '${PYAPS_HOME}/PyAPS_templates/templates_RVS'
+templates_FR: '${PYAPS_HOME}/PyAPS_templates/templates_FR'
+templates_ExGal: '${PYAPS_HOME}/PyAPS_templates/templates_ExGal'
+# Optional: file that receives one ERROR line for every job of an OB that ends FAILED, TIMEOUT, CANCELLED or
+# out of memory (job id, job name, exit code, path of its .err file). Use the log file of your WDAP runner
+# so SLURM failures show up there; 'None' = off (the failure then only shows in the job's own .err file).
+runner_log: 'None'
 fsuffix: '.fits'
 aps_suffix: '_APS'
 kiko_script_name: 'PyAPS_bash.sh'
@@ -103,8 +125,8 @@ RUN_LS: 'True'
 
 ############ IFU MODE ############
 
-IFU_templates_CLASS_PCA: '${PYAPS_HOME}/PyAPS_local/PyAPS_templates/templates_RR'
-IFU_templates_CLASS_ARC: '${PYAPS_HOME}/PyAPS_local/PyAPS_templates/templates_ARC_RR'
+IFU_templates_CLASS_PCA: '${PYAPS_HOME}/PyAPS_templates/templates_RR'
+IFU_templates_CLASS_ARC: '${PYAPS_HOME}/PyAPS_templates/templates_ARC_RR'
 IFU_RUN_PPXF: 'True'
 IFU_RUN_EMIPPXF: 'True'
 IFU_RUN_LS: 'True'
@@ -195,10 +217,10 @@ SQ_wlranges: 'None'
 SQ_targsrvys: 'None'
 SQ_targclass: 'QSO'
 SQ_wlranges: 'None'
-SQ_templates: '${PYAPS_HOME}/PyAPS_local/PyAPS_templates/templates_SQ'
+SQ_templates: '${PYAPS_HOME}/PyAPS_templates/templates_SQ'
 SQ_archetypes: 'None'
 SQ_fig: 'True'
-SQ_model: '${PYAPS_HOME}/PyAPS_local/PyAPS_templates/templates_SQ/BOSS_train_64plates_model.json'
+SQ_model: '${PYAPS_HOME}/PyAPS_templates/templates_SQ/BOSS_train_64plates_model.json'
 SQ_prob_cut: '0.0'
 SQ_clean_dir: 'False'
 SQ_join_arms: 'False'
@@ -241,10 +263,10 @@ FESWI_overwrite: 'True'
 FESWI_run_ferre: 'False'
 FESWI_path: '${PYAPS_HOME}/CS/FESWI/'
 FESWI_spectral_windows: '${PYAPS_HOME}/CS/FESWI/spectral_windows/spectral_windows-dev.json'
-FESWI_cold_blue_grid: '${PYAPS_HOME}/PyAPS_local/PyAPS_templates/templates_FESWI/grid_cold-blue.dat'
-FESWI_cold_red_grid: '${PYAPS_HOME}/PyAPS_local/PyAPS_templates/templates_FESWI/grid_cold-red.dat'
-FESWI_hot_blue_grid: '${PYAPS_HOME}/PyAPS_local/PyAPS_templates/templates_FESWI/grid_hot-blue.dat'
-FESWI_hot_red_grid: '${PYAPS_HOME}/PyAPS_local/PyAPS_templates/templates_FESWI/grid_hot-red.dat'
+FESWI_cold_blue_grid: '${PYAPS_HOME}/PyAPS_templates/templates_FESWI/grid_cold-blue.dat'
+FESWI_cold_red_grid: '${PYAPS_HOME}/PyAPS_templates/templates_FESWI/grid_cold-red.dat'
+FESWI_hot_blue_grid: '${PYAPS_HOME}/PyAPS_templates/templates_FESWI/grid_hot-blue.dat'
+FESWI_hot_red_grid: '${PYAPS_HOME}/PyAPS_templates/templates_FESWI/grid_hot-red.dat'
 FESWI_ferre_ndim: '0'
 FESWI_ferre_f_format: '0'
 FESWI_ferre_f_access: '0'
@@ -260,7 +282,7 @@ SPACE_targsrvys: 'None'
 SPACE_targclass: 'STAR_FGK,STAR_YSO'
 SPACE_wd: 'space_wd'
 SPACE_exe: '${PYAPS_HOME}/CS/SPACE/SPACE_v1.4W'
-SPACE_templates_dir: '${PYAPS_HOME}/PyAPS_local/PyAPS_templates/templates_SPACE/'
+SPACE_templates_dir: '${PYAPS_HOME}/PyAPS_templates/templates_SPACE/'
 SPACE_fig: 'True'
 SPACE_outspec: 'False'
 SPACE_overwrite: 'True'
@@ -282,7 +304,7 @@ AMY_tellurics: 'False'
 AMY_vacuum: 'False'
 AMY_fill_gap: 'False'
 AMY_join_arms: 'False'
-AMY_templates_dir: '${PYAPS_HOME}/PyAPS_local/PyAPS_templates/templates_AMY/'
+AMY_templates_dir: '${PYAPS_HOME}/PyAPS_templates/templates_AMY/'
 AMY_template_flux: 'template_grid.npy'
 AMY_template_wave: 'wavelength_data.dat'
 AMY_overwrite: 'True'

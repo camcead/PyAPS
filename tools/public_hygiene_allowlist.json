@@ -1,0 +1,35 @@
+{
+  "_comment": "Intentional exceptions to tools/check_public_hygiene.py. Every entry needs a reason. Secrets (SECRET-*, FORBIDDEN-FILE) can never be listed here. Keep this list short; see docs/PUBLIC_HYGIENE.md.",
+  "allow": [
+    {
+      "rule": "*",
+      "path": "*",
+      "match": "amolaei@ast\\.cam\\.ac\\.uk",
+      "reason": "Published maintainer / security contact (SECURITY.md, CITATION.cff, README, pyproject metadata); deliberately public."
+    },
+    {
+      "rule": "*",
+      "path": "*",
+      "match": "(?<![\\w.-])(?:www\\.)?(?:camcead|casu|www)\\.ast\\.cam\\.ac\\.uk|www\\.ast\\.cam\\.ac\\.uk",
+      "reason": "Public web sites of the CAMCEAD project and CASU (download and calibration-query pages, project links); not internal hosts."
+    },
+    {
+      "rule": "*",
+      "path": "doc/weave_datamodel_v8.md",
+      "match": "casuhelp@ast\\.cam\\.ac\\.uk",
+      "reason": "Public CASU helpdesk address quoted as the value of the SOFTAUTH FITS keyword in the data model description."
+    },
+    {
+      "rule": "ABS-PATH",
+      "path": "Dockerfile",
+      "match": "/home/pyaps|/var/lib/apt",
+      "reason": "Paths inside the container image (unprivileged build user and apt cache cleanup), not a host machine."
+    },
+    {
+      "rule": "DEMO-ABS-PATH",
+      "path": "Dockerfile",
+      "match": ".",
+      "reason": "Dockerfile is not a demo block (container-internal paths only)."
+    }
+  ]
+}

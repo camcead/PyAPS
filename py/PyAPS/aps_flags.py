@@ -115,6 +115,8 @@ def aps_flags_worker(options=None):
 
 ##############################################
 if __name__ == '__main__':
+    # DEMO settings: edit for your setup. Replace the <PYAPS_DATA>, <PYAPS_DIR>, <night>, <runid>, <obid>
+    # markers below with your own locations and identifiers (no machine paths belong in this repository).
 
 
     debug_demo= ['--flag_file', '<PYAPS_DIR>/configs/APS_FLAGS.json',

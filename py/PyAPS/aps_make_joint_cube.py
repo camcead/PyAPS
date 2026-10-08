@@ -168,13 +168,11 @@ if __name__ == "__main__":
 
 
 
-    # local
-    # infiles = ['<PYAPS_DATA>/FL/20221025/stackcube_2963103.fit','<PYAPS_DATA>/FL/20221025/stackcube_2963102.fit']
-    # output_fname= '<OUTPUT_DIR>/example.fits'
-
-    # dama
-    infiles = ['/scratch/aps/PyAPS/PyAPS_data/FL/20221025/stackcube_2963103.fit','/scratch/aps/PyAPS/PyAPS_data/FL/20221025/stackcube_2963102.fit']
-    output_fname= '/scratch/aps/PyAPS/PyAPS_results/20221025/joint_stackcube_2963103__stackcube_2963102.fits'
+    # --- DEMO settings: edit for your setup (or export PYAPS_DATA_DIR / PYAPS_HOME) -------------
+    DEMO_DATA = os.environ.get('PYAPS_DATA_DIR', '<PYAPS_DATA>')
+    DEMO_OUT = os.environ.get('PYAPS_RESULTS_DIR', '<OUTPUT_DIR>')
+    infiles = [os.path.join(DEMO_DATA, 'FL/<night>/stackcube_<runid>.fit'), os.path.join(DEMO_DATA, 'FL/<night>/stackcube_<runid>.fit')]
+    output_fname = os.path.join(DEMO_OUT, '<night>/joint_stackcube_<runid>__stackcube_<runid>.fits')
 
     wlranges = None
     aps_ids=None
