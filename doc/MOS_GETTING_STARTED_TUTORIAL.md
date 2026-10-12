@@ -280,7 +280,7 @@ Contains wavelength calibration files and LSF (Line Spread Function) data. This 
 
 **Where to get calibration data:**
 
-- Download from: https://camcead.ast.cam.ac.uk/weave/calibquery/search
+- Download from: https://weave.ast.cam.ac.uk/WOR/calibquery/search
 - Organize by calibration date
 
 **Important:** If you don't provide calibration data, PyAPS will use default LSF values, which are less accurate but sufficient for testing.
@@ -302,7 +302,7 @@ For your first run, download the minimal template set:
 cd <PYAPS_DIR>/PyAPS_local/PyAPS_templates
 
 # Download the minimal template archive
-wget https://camcead.ast.cam.ac.uk/weave/downloads/PyAPS_templates.tar.gz
+wget https://weave.ast.cam.ac.uk/WOR/downloads/PyAPS_templates.tar.gz
 
 # Extract
 tar -xzf PyAPS_templates.tar.gz

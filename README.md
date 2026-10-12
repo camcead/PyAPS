@@ -132,7 +132,7 @@ PyAPS grids and templates are available in two versions:
 - **Standard Version**: Full set of grids and templates for complete functionality.
   For access to the standard version please contact the PyAPS admin at amolaei@ast.cam.ac.uk
 - **Minimal Version**: Essential grids for basic operations and visualization.
-  Available for download at [PyAPS_templates_minimal](https://camcead.ast.cam.ac.uk/weave/downloads/PyAPS_templates.tar.gz)
+  Available for download at [PyAPS_templates_minimal](https://weave.ast.cam.ac.uk/WOR/downloads/PyAPS_templates.tar.gz)
 
 *Note: Grid downloads are not required for basic L1/L2 visualization features.*
 
