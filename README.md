@@ -71,6 +71,15 @@ missing or out-of-range package, a missing dependency of an installed package, a
 versions that differ from the frozen set. Exit status 0 means the environment is complete. Run it on every host that processes data
 before a night is handed over; the production runner does so at the start of each cycle.
 
+### Static plot images
+
+The diagnostic pictures (PNG/PDF) are written through `PyAPS.apsPlot.export.write_image`, which renders them in a separate
+worker process with a deadline per image, so a browser that stops answering costs one picture and not the job (see the CHANGELOG).
+It needs the same Chrome as before (`plotly_get_chrome -y`). Settings, all optional environment variables: `PYAPS_PLOT_TIMEOUT`
+(seconds per image, default 120), `PYAPS_PLOT_START_TIMEOUT` (first image, 180), `PYAPS_PLOT_MAX_FAILURES` (timeouts in a row before
+the pictures of the process are switched off, 3), `PYAPS_PLOT_RECYCLE` (images per worker, 200), `PYAPS_PLOT_EXPORT`
+(`worker`, `inprocess` or `off`). Every L2 SLURM job also carries a `--time` limit (`slurm_time_<STAGE>` keys of the `script_params` file).
+
 ### Choosing what to install
 
 PyAPS is the WEAVE processing pipeline: `aps_runner` and the scientific modules are its main purpose. The pipeline calls a number of

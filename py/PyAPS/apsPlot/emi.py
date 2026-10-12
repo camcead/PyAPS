@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from .export import write_image
 from .spectra import spectrum_overlay_figure
 from PyAPS import ExGalPrepare
 
@@ -355,5 +356,5 @@ def make_emi_kinematics_plots(rootname, figdir, configs, emi_metalist, emi_resul
             goodpixels_array=goodpixels_array, mc_results=mc_results,
             flux_unit=flux_unit, debug=debug,
         )
-        fig.write_image(fig_fname, scale=2)
+        write_image(fig, fig_fname, scale=2)
     return 1

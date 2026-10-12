@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from .export import write_image
 from .spectra import spectrum_overlay_figure
 
 
@@ -75,4 +76,4 @@ def make_rvs_plot(specdata, res_dict, title, fig_fname, units_str=None):
         flux_unit = str(units.Unit(units_str['flux']))
 
     fig = build_figure(specdata, res_dict['yfit'], title, flux_unit=flux_unit)
-    fig.write_image(str(fig_fname), scale=2)
+    write_image(fig, str(fig_fname), scale=2)

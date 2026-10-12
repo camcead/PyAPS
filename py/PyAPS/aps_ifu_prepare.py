@@ -64,6 +64,7 @@ from PyAPS import IFUExGalPrepare as IFUExGalPrepare
 from PyAPS import MOSExGalPrepare as MOSExGalPrepare
 from PyAPS import ExGalPrepare as ExGalPrepare
 from PyAPS import ExGalutil
+from PyAPS.apsPlot.export import write_image
 from PyAPS.apsPlot.region_plot import plot_region
 from PyAPS.apsPlot.source_detection import build_figure as _build_source_detection_figure
 from PyAPS.apsPlot.source_detection_3d import build_figure as _build_source_detection_3d_figure
@@ -905,7 +906,7 @@ class ifu_seg2d ():
                     radii_factor=self.radii_factor, headname=self.headname,
                 )
                 objects_figname = Path(self.figdir).joinpath(self.headname+'_source_detection.pdf')
-                source_fig.write_image(str(objects_figname))
+                write_image(source_fig, str(objects_figname))
             except:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 print(exc_value)
@@ -1730,7 +1731,7 @@ def ifu_worker_prepare(
                     group_purity_scan=seg3d_out.get("group_purity_scan"),
                 )
                 fig3d_fname = figdir / f"{headname}_seg3d_compare.pdf"
-                fig3d.write_image(str(fig3d_fname))
+                write_image(fig3d, str(fig3d_fname))
                 print(f"INFO: seg3d comparison figure written to {fig3d_fname}")
         except Exception:
             exc_type, exc_value, exc_traceback = sys.exc_info()

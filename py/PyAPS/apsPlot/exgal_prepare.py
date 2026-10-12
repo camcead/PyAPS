@@ -24,6 +24,7 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
+from .export import write_image
 from . import style
 
 # Two-colour map for binary keep/remove plots — same colours as legacy's
@@ -333,7 +334,7 @@ def plot_snr_stages(cube, spatial_bins=None, voronoi_data=None,
                                        headname=f"{headname}{sfx}")
         path = os.path.join(figdir, f"{headname}_snr_stages{sfx}.png")
         os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-        fig.write_image(path, scale=2)
+        write_image(fig, path, scale=2)
         print("  [PLOT] Saved:", path)
     except Exception as exc:
         print("  Warning: snr_stages failed:", exc)
@@ -480,7 +481,7 @@ def plot_preparation_summary(cube, spatial_bins=None, voronoi_data=None, configs
         fig = build_prep_raw_figure(cube, headname=hn, param_str=param_str)
         path = os.path.join(figdir, f"{headname}_prep_raw{sfx}.png")
         os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-        fig.write_image(path, scale=2)
+        write_image(fig, path, scale=2)
         print("  [PLOT] Saved:", path)
     except Exception as exc:
         print("  Warning: prep_raw failed:", exc)
@@ -488,7 +489,7 @@ def plot_preparation_summary(cube, spatial_bins=None, voronoi_data=None, configs
     try:
         fig = build_prep_snrcut_figure(cube, min_snr=min_snr, headname=hn, param_str=param_str)
         path = os.path.join(figdir, f"{headname}_prep_snrcut{sfx}.png")
-        fig.write_image(path, scale=2)
+        write_image(fig, path, scale=2)
         print("  [PLOT] Saved:", path)
     except Exception as exc:
         print("  Warning: prep_snrcut failed:", exc)
@@ -498,7 +499,7 @@ def plot_preparation_summary(cube, spatial_bins=None, voronoi_data=None, configs
             fig = build_prep_spatialbin_figure(cube, spatial_bins, target_snr=target_snr,
                                                 headname=hn, param_str=param_str)
             path = os.path.join(figdir, f"{headname}_prep_spatialbin{sfx}.png")
-            fig.write_image(path, scale=2)
+            write_image(fig, path, scale=2)
             print("  [PLOT] Saved:", path)
         except Exception as exc:
             print("  Warning: prep_spatialbin failed:", exc)
@@ -507,7 +508,7 @@ def plot_preparation_summary(cube, spatial_bins=None, voronoi_data=None, configs
         try:
             fig = build_prep_voronoi_figure(voronoi_data, target_snr=target_snr, headname=hn)
             path = os.path.join(figdir, f"{headname}_prep_voronoi{sfx}.png")
-            fig.write_image(path, scale=2)
+            write_image(fig, path, scale=2)
             print("  [PLOT] Saved:", path)
         except Exception as exc:
             print("  Warning: prep_voronoi failed:", exc)
@@ -564,7 +565,7 @@ def plot_spatial(cube, spatial_bins=None, color_field="snr", bin_size_label=None
                   else f"{headname}_sbin.png")
         outpath = os.path.join(figdir, fname)
         os.makedirs(os.path.dirname(outpath) or ".", exist_ok=True)
-        fig.write_image(outpath, scale=2)
+        write_image(fig, outpath, scale=2)
         ExGalutil.prettyOutput_Done(f"Plotting the {color_field} field in {outpath}", progressbar=True)
     except Exception as exc:
         print("  Warning: plot_spatial failed:", exc)
@@ -740,7 +741,7 @@ def voronoi_visualization(spatial_bins, voronoi_data, figsize=(21, 7), title=Non
                                              title=title, show_filtered=show_filtered)
         if save_path:
             os.makedirs(os.path.dirname(str(save_path)) or ".", exist_ok=True)
-            fig.write_image(str(save_path), scale=2)
+            write_image(fig, str(save_path), scale=2)
             print("  [PLOT] Saved:", save_path)
         else:
             return fig
