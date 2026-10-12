@@ -275,3 +275,32 @@ def test_real_worker_renders_png_and_pdf(tmp_path, monkeypatch):
         assert not list(tmp_path.glob("*.part.*"))
     finally:
         export.reset()
+
+
+def test_a_real_worker_ends_with_its_process_group_when_the_parent_is_gone(tmp_path):
+    """The real worker script (no Kaleido needed to start): killed parent -> the worker's watchdog ends worker and group."""
+    import subprocess
+
+    pidfile = tmp_path / "worker.pid"
+    launcher = tmp_path / "launcher.py"
+    launcher.write_text(textwrap.dedent(f'''
+        import subprocess, sys
+        w = subprocess.Popen([sys.executable, {str(export._WORKER)!r}], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                             stderr=subprocess.DEVNULL, start_new_session=True)
+        open({str(pidfile)!r}, "w").write(str(w.pid))
+        import time; time.sleep(600)
+    '''))
+    parent = subprocess.Popen([sys.executable, str(launcher)])
+    for _ in range(100):
+        if pidfile.exists() and pidfile.read_text():
+            break
+        time.sleep(0.1)
+    worker_pid = int(pidfile.read_text())
+    assert alive(worker_pid)
+    parent.kill()
+    parent.wait()
+    for _ in range(100):                                                # the watchdog looks every 5 s
+        if not alive(worker_pid):
+            break
+        time.sleep(0.1)
+    assert not alive(worker_pid)
