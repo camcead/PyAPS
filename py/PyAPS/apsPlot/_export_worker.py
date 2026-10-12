@@ -21,6 +21,8 @@ import json
 import os
 import signal
 import sys
+import threading
+import time
 
 
 def _reply(obj):
@@ -55,8 +57,21 @@ def _ping():
     pio.to_image(fig, format="png", width=40, height=40)
 
 
+def _end_with_the_parent(parent_pid):
+    """When the parent is gone (killed, or the job ended) nobody can ask this worker to stop, and a render that hangs never reads stdin
+    again: end the whole process group (worker and browser) from this thread."""
+    while True:
+        time.sleep(5)
+        if os.getppid() != parent_pid:
+            try:
+                os.killpg(os.getpgrp(), signal.SIGKILL)
+            finally:
+                os._exit(1)
+
+
 def main():
     faulthandler.register(signal.SIGUSR1, all_threads=True, file=sys.stderr)
+    threading.Thread(target=_end_with_the_parent, args=(os.getppid(),), daemon=True).start()
     try:
         import kaleido
     except Exception as e:                      # reported on the first request
