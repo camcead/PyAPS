@@ -10,8 +10,8 @@
     {
       "rule": "*",
       "path": "*",
-      "match": "(?<![\\w.-])(?:www\\.)?(?:camcead|casu|www)\\.ast\\.cam\\.ac\\.uk|www\\.ast\\.cam\\.ac\\.uk",
-      "reason": "Public web sites of the CAMCEAD project and CASU (download and calibration-query pages, project links); not internal hosts."
+      "match": "(?<![\\w.-])(?:www\\.)?(?:camcead|casu|weave|www)\\.ast\\.cam\\.ac\\.uk|www\\.ast\\.cam\\.ac\\.uk",
+      "reason": "Public web sites of the CAMCEAD project, CASU and the WEAVE services (weave.ast.cam.ac.uk, the public address of weaveOR since 2026-10-11) (download and calibration-query pages, project links); not internal hosts."
     },
     {
       "rule": "*",
