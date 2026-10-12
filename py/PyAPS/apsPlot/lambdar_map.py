@@ -10,6 +10,7 @@ import os
 import numpy as np
 from astropy.io import fits
 
+from .export import write_image
 from .spatial import parameter_map_grid_figure
 
 
@@ -97,4 +98,4 @@ def plot_maps(outpath, headname, INTERACTIVE=False, vminmax=np.array([0.0, 1.0])
     if not os.path.isdir(figdir):
         os.mkdir(figdir)
 
-    fig.write_image(figdir + headname + '_lambda.png', scale=2)
+    write_image(fig, figdir + headname + '_lambda.png', scale=2)

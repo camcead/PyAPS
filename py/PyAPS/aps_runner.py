@@ -1,5 +1,6 @@
 
 import os
+import re
 import sys
 
 os.environ["OMP_NUM_THREADS"] = "1"
@@ -554,6 +555,38 @@ def safe_str(txt):
 
 ############################################################################################
 
+############################################################################################
+# Wall-time limit of every L2 SLURM job
+#
+# A job that waits for ever (a render that never came back, 2026-10-08..12) used to run until the partition limit
+# (2 days) and kept its night PROCESSING for that time. Every L2 stage now gets a --time sized from the jobs that
+# completed on the two APS pods (longest completed job: RR 162 min, FR 204, PPXF 205, EMI 111, RVS 23, LS 3, L2merge 1,
+# IFU_PR 415, IFU_ExGal 374, IFU_Gal 518). Override one stage with the script_params key slurm_time_<STAGE>
+# (quote the value: an unquoted 08:00:00 is a number to YAML), switch one off with 'None'. The CS stages are not limited
+# (no statistics yet).
+DEFAULT_SLURM_TIME = {
+    'RR': '08:00:00', 'RVS': '02:00:00', 'FR': '08:00:00', 'PPXF': '08:00:00', 'EMI': '06:00:00',
+    'LS': '02:00:00', 'L2merge': '02:00:00',
+    'IFU_PR': '18:00:00', 'IFU_ExGal': '18:00:00', 'IFU_Gal': '18:00:00',
+}
+_SLURM_TIME_RE = re.compile(r'^(\d+|\d+:\d{2}|\d+:\d{2}:\d{2}|\d+-\d{1,2}|\d+-\d{1,2}:\d{2}|\d+-\d{1,2}:\d{2}:\d{2})$')
+
+
+def slurm_time_arg(conf, stage):
+    """The ``--time=...`` option of the sbatch line of ``stage`` (with a leading space), or '' when the stage has no limit."""
+    value = (conf or {}).get('slurm_time_' + stage, DEFAULT_SLURM_TIME.get(stage))
+    if value is None or str(value).strip().upper() in ('', 'NONE'):
+        return ''
+    value = str(value).strip()
+    if not _SLURM_TIME_RE.match(value):
+        print("Warning: slurm_time_%s = %r is not a SLURM time (minutes, HH:MM:SS or D-HH:MM:SS); using %s"
+              % (stage, value, DEFAULT_SLURM_TIME.get(stage, 'no limit')))
+        value = DEFAULT_SLURM_TIME.get(stage)
+        if not value:
+            return ''
+    return ' --time=%s' % value
+
+
 def sbatch_guard(jid_var, label, abort=True):
     """
     Bash snippet to check right after `<jid_var>=$(sbatch --parsable ...)`
@@ -944,25 +977,25 @@ def mos_scriptGEN(infiles, config_file, cat_list=None, aps_ids=None, wlranges=No
         out_script.write("# \n")
 
         out_script.write("# first job - no dependencies \n ")
-        out_script.write("jid_RR=$(sbatch --parsable --output=%s --error=%s  --nodes=1 --ntasks=%d --job-name=%s  %s) \n " %(slurm_out, slurm_err, mp[0], 'RR_L2_'+str(JOB_ID_HEADNAME), scripts_path.joinpath(f"{JOB_ID_HEADNAME}_MOS_RR.sh")))
+        out_script.write("jid_RR=$(sbatch --parsable --output=%s --error=%s  --nodes=1 --ntasks=%d%s --job-name=%s  %s) \n " %(slurm_out, slurm_err, mp[0], slurm_time_arg(conf, 'RR'), 'RR_L2_'+str(JOB_ID_HEADNAME), scripts_path.joinpath(f"{JOB_ID_HEADNAME}_MOS_RR.sh")))
         out_script.write(sbatch_guard('jid_RR', 'RR_L2_'+str(JOB_ID_HEADNAME)))
         out_script.write("sleep 5  \n ")
-        out_script.write("jid_RVS=$(sbatch --parsable --output=%s --error=%s  --nodes=1 --ntasks=%d --dependency=afterany:$jid_RR --job-name=%s  %s) \n " %(slurm_out, slurm_err, mp[1], 'RVS_L2_'+str(JOB_ID_HEADNAME), scripts_path.joinpath(f"{JOB_ID_HEADNAME}_MOS_RVS.sh")))
+        out_script.write("jid_RVS=$(sbatch --parsable --output=%s --error=%s  --nodes=1 --ntasks=%d%s --dependency=afterany:$jid_RR --job-name=%s  %s) \n " %(slurm_out, slurm_err, mp[1], slurm_time_arg(conf, 'RVS'), 'RVS_L2_'+str(JOB_ID_HEADNAME), scripts_path.joinpath(f"{JOB_ID_HEADNAME}_MOS_RVS.sh")))
         out_script.write(sbatch_guard('jid_RVS', 'RVS_L2_'+str(JOB_ID_HEADNAME)))
         out_script.write("sleep 5  \n ")
-        out_script.write("jid_FR=$(sbatch --parsable --output=%s --error=%s  --nodes=1 --ntasks=%d --dependency=afterany:$jid_RVS %s --job-name=%s  %s) \n " %(slurm_out, slurm_err, mp[2], memory_limit_ferre , 'FR_L2_'+str(JOB_ID_HEADNAME), scripts_path.joinpath(f"{JOB_ID_HEADNAME}_MOS_FR.sh")))
+        out_script.write("jid_FR=$(sbatch --parsable --output=%s --error=%s  --nodes=1 --ntasks=%d%s --dependency=afterany:$jid_RVS %s --job-name=%s  %s) \n " %(slurm_out, slurm_err, mp[2], slurm_time_arg(conf, 'FR'), memory_limit_ferre , 'FR_L2_'+str(JOB_ID_HEADNAME), scripts_path.joinpath(f"{JOB_ID_HEADNAME}_MOS_FR.sh")))
         out_script.write(sbatch_guard('jid_FR', 'FR_L2_'+str(JOB_ID_HEADNAME)))
         out_script.write("sleep 5  \n ")
-        out_script.write("jid_PPXF=$(sbatch --parsable --output=%s --error=%s  --nodes=1 --ntasks=%d --dependency=afterany:$jid_RR --job-name=%s  %s) \n " %(slurm_out, slurm_err, mp[3], 'PPXF_L2_'+str(JOB_ID_HEADNAME), scripts_path.joinpath(f"{JOB_ID_HEADNAME}_MOS_PPXF.sh")))
+        out_script.write("jid_PPXF=$(sbatch --parsable --output=%s --error=%s  --nodes=1 --ntasks=%d%s --dependency=afterany:$jid_RR --job-name=%s  %s) \n " %(slurm_out, slurm_err, mp[3], slurm_time_arg(conf, 'PPXF'), 'PPXF_L2_'+str(JOB_ID_HEADNAME), scripts_path.joinpath(f"{JOB_ID_HEADNAME}_MOS_PPXF.sh")))
         out_script.write(sbatch_guard('jid_PPXF', 'PPXF_L2_'+str(JOB_ID_HEADNAME)))
         out_script.write("sleep 5  \n ")
-        out_script.write("jid_EMI=$(sbatch --parsable --output=%s --error=%s  --nodes=1 --ntasks=%d --dependency=afterany:$jid_PPXF --job-name=%s  %s) \n " %(slurm_out, slurm_err, mp[4], 'EMI_L2_'+str(JOB_ID_HEADNAME), scripts_path.joinpath(f"{JOB_ID_HEADNAME}_MOS_EMI.sh")))
+        out_script.write("jid_EMI=$(sbatch --parsable --output=%s --error=%s  --nodes=1 --ntasks=%d%s --dependency=afterany:$jid_PPXF --job-name=%s  %s) \n " %(slurm_out, slurm_err, mp[4], slurm_time_arg(conf, 'EMI'), 'EMI_L2_'+str(JOB_ID_HEADNAME), scripts_path.joinpath(f"{JOB_ID_HEADNAME}_MOS_EMI.sh")))
         out_script.write(sbatch_guard('jid_EMI', 'EMI_L2_'+str(JOB_ID_HEADNAME)))
         out_script.write("sleep 5  \n ")
-        out_script.write("jid_LS=$(sbatch --parsable --output=%s --error=%s  --nodes=1 --ntasks=%d --dependency=afterany:$jid_PPXF:$jid_EMI --job-name=%s  %s) \n " %(slurm_out, slurm_err, mp[5], 'LS_L2_'+str(JOB_ID_HEADNAME), scripts_path.joinpath(f"{JOB_ID_HEADNAME}_MOS_LS.sh")))
+        out_script.write("jid_LS=$(sbatch --parsable --output=%s --error=%s  --nodes=1 --ntasks=%d%s --dependency=afterany:$jid_PPXF:$jid_EMI --job-name=%s  %s) \n " %(slurm_out, slurm_err, mp[5], slurm_time_arg(conf, 'LS'), 'LS_L2_'+str(JOB_ID_HEADNAME), scripts_path.joinpath(f"{JOB_ID_HEADNAME}_MOS_LS.sh")))
         out_script.write(sbatch_guard('jid_LS', 'LS_L2_'+str(JOB_ID_HEADNAME)))
         out_script.write("sleep 5  \n ")
-        out_script.write("jid_l2=$(sbatch --parsable --output=%s --error=%s  --nodes=1 --ntasks=%d --dependency=afterany:$jid_RR:$jid_RVS:$jid_FR:$jid_PPXF:$jid_EMI:$jid_LS --job-name=%s  %s) \n " %(slurm_out, slurm_err, mp[6], 'L2merge_L2_'+str(JOB_ID_HEADNAME), scripts_path.joinpath(f"{JOB_ID_HEADNAME}_MOS_L2merge.sh")))
+        out_script.write("jid_l2=$(sbatch --parsable --output=%s --error=%s  --nodes=1 --ntasks=%d%s --dependency=afterany:$jid_RR:$jid_RVS:$jid_FR:$jid_PPXF:$jid_EMI:$jid_LS --job-name=%s  %s) \n " %(slurm_out, slurm_err, mp[6], slurm_time_arg(conf, 'L2merge'), 'L2merge_L2_'+str(JOB_ID_HEADNAME), scripts_path.joinpath(f"{JOB_ID_HEADNAME}_MOS_L2merge.sh")))
         out_script.write(sbatch_guard('jid_l2', 'L2merge_L2_'+str(JOB_ID_HEADNAME)))
         out_script.write("sleep 2  \n ")
 
@@ -1544,11 +1577,11 @@ def ifu_scriptGEN(infiles, config_file, cat_list=None, aps_ids=None, wlranges=No
         out_script.write(
             "jid_PR=$(sbatch --parsable "
             "--output=%s --error=%s "
-            "--nodes=1 --ntasks=%d "
+            "--nodes=1 --ntasks=%d%s "
             "--job-name=%s %s) \n "
             % (
                 slurm_out, slurm_err,
-                mp[0],
+                mp[0], slurm_time_arg(conf, 'IFU_PR'),
                 'IFU_PR_L2_' + str(JOB_ID_HEADNAME),
                 scripts_path.joinpath(f"{JOB_ID_HEADNAME}_IFU_Prepare.sh"),
             )
@@ -1563,13 +1596,13 @@ def ifu_scriptGEN(infiles, config_file, cat_list=None, aps_ids=None, wlranges=No
         out_script.write(
             "jid_ExGal=$(sbatch --parsable "
             "--output=%s --error=%s "
-            "--nodes=1 --ntasks=%d "
+            "--nodes=1 --ntasks=%d%s "
             "--dependency=afterany:$jid_PR "
             "%s "
             "--job-name=%s %s) \n "
             % (
                 slurm_out, slurm_err,
-                mp[1],
+                mp[1], slurm_time_arg(conf, 'IFU_ExGal'),
                 memory_limit_IFU,
                 'IFU_ExGal_L2_' + str(JOB_ID_HEADNAME),
                 scripts_path.joinpath(f"{JOB_ID_HEADNAME}_IFU_ExGal.sh"),
@@ -1589,12 +1622,12 @@ def ifu_scriptGEN(infiles, config_file, cat_list=None, aps_ids=None, wlranges=No
         out_script.write(
             "jid_Gal=$(sbatch --parsable "
             "--output=%s --error=%s "
-            "--nodes=1 --ntasks=%d "
+            "--nodes=1 --ntasks=%d%s "
             "--dependency=afterany:$jid_PR "
             "--job-name=%s %s) \n "
             % (
                 slurm_out, slurm_err,
-                mp[2],
+                mp[2], slurm_time_arg(conf, 'IFU_Gal'),
                 'IFU_Gal_L2_' + str(JOB_ID_HEADNAME),
                 scripts_path.joinpath(f"{JOB_ID_HEADNAME}_IFU_Gal.sh"),
             )

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from .export import write_image
 from .spectra import spectrum_overlay_figure
 
 
@@ -111,5 +112,5 @@ def make_ppxf_plot(figdir, configs, ppxf_metalist, ppxf_result, ppxf_logLam,
         fig = build_figure(ppxf_result, ppxf_logLam, ppxf_spec,
                             ppxf_bestfit, ppxf_goodpixels, i,
                             flux_unit=flux_unit)
-        fig.write_image(fig_fname, scale=2)
+        write_image(fig, fig_fname, scale=2)
     return 1

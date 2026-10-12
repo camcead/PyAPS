@@ -10,6 +10,7 @@ import os
 import numpy as np
 from astropy.io import fits
 
+from .export import write_image
 from .spatial import parameter_map_grid_figure
 
 LABELS = ["Hbeta_o", "Fe5015", "Mgb"]
@@ -120,4 +121,4 @@ def plot_maps(outpath, headname, RESOLUTION, INTERACTIVE=False, vminmax=np.zeros
     else:
         raise ValueError(f"RESOLUTION must be 'ORIGINAL' or 'ADAPTED', got {RESOLUTION!r}")
 
-    fig.write_image(fig_fname, scale=2)
+    write_image(fig, fig_fname, scale=2)

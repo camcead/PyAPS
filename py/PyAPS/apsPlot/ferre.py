@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from .export import write_image
 from .spectra import spectrum_overlay_figure
 
 
@@ -85,5 +86,5 @@ def make_fr_plot(outdict, figdir, setups, units_str=None):
         fig_fname = figdir + 'FR_%s_%s_%s.png' % (
             outdict['TARGID'][i], outdict['CNAME'][i], outdict['APS_ID'][i])
         fig = build_figure(outdict, i, setups, flux_unit=flux_unit)
-        fig.write_image(fig_fname, scale=2)
+        write_image(fig, fig_fname, scale=2)
     return 1

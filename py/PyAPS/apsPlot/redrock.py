@@ -14,6 +14,7 @@ from pathlib import Path
 
 import numpy as np
 
+from .export import write_image
 from .spectra import spectrum_overlay_figure
 
 MAX_RANKS = 3
@@ -149,4 +150,4 @@ def make_rrplot(zbest, zspec, setups, figdir, rank=0, collapse_fname=None):
         id_zbest = id_zbest[0]
 
         fig = build_figure(zbest, zspec, setups, i, id_zbest)
-        fig.write_image(str(fig_fname), scale=2)
+        write_image(fig, str(fig_fname), scale=2)

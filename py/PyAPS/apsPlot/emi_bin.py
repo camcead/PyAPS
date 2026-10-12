@@ -25,6 +25,7 @@ import os
 
 import numpy as np
 
+from .export import write_image
 from .spectra import spectrum_overlay_figure
 
 _FIG_WIDTH = 1500
@@ -347,7 +348,7 @@ def save_ppxf_emi_plot(rootname, pp, data, error, wave, goodpixels, bin_id,
         emission_lines=emission_lines, debug=debug,
     )
     plot_filename = os.path.join(plot_dir, f'{prefix}_{rootname}_bin_{bin_id:04d}.png')
-    fig.write_image(plot_filename, scale=2)
+    write_image(fig, plot_filename, scale=2)
 
     if debug:
         print(f"Enhanced emi kinematics diagnostic plot saved: {plot_filename}")

@@ -10,6 +10,7 @@ import os
 import numpy as np
 from astropy.io import fits
 
+from .export import write_image
 from .spatial import parameter_map_grid_figure
 
 LABELS = ["V", "SIGMA", "H3", "H4"]
@@ -142,4 +143,4 @@ def plot_maps(flag, outpath, headname, INTERACTIVE=False, vminmax=np.zeros((4, 2
     else:
         raise ValueError(f"flag must be 'PPXF' or 'SFH', got {flag!r}")
 
-    fig.write_image(fig_fname, scale=2)
+    write_image(fig, fig_fname, scale=2)

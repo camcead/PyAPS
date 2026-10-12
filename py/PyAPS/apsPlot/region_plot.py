@@ -13,6 +13,7 @@ from astropy.coordinates import SkyCoord
 from astropy.io import fits
 from astropy.wcs import WCS
 
+from .export import write_image
 from .wcs_image import add_wcs_image, add_circle_outline
 from plotly.subplots import make_subplots
 from . import style
@@ -82,4 +83,4 @@ def plot_region(infile, headname, figdir, ext=1, area=None, mask_areas=None):
 
     figfname = os.path.join(figdir, f"{headname}_reg.png")
     fig = build_figure(infile, headname, ext=ext, area=area, mask_areas=mask_areas)
-    fig.write_image(figfname, scale=2)
+    write_image(fig, figfname, scale=2)
