@@ -267,7 +267,7 @@ Contains wavelength calibration files and LSF (Line Spread Function) data. This 
 Where to get calibration data:
 
 * Query and download individual calibration sets from:
-    https://camcead.ast.cam.ac.uk/weave/calibquery/search
+    https://weave.ast.cam.ac.uk/WOR/calibquery/search
 * Organize calibrations by calibration date:
 
 CAL/
@@ -288,7 +288,7 @@ Bulk download
 
 If you plan to process data from multiple observing periods, you may prefer to download the complete calibration archive covering May 2023 – April 2026:
 
-wget https://www.camcead.ast.cam.ac.uk/weave/downloads/CAL.tar.gz
+wget https://weave.ast.cam.ac.uk/WOR/downloads/CAL.tar.gz
 
 After downloading:
 
@@ -323,7 +323,7 @@ For your first run, download the minimal template set:
 cd <PYAPS_DIR>/PyAPS_local/PyAPS_templates
 
 # Download the minimal template archive
-wget https://camcead.ast.cam.ac.uk/weave/downloads/PyAPS_templates.tar.gz
+wget https://weave.ast.cam.ac.uk/WOR/downloads/PyAPS_templates.tar.gz
 
 # Extract
 tar -xzf PyAPS_templates.tar.gz
@@ -1599,7 +1599,7 @@ ls <PYAPS_DIR>/PyAPS_local/PyAPS_templates/templates_ARC_RR/
 **Warning:** `Using default LSF - calibration files not found`
 
 **This is OK for testing!** But for science:
-- Download calibration files from https://camcead.ast.cam.ac.uk/weave/calibquery/search
+- Download calibration files from https://weave.ast.cam.ac.uk/WOR/calibquery/search
 - Place in `PyAPS_data/CAL/YYYYMMDD/`
 - Rerun IFU_Prepare
 
@@ -1788,7 +1788,7 @@ mkdir -p PyAPS_local/PyAPS_templates
 
 # 3. Download templates
 cd PyAPS_local/PyAPS_templates
-wget https://camcead.ast.cam.ac.uk/weave/downloads/PyAPS_templates.tar.gz
+wget https://weave.ast.cam.ac.uk/WOR/downloads/PyAPS_templates.tar.gz
 tar -xzf PyAPS_templates.tar.gz
 
 # 4. Configure
