@@ -194,6 +194,30 @@ def read_lock(arg: str):
     return path.name, lock
 
 
+def templates_findings() -> tuple[list[str], list[str]]:
+    """Warnings and problems about the template set (version control: doc/TEMPLATES.md). Only a layout or set
+    mismatch is a problem; a missing, unstamped, older or modified set is a warning. Reads names and sizes only."""
+    import importlib.util
+    f = ROOT / "py" / "PyAPS" / "aps_templates.py"
+    if not f.is_file():
+        return [], []
+    spec = importlib.util.spec_from_file_location("aps_templates_chk", f)
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = mod
+    spec.loader.exec_module(mod)
+    try:
+        rec = mod.status()
+    except mod.TemplatesError as exc:
+        return [f"TEMPLATES {exc}"], []
+    line = f"TEMPLATES {rec['summary']}" + (f" ({rec['dir']})" if rec.get("dir") else "")
+    notes = "".join(f"; {n}" for n in rec.get("notes", [])[:2])
+    if rec["state"] == "incompatible":
+        return [], [line + notes]
+    if rec["state"] == "match":
+        return [], []
+    return [line + notes], []
+
+
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--profile", choices=sorted(PROFILES), default="pipeline")
@@ -237,6 +261,11 @@ def main(argv: list[str]) -> int:
     if "kaleido" in names and installed_version("kaleido") is not None and chrome_for_kaleido() is None:
         warnings.append("CHROME    kaleido has no Chrome: plot images (png) cannot be written and the jobs log a RuntimeError per figure; "
                         "run `plotly_get_chrome -y` in this environment")
+
+    if args.profile in ("pipeline", "all"):
+        tw, tp = templates_findings()
+        warnings += tw
+        problems += tp
 
     lock = read_lock(args.lock)
     if lock:

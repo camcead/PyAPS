@@ -4021,3 +4021,27 @@ def test_csv_export_callback_produces_correct_content():
 if __name__ == "__main__":
     import sys
     sys.exit(pytest.main([__file__, "-v"]))
+
+
+def test_banner_shows_the_template_set_and_templatesz_reports_it(tmp_path, monkeypatch):
+    """With a TEMPLATES_MANIFEST.json in $PYAPS_TEMPLATES_DIR the banner names the set and its version, and /templatesz
+    (no session needed) returns the same; without a manifest there is no line and /templatesz says null."""
+    import json
+    from PyAPS import aps_explorer as ex
+    from PyAPS import aps_templates as tpl
+
+    monkeypatch.setenv("PYAPS_TEMPLATES_DIR", str(tmp_path))
+    monkeypatch.delenv("PYAPS_CONFIGDIR", raising=False)
+    monkeypatch.setenv("HOME", str(tmp_path / "nohome"))
+    monkeypatch.delenv("PYAPS_HOME", raising=False)
+    assert "Templates:" not in str(ex._banner())
+    client = ex.app.server.test_client()
+    assert client.get("/templatesz").get_json()["templates"] is None
+
+    (tmp_path / "a").mkdir()
+    (tmp_path / "a" / "f.txt").write_text("x")
+    tpl.stamp(str(tmp_path), "mini", "2026.10.0", "test", yes=True)
+    assert "Templates: mini 2026.10.0" in str(ex._banner())
+    body = client.get("/templatesz").get_json()
+    assert body["templates"]["set"] == "mini" and body["templates"]["version"] == "2026.10.0"
+    assert json.dumps(body).count(str(tmp_path)) == 0          # no path in the answer
