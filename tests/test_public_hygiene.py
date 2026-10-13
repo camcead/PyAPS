@@ -88,6 +88,9 @@ def test_flags_secrets_and_masks_them():
 
 def test_flags_personal_account_names_and_emails():
     assert "INTERNAL-NAME" in scan("user=" + "am" + "2931\n")
+    assert "INTERNAL-NAME" in scan("owner " + "d" + "mur" + "phy\n")                 # a name known only by its digest
+    assert "INTERNAL-NAME" in scan("a" + "m" + "1234 logged in\n")                    # the shape of a personal account
+    assert "INTERNAL-NAME" not in scan("Fe5335 and WS9999 are index names\n")
     assert "EMAIL" in scan("mail someone" + "@" + "example.org\n")
 
 
