@@ -6,6 +6,9 @@ All notable changes to PyAPS are documented here. The format follows
 
 ## Unreleased
 
+### Added
+- Version control of the template sets (`py/PyAPS/aps_templates.py`, `tools/pyaps_templates.py`, `pyaps templates ...`, `doc/TEMPLATES.md`, `tests/test_aps_templates.py`): every set (`full`, `mini`) carries a `TEMPLATES_MANIFEST.json` with set, calendar version, layout, tree digest, per-folder digests and (small sets) per-file SHA-256; `check`/`status` report match / older / newer / modified / unstamped / incompatible / missing, `verify`, `diff`, `manifest` and `stamp` build and compare manifests (stamp is a dry run unless `--yes`), `install --set mini` downloads, verifies and installs a released mini set. The script generator and `tools/check_env.py` read the manifest at start-up and warn (stop only on a layout mismatch; `PYAPS_TEMPLATES_CHECK=off|warn|major|strict`). The explorer shows the template set under its version and serves `/templatesz`. Standard library only; nothing is written by the start-up check.
+
 ### Security / public hygiene
 - New guard `tools/check_public_hygiene.py` (+ `tests/test_public_hygiene.py`, pre-commit hook, CI step) that fails on secrets, internal hosts/IPs, personal account names, e-mail addresses and absolute machine paths in tracked files, and applies a stricter check to module headers and `__main__` demo blocks. Rules, placeholders and allow-list: `doc/PUBLIC_HYGIENE.md`.
 - Docs, README, examples, tests and the demo blocks of the `aps_*.py` modules use placeholders (`<PYAPS_DATA>`, `$PYAPS_DATA`, `<night>`, `<runid>`, `<obid>`) instead of absolute paths and real run identifiers.

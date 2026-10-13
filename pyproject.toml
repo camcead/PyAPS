@@ -68,6 +68,8 @@ Changelog = "https://github.com/camcead/PyAPS/blob/main/CHANGELOG.md"
 # tool entry point. explorer_worker(options=None) already defaults to
 # sys.argv[1:], so no signature change was needed for this.
 aps-explorer = "PyAPS.aps_explorer:explorer_worker"
+# `pyaps templates check|status|install|...`: version control of the template sets (doc/TEMPLATES.md)
+pyaps = "PyAPS.aps_templates:pyaps_main"
 
 [project.optional-dependencies]
 # Everything the ~14 aps_*.py CLI pipeline scripts need that the
