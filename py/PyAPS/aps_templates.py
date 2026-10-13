@@ -152,7 +152,10 @@ def pyaps_version() -> Optional[str]:
         return md.version("PyAPS")
     except Exception:
         pass
-    here = Path(__file__).resolve()
+    f0 = globals().get("__file__")                  # undefined when the source is piped to `python3 -`
+    if not f0:
+        return None
+    here = Path(f0).resolve()
     for up in (here.parent, *here.parents[:3]):
         f = up / "version.txt"
         if f.is_file():
@@ -593,12 +596,16 @@ def locate(directory: Optional[str] = None, conf: Optional[dict] = None) -> Opti
 
 # ------------------------------------------------------------------------------------ status
 def status(directory: Optional[str] = None, *, level: str = "size", reference: Optional[dict] = None,
-           pyaps_ver: Optional[str] = None, conf: Optional[dict] = None, expected_set: Optional[str] = None) -> dict:
+           pyaps_ver: Optional[str] = None, conf: Optional[dict] = None, expected_set: Optional[str] = None,
+           candidate: Optional[dict] = None, manifest_only: bool = False) -> dict:
     """The full status record of one template directory (see the module docstring for the states).
 
     *reference* is the manifest (dict) of the latest released set of the same name, if known: it decides older / newer.
+    *candidate* is a manifest to compare an UNSTAMPED directory with (component level): the record then says whether
+    the files are those of that version. *manifest_only* does not look at the files at all (a viewer-only host that
+    keeps just a copy of the manifest, such as the hub).
     """
-    pv = pyaps_ver if pyaps_ver is not None else pyaps_version()
+    pv = pyaps_ver or pyaps_version()
     rec: dict = {"schema": SCHEMA, "kind": "pyaps-templates-status", "time": _utcnow(), "pyaps_version": pv,
                  "dir": None, "set": expected_set, "version": None, "tree_digest": None, "state": None,
                  "level": level, "components": {}, "requires": None, "reference": None, "notes": []}
@@ -615,6 +622,8 @@ def status(directory: Optional[str] = None, *, level: str = "size", reference: O
         rec["state"] = "unstamped"
         rec["notes"].append(f"{MANIFEST_NAME} not found: the version of this set is unknown")
         rec["summary"] = "unstamped"
+        if candidate and not manifest_only:
+            rec["candidate"] = _candidate_report(d, candidate, rec)
         return rec
     try:
         man = read_manifest(d)
@@ -638,11 +647,15 @@ def status(directory: Optional[str] = None, *, level: str = "size", reference: O
         rec["notes"].append(f"no compatibility row for PyAPS {pv}")
     if expected_set and man["set"] != expected_set:
         problems.append(f"this is the {man['set']} set, {expected_set} expected")
-    try:
-        v = verify(d, man, level=level)
-    except TemplatesError as e:
-        v = None
-        rec["notes"].append(str(e))
+    v = None
+    if manifest_only:
+        rec["notes"].append("manifest only: the files were not examined")
+        rec["level"] = "manifest"
+    else:
+        try:
+            v = verify(d, man, level=level)
+        except TemplatesError as e:
+            rec["notes"].append(str(e))
     modified = False
     if v is not None:
         rec["components"] = v["components"]
@@ -672,6 +685,20 @@ def status(directory: Optional[str] = None, *, level: str = "size", reference: O
         rec["state"] = "match"
     rec["summary"] = f"{man['set']} {man['version']} {rec['state']}"
     return rec
+
+
+def _candidate_report(d: str, cand: dict, rec: dict) -> dict:
+    """Component-level comparison of an unstamped directory with the manifest of a known version."""
+    try:
+        v = verify(d, cand, level="size", files={})          # {} forces the component level (no file list)
+    except TemplatesError as e:
+        rec["notes"].append(str(e))
+        return {"set": cand.get("set"), "version": cand.get("version"), "error": str(e)}
+    differ = sorted(c for c, st in v["components"].items() if st != "match")
+    rep = {"set": cand["set"], "version": cand["version"], "same_files": v["ok"], "components_differing": differ}
+    rec["notes"].append(("the files are exactly those of %s %s (names and sizes)" % (cand["set"], cand["version"])) if v["ok"]
+                        else "the files differ from %s %s in: %s" % (cand["set"], cand["version"], ", ".join(differ) or "?"))
+    return rep
 
 
 # ---------------------------------------------------------------------------------- stamping
@@ -983,6 +1010,9 @@ def build_parser() -> argparse.ArgumentParser:
         sp.add_argument("--dir", help=f"template directory (default: ${ENV_DIR}, then the paths of script_params.yaml, then ~/PyAPS/PyAPS_templates)")
         sp.add_argument("--level", choices=["size", "content"], default="size", help="size: names and sizes, seconds (default); content: also every hash, reads the data")
         sp.add_argument("--reference", help="manifest (file or directory) of the latest released set of the same name: decides older / newer")
+        sp.add_argument("--reference-json", help="the same as JSON text (set, version, tree_digest), for programs")
+        sp.add_argument("--candidate-json", help="manifest as JSON text to compare an unstamped folder with (component level)")
+        sp.add_argument("--manifest-only", action="store_true", help="only a copy of the manifest is here: do not look at the files")
         sp.add_argument("--pyaps-version", help="PyAPS version to check against (default: the installed one)")
         sp.add_argument("--set", dest="expect", choices=SET_NAMES, help="the set this machine should hold")
 
@@ -1031,6 +1061,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--base-url", default=os.environ.get("PYAPS_TEMPLATES_URL", DEFAULT_BASE_URL), help="download area (URL or directory)")
     s.add_argument("--upgrade", action="store_true", help="replace an existing set (it is renamed, not deleted)")
     s.add_argument("--dry-run", action="store_true")
+    s.add_argument("--pyaps-version", help="PyAPS version to check the download against (default: the installed one)")
     s = sub.add_parser("info", help="what this PyAPS requires")
     s.add_argument("--pyaps-version")
     return p
@@ -1047,7 +1078,10 @@ def main(argv: Optional[List[str]] = None) -> int:
 
 def _run(args) -> int:
     if args.cmd in ("check", "status"):
-        rec = status(args.dir, level=args.level, reference=_load_ref(args.reference), pyaps_ver=args.pyaps_version, expected_set=args.expect)
+        ref = json.loads(args.reference_json) if args.reference_json else _load_ref(args.reference)
+        cand = json.loads(args.candidate_json) if args.candidate_json else None
+        rec = status(args.dir, level=args.level, reference=ref, pyaps_ver=args.pyaps_version, expected_set=args.expect,
+                     candidate=cand, manifest_only=args.manifest_only)
         if args.cmd == "status":
             print(rec["summary"] if args.brief else json.dumps(rec, indent=1))
             return 0
@@ -1110,7 +1144,8 @@ def _run(args) -> int:
         return 0
     if args.cmd == "install":
         dest = args.dest or os.environ.get(ENV_DIR) or str(Path.home() / "PyAPS" / "PyAPS_templates")
-        rec = install(args.set, _expand(dest), version=args.version, base_url=args.base_url, upgrade=args.upgrade, dry_run=args.dry_run)
+        rec = install(args.set, _expand(dest), version=args.version, base_url=args.base_url, upgrade=args.upgrade, dry_run=args.dry_run,
+                      pyaps_ver=args.pyaps_version or None)
         print(json.dumps(rec, indent=1))
         return 0
     if args.cmd == "info":
