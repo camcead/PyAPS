@@ -442,3 +442,38 @@ def test_symlinked_directory_is_recorded_not_followed(tmp_path):
     _, files = T.build_manifest(str(root), "mini", "2026.10.0")
     assert files["alias_dir"] == [0, "link:templates_RR"]
     assert not any(p.startswith("alias_dir/") for p in files)
+
+
+def test_unstamped_folder_can_be_compared_with_a_known_version(tmp_path):
+    ref_root = stamped(tmp_path / "ref", "full", "2026.10.0")
+    cand = T.read_manifest(str(ref_root))
+    twin = make_tree(tmp_path / "twin")                              # same files, never stamped
+    rec = T.status(str(twin), pyaps_ver=PYAPS, candidate=cand)
+    assert rec["state"] == "unstamped" and rec["candidate"]["same_files"] is True
+    (twin / "templates_ARC_RR" / "b.fits").write_bytes(b"x")
+    rec = T.status(str(twin), pyaps_ver=PYAPS, candidate=cand)
+    assert rec["candidate"]["components_differing"] == ["templates_ARC_RR"]
+    assert "templates_ARC_RR" in " ".join(rec["notes"])
+
+
+def test_manifest_only_does_not_look_at_the_files(tmp_path):
+    root = stamped(tmp_path)
+    (root / "top.txt").unlink()                                      # would be 'modified' with the files examined
+    rec = T.status(str(root), pyaps_ver=PYAPS, manifest_only=True)
+    assert rec["state"] == "match" and rec["level"] == "manifest"
+
+
+def test_cli_reference_json_decides_older(tmp_path, capsys):
+    root = stamped(tmp_path)
+    ref = json.dumps({"set": "mini", "version": "2026.12.0", "tree_digest": "sha256:x"})
+    assert T.main(["status", "--dir", str(root), "--brief", "--pyaps-version", PYAPS, "--reference-json", ref]) == 0
+    assert capsys.readouterr().out.strip() == "mini 2026.10.0 older"
+
+
+def test_module_works_when_piped_to_python_without_a_file(tmp_path):
+    """The operator tool sends this source on stdin to machines that have no copy of it (__file__ is not defined)."""
+    import subprocess
+    root = stamped(tmp_path)
+    r = subprocess.run([sys.executable, "-", "status", "--brief", "--dir", str(root), "--pyaps-version", PYAPS],
+                       input=_SRC.read_text(), capture_output=True, text=True)
+    assert r.returncode == 0 and r.stdout.strip() == "mini 2026.10.0 match", r.stderr
