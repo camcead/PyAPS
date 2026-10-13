@@ -22,6 +22,7 @@ import argparse
 import ast
 import fnmatch
 import json
+import hashlib
 import re
 import subprocess
 import sys
@@ -42,6 +43,24 @@ _SITE_ROOTS = (
 )
 
 # Findings that may be waived through the allow-list.
+class _NameRx:
+    """Account names without writing them down: the shape of a personal account (`am` and four digits, or `dm` and three or four digits)
+    plus a set of SHA-256 digests of lower-case names that must never appear (a public file must not list the names it forbids). It offers the
+    `finditer` of a compiled pattern, which is all the scanner uses."""
+    _SHAPE = re.compile(r"\b(?:am\d{4}|dm\d{3,4})\b", re.I)
+    _WORD = re.compile(r"[A-Za-z0-9_]+")
+    _DIGESTS = frozenset({
+        "15574489c6aac45e25c785849e714f3c978e7d82019d807402030d0906bd9842",
+    })
+
+    def finditer(self, line):
+        for m in self._SHAPE.finditer(line):
+            yield m
+        for m in self._WORD.finditer(line):
+            if hashlib.sha256(m.group(0).lower().encode()).hexdigest() in self._DIGESTS:
+                yield m
+
+
 RULES = {
     "SECRET-KEY": (
         re.compile(r"-----BEGIN (?:[A-Z ]*)PRIVATE KEY-----|\bssh-(?:rsa|ed25519) AAAA[0-9A-Za-z+/]{20,}"),
@@ -82,7 +101,7 @@ RULES = {
         "e-mail address",
     ),
     "INTERNAL-NAME": (
-        re.compile(r"\b(?:am2931|dmurphy|am\d{4}|dm\d{3,4})\b", re.I),
+        _NameRx(),
         "personal / service account name",
     ),
     "ABS-PATH": (
