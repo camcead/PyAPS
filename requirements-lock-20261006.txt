@@ -42,7 +42,7 @@ dask-image==2026.5.0
 desiutil==4.0.1
 dill==0.4.1
 distlib==0.4.3
-docutils==0.22.4
+docutils==0.23
 donfig==0.8.1.post1
 emcee==3.1.6
 filelock==4.0.12
