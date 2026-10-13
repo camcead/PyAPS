@@ -463,6 +463,23 @@ def _set_pyaps_env_defaults():
 
 
 ############################################################################################
+def _check_templates_version(conf):
+    """Compare the installed template set with what this PyAPS needs (aps_templates.startup_check).
+
+    Reads only the small TEMPLATES_MANIFEST.json of the template directory named by the config. Warns when the
+    set is unstamped, missing or older than the minimum; stops with a clear message only on a layout mismatch.
+    PYAPS_TEMPLATES_CHECK=off|warn|major|strict changes that (see doc/TEMPLATES.md)."""
+    try:
+        from PyAPS import aps_templates
+    except ImportError:
+        return
+    try:
+        aps_templates.startup_check(conf)
+    except aps_templates.TemplatesIncompatible as exc:
+        sys.exit(str(exc))
+
+
+############################################################################################
 def read_yaml_config(config_file):
     import yaml
 
@@ -475,6 +492,7 @@ def read_yaml_config(config_file):
             conf =  yaml.safe_load(conf_stream)
             for key, value in conf.items():
                 conf[key] = os.path.expanduser(os.path.expandvars(str(value)))
+            _check_templates_version(conf)
             return conf
         except yaml.YAMLError as exc:
             print(exc)

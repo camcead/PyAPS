@@ -2538,6 +2538,15 @@ def _theme_toggle():
     )
 
 
+def _templates_line():
+    """'Templates: mini 2026.10.0' (see aps_templates.display_line); never raises."""
+    try:
+        from PyAPS import aps_templates
+        return aps_templates.display_line()
+    except Exception:
+        return None
+
+
 def _banner():
     """Top branding strip: WEAVE logo + title/version grouped together on
     the left, camCEAD logo on the right, per explicit request (title used
@@ -2552,10 +2561,15 @@ def _banner():
     # the previous one"). Title/version text is 30% *smaller* than an
     # earlier round's 2x-enlarged size (40px/24px), i.e. 0.7x those:
     # 28px/17px — explicit follow-up request ("now it is too big").
+    _tpl_line = _templates_line()
     title_block = html.Div([
         html.Div("WEAVE Data Explorer", style={"fontSize": "28px", "fontWeight": "700", "lineHeight": "1.25"}),
         html.Div(f"PyAPS v{PyAPS.__version__}", style={"fontSize": "17px", "opacity": "0.85",
                                                          "letterSpacing": "0.03em"}),
+        # version of the template set this installation offers or uses (TEMPLATES_MANIFEST.json); nothing when there is none
+        html.Div(_tpl_line, id="templates-version", style={"fontSize": "12px", "opacity": "0.7",
+                                                           "letterSpacing": "0.03em"})
+        if _tpl_line else None,
     ], style={"textAlign": "left", "marginLeft": "18px"})
     left = html.Div(
         [
@@ -3895,7 +3909,7 @@ app.index_string = """<!DOCTYPE html>
 # otherwise mint a throwaway empty session on every single check.
 # --------------------------------------------------------------------------- #
 
-_SESSION_EXEMPT_PATHS = {"/healthz"}
+_SESSION_EXEMPT_PATHS = {"/healthz", "/templatesz"}
 # Prefix-relative: Dash's own static-asset/component-suite routes carry
 # whatever url_base_pathname the app was constructed with (see `app =
 # Dash(...)` above) — e.g. "/weave/assets/..." rather than "/assets/..."
@@ -4038,6 +4052,18 @@ def _healthz():
     outside Dash's own callback machinery (a plain Flask view) so it
     stays cheap and independent of any dataset being loaded."""
     return {"status": "ok"}, 200
+
+
+@app.server.route("/templatesz")
+def _templatesz():
+    """Identity of the template set shown by this explorer (set, version, tree digest) as JSON; read-only, no
+    session, nothing about the data. `{"templates": null}` when the installation has no manifest."""
+    try:
+        from PyAPS import aps_templates
+        info = aps_templates.display_info()
+    except Exception:
+        info = None
+    return {"pyaps_version": PyAPS.__version__, "templates": info}, 200
 
 
 @app.server.after_request

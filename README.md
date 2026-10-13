@@ -129,10 +129,17 @@ FERRE and the other optional external tools: see [externals/README.md](externals
 
 PyAPS grids and templates are available in two versions:
 
-- **Standard Version**: Full set of grids and templates for complete functionality.
+- **Standard Version** (`full`): Full set of grids and templates for complete functionality.
   For access to the standard version please contact the PyAPS admin at amolaei@ast.cam.ac.uk
-- **Minimal Version**: Essential grids for basic operations and visualization.
-  Available for download at [PyAPS_templates_minimal](https://camcead.ast.cam.ac.uk/weave/downloads/PyAPS_templates.tar.gz)
+- **Minimal Version** (`mini`): Essential grids for basic operations and visualization.
+  Install the latest with `pyaps templates install --set mini` (or `python tools/pyaps_templates.py install --set mini`),
+  or download it by hand from the versioned
+  [download area](https://weave.ast.cam.ac.uk/WOR/downloads/templates/mini/latest.json).
+  The previous link [PyAPS_templates_minimal](https://weave.ast.cam.ac.uk/WOR/downloads/PyAPS_templates.tar.gz) keeps working.
+
+Every template set carries a `TEMPLATES_MANIFEST.json` (set, version, layout, checksums), and PyAPS checks
+it when it starts; `pyaps templates check` shows which version you have and whether it matches. See
+[doc/TEMPLATES.md](doc/TEMPLATES.md).
 
 *Note: Grid downloads are not required for basic L1/L2 visualization features.*
 
