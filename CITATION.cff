@@ -18,6 +18,10 @@ authors:
     email: amolaei@ast.cam.ac.uk
     affiliation: >-
       CAMCEAD, Institute of Astronomy, University of Cambridge
+- given-names: Thomas
+  family-names: Hajnik
+  affiliation: >-
+    CAMCEAD, Institute of Astronomy, University of Cambridge
 license: MIT
 repository-code: "https://github.com/camcead/PyAPS"
 url: "https://camcead.ast.cam.ac.uk"
