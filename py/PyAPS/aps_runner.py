@@ -577,15 +577,17 @@ def safe_str(txt):
 # Wall-time limit of every L2 SLURM job
 #
 # A job that waits for ever (a render that never came back, 2026-10-08..12) used to run until the partition limit
-# (2 days) and kept its night PROCESSING for that time. Every L2 stage now gets a --time sized from the jobs that
+# (2 days) and kept its night PROCESSING for that time, so every L2 stage got a --time sized from the jobs that
 # completed on the two APS pods (longest completed job: RR 162 min, FR 204, PPXF 205, EMI 111, RVS 23, LS 3, L2merge 1,
-# IFU_PR 415, IFU_ExGal 374, IFU_Gal 518). Override one stage with the script_params key slurm_time_<STAGE>
-# (quote the value: an unquoted 08:00:00 is a number to YAML), switch one off with 'None'. The CS stages are not limited
-# (no statistics yet).
+# IFU_PR 415, IFU_ExGal 374, IFU_Gal 518). Those limits were too tight for real work: on 2026-10-23..25 the FR (FERRE)
+# stage of all 12 configurations of the OBs 22079, 23653 and 23674 ended TIMEOUT at 8 h. DECISION OF THE OWNER,
+# 2026-10-26: every stage may run 48 hours (the partition limit) until the resources of each module are set from the
+# CPU-efficiency measurements. Override one stage with the script_params key slurm_time_<STAGE> (quote the value:
+# an unquoted 08:00:00 is a number to YAML), switch one off with 'None'. The CS stages are not limited (no statistics yet).
 DEFAULT_SLURM_TIME = {
-    'RR': '08:00:00', 'RVS': '02:00:00', 'FR': '08:00:00', 'PPXF': '08:00:00', 'EMI': '06:00:00',
-    'LS': '02:00:00', 'L2merge': '02:00:00',
-    'IFU_PR': '18:00:00', 'IFU_ExGal': '18:00:00', 'IFU_Gal': '18:00:00',
+    'RR': '2-00:00:00', 'RVS': '2-00:00:00', 'FR': '2-00:00:00', 'PPXF': '2-00:00:00', 'EMI': '2-00:00:00',
+    'LS': '2-00:00:00', 'L2merge': '2-00:00:00',
+    'IFU_PR': '2-00:00:00', 'IFU_ExGal': '2-00:00:00', 'IFU_Gal': '2-00:00:00',
 }
 _SLURM_TIME_RE = re.compile(r'^(\d+|\d+:\d{2}|\d+:\d{2}:\d{2}|\d+-\d{1,2}|\d+-\d{1,2}:\d{2}|\d+-\d{1,2}:\d{2}:\d{2})$')
 
