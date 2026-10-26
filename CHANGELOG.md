@@ -6,6 +6,9 @@ All notable changes to PyAPS are documented here. The format follows
 
 ## Unreleased
 
+### Changed
+- **Every L2 SLURM stage may run 48 hours** (`DEFAULT_SLURM_TIME` of `py/PyAPS/aps_runner.py`, the partition limit; owner decision 2026-10-26). The earlier limits (RR/FR/PPXF 8 h, RVS/LS/L2merge 2 h, EMI 6 h, IFU 18 h) killed the FR (FERRE) stage of all 12 configurations of three OBs at 8 h. Per-stage values: `slurm_time_<STAGE>` in `script_params`.
+
 ### Added
 - Version control of the template sets (`py/PyAPS/aps_templates.py`, `tools/pyaps_templates.py`, `pyaps templates ...`, `doc/TEMPLATES.md`, `tests/test_aps_templates.py`): every set (`full`, `mini`) carries a `TEMPLATES_MANIFEST.json` with set, calendar version, layout, tree digest, per-folder digests and (small sets) per-file SHA-256; `check`/`status` report match / older / newer / modified / unstamped / incompatible / missing, `verify`, `diff`, `manifest` and `stamp` build and compare manifests (stamp is a dry run unless `--yes`), `install --set mini` downloads, verifies and installs a released mini set. The script generator and `tools/check_env.py` read the manifest at start-up and warn (stop only on a layout mismatch; `PYAPS_TEMPLATES_CHECK=off|warn|major|strict`). The explorer shows the template set under its version and serves `/templatesz`. Standard library only; nothing is written by the start-up check.
 
