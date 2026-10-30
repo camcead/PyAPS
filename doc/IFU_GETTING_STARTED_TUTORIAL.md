@@ -406,7 +406,7 @@ venv_path: '$HOME/venv_WEAVE/bin/activate'  # Or your venv path
 # ============================================
 config_RVS: '<PyAPS_DIR>/configs/rvs_config.yaml'
 FERRE_EXE: '<PyAPS_DIR>/externals/ferre/bin/ferre.x'
-linemask_FR: '<PyAPS_DIR>/configs/ferre_linemasks/mask_APS_state_20260319.csv'
+linemask_FR: '<PyAPS_DIR>/configs/ferre_linemasks/fr_lm_v001.csv'
 
 # ============================================
 # IFU MODE Parameters with <PyAPS_DIR>
