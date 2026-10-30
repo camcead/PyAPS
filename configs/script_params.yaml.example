@@ -103,8 +103,8 @@ vacuum_FR: 'False'
 fill_gap_FR: 'False'
 grid_ids_FR: '1,2,3,4,5,6,7,8,9'
 mask_balmer_FR: 'True'
-use_linemasks_FR: 'False'
-linemask_FR: '${PYAPS_HOME}/configs/ferre_linemasks/mask_APS_state_20260615.csv'
+use_linemasks_FR: 'True'
+linemask_FR: '${PYAPS_HOME}/configs/ferre_linemasks/fr_lm_v001.csv'
 
 #EXGAL PARMS
 join_arms_ExGal: 'True'
