@@ -97,12 +97,12 @@ calls this script, not a SLURM dependency concern here).
 ### Failed jobs in the runner log
 
 Because every dependency is `afterany`, a failed stage does not stop the chain. Set the optional
-`runner_log` key of the `script_params` file to the log file of your WDAP runner (default `'None'` = off):
+`runner_log` key of the `script_params` file to the log file of your pipeline runner (default `'None'` = off):
 the job scripts export it as `PYAPS_RUNNER_LOG`, and a stage that ends with a non-zero exit code appends
 `[time] ERROR: SLURM job <id> <name> failed with exit code <n>; stderr: <logs>/<name>.<id>.err`.
 The MOS `L2merge` job, which runs after all other stages, also runs `aps_job_report.py`, which adds one such line
 for each job of the OB that was killed (TIMEOUT, CANCELLED, OUT_OF_MEMORY, NODE_FAIL). IFU and CS chains
-log their own failing stages the same way. The L2 state in the database is set by the WDAP monitoring, not here.
+log their own failing stages the same way. The L2 state in the database is set by your monitoring process, not here.
 
 ### Guarding against a broken chain (`sbatch_guard`)
 
