@@ -32,7 +32,7 @@ templates_RVS: '${PYAPS_HOME}/PyAPS_templates/templates_RVS'
 templates_FR: '${PYAPS_HOME}/PyAPS_templates/templates_FR'
 templates_ExGal: '${PYAPS_HOME}/PyAPS_templates/templates_ExGal'
 # Optional: file that receives one ERROR line for every job of an OB that ends FAILED, TIMEOUT, CANCELLED or
-# out of memory (job id, job name, exit code, path of its .err file). Use the log file of your WDAP runner
+# out of memory (job id, job name, exit code, path of its .err file). Use the log file of your pipeline runner
 # so SLURM failures show up there; 'None' = off (the failure then only shows in the job's own .err file).
 runner_log: 'None'
 fsuffix: '.fits'
