@@ -319,3 +319,61 @@ def test_cli_validate_show_explain(capsys):
     assert "FR" in out and "380 GB" in out
     assert slres.main(["explain", "--family", "LIFU", "--no-limits"]) == 0
     assert slres.main(["show", "--profile", "nope"]) == 2
+
+
+# ------------------------------------------------------------------------------- FERRE thread consistency
+def test_ferre_threads_per_process_fill_the_cpus_of_the_job_and_no_more():
+    aps_ferre = pytest.importorskip("PyAPS.aps_ferre")
+    f = aps_ferre.ferre_threads_per_process
+    assert f(18, 9, env={}) == 2            # 9 grids x 2 threads = the 18 CPUs asked for (it used to be 9 x 18 = 162 threads)
+    assert f(36, 9, env={}) == 4
+    assert f(9, 9, env={}) == 1
+    assert f(10, 9, env={}) == 1
+    assert f(4, 9, env={}) == 1             # fewer CPUs than grids: 4 processes at a time, one thread each
+    assert f(20, 1, env={}) == 20           # one grid: all CPUs in its threads
+    assert f(18, 9, env={"PYAPS_FERRE_THREADS": "mp"}) == 18      # the old behaviour on request
+    assert f(18, 9, env={"PYAPS_FERRE_THREADS": "3"}) == 3
+    assert f(18, 9, env={"PYAPS_FERRE_THREADS": "zero"}) == 2
+
+
+# --------------------------------------------------------------------------------------------------- profile v2
+def test_v2_asks_for_memory_in_every_l2_stage_so_enforcement_can_be_switched_on(table):
+    """With memory enforced a job without --mem gets DefMemPerCPU x cpus (1 GB per CPU) and RR (28 GB) would be killed: every L2 stage of v2
+    carries an explicit request, in every class."""
+    for fam in ("MOS", "LIFU", "MIFU"):
+        for res in ("LR", "HR"):
+            for stack in (0, 1):
+                for grid in ("m", "n"):
+                    rows = R(fam, table, {"res": res, "stack_level": stack, "grid": grid}, profile="v2")
+                    for stage, r in rows.items():
+                        assert r.mem_gb and r.mem_gb >= 1 and r.time, (fam, res, stack, grid, stage)
+
+
+def test_v2_has_no_hr_doubling_except_where_it_was_measured(table):
+    lr = R("MOS", table, {"res": "LR", "stack_level": 1, "grid": "n"}, profile="v2")
+    hr = R("MOS", table, {"res": "HR", "stack_level": 1, "grid": "n"}, profile="v2")
+    assert {s: lr[s].cpus for s in lr} == {"RR": 8, "RVS": 16, "FR": 9, "PPXF": 10, "EMI": 6, "LS": 2, "L2merge": 1}
+    assert {s: hr[s].cpus for s in hr} == {**{s: lr[s].cpus for s in lr}, "RVS": 24}
+    lifu = R("LIFU", table, {"res": "HR", "stack_level": 1, "grid": "n"}, profile="v2")
+    assert [lifu[s].cpus for s in ("IFU_PR", "IFU_ExGal", "IFU_Gal")] == [3, 40, 2]
+
+
+def test_v2_fr_asks_less_than_the_old_190_and_380_gb_but_enough_for_the_fine_grids(table):
+    fr = R("MOS", table, {"res": "LR", "stack_level": 1, "grid": "m"}, profile="v2")["FR"]
+    assert fr.mem_gb == 64 and fr.time == "2-00:00:00" and fr.cpus == 9
+    single = R("MOS", table, {"res": "LR", "stack_level": 0, "grid": "n"}, profile="v2")["FR"]
+    assert single.mem_gb == 8 and single.time == "1-06:00:00"
+
+
+def test_v2_never_asks_more_than_the_smallest_big_node_of_the_two_sites(table):
+    """The smallest big node of the two sites has 360000 MB (351 GB), the other 720000 MB: nothing may ask for more than 340 GB."""
+    for fam in ("MOS", "LIFU", "MIFU", "CS"):
+        for res in ("LR", "HR"):
+            for grid in ("m", "n"):
+                for r in R(fam, table, {"res": res, "stack_level": 1, "grid": grid}, profile="v2").values():
+                    assert (r.mem_gb or 0) <= 340, (fam, res, grid, r.stage, r.mem_gb)
+
+
+def test_v2_openmp_profile_gives_fr_two_threads_per_grid(table):
+    r = R("MOS", table, {"res": "LR", "stack_level": 1, "grid": "n"}, profile="v2_openmp")
+    assert r["FR"].cpus == 18 and r["RR"].cpus == 8 and r["FR"].profile == "v2_openmp"

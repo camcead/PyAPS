@@ -186,7 +186,9 @@ Entry point: `scriptGen_runner()`, invoked via `bin/aps_runner` or
 | `--log` | `False` | Record logs to an auto-generated log file |
 | `--cat_list`, `--aps_ids`, `--wlranges`, `--targsrvy`, `--targclass`, `--mask_aps_ids`, `--area`, `--mask_areas`, `--arms_ratio` | `None` | Science/target-selection parameters, passed through to the per-module scripts |
 | `--mod_wlranges` | `False` | Auto-adjust wavelength ranges from the L1 header |
-| `--mp_MOS`, `--mp_LIFU`, `--mp_MIFU`, `--mp_CS` | `None` | Thread/CPU counts per module (single value or per-module list) |
+| `--mp_MOS`, `--mp_LIFU`, `--mp_MIFU`, `--mp_CS` | `None` | LEGACY: CPU counts per module (single value or per-module list); they replace the base CPU counts of the resource table. Leave them out: CPUs, memory and time then come from `configs/slurm_resources.yaml` (see [SLURM_RESOURCES.md](SLURM_RESOURCES.md)) |
+| `--slurm_profile` | `None` | profile of the resource table (default: `slurm_profile` of script_params, `PYAPS_SLURM_PROFILE`, the table's default) |
+| `--slurm_set` | `None` | repeatable `STAGE.cpus\|mem_gb\|time=value`, e.g. `--slurm_set FR.mem_gb=120`: one stage, this run, final value |
 | `--seg2d_white_images`, `--patch_file` | `None` | IFU-specific inputs |
 
 ---

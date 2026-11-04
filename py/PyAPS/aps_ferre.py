@@ -315,6 +315,28 @@ def writenml(nml,nmlfile='input.nml',path=None):
 #################################################################################################
 
 
+#################################################################################################
+# threads of ONE ferre.x process
+#################################################################################################
+def ferre_threads_per_process(nthreads, n_grids, env=None):
+    """OpenMP threads (``NTHREADS`` of ``input.nml``) of each ferre.x process, so that the whole stage starts as many threads as CPUs it has.
+
+    The stage runs one ferre.x per grid at the same time (``ThreadPool``), so ``n_grids`` processes share the ``nthreads`` CPUs of the job
+    (``--mp``, the CPUs of the SLURM request). Giving every process ``NTHREADS = nthreads`` started ``n_grids x nthreads`` threads on
+    ``nthreads`` CPUs (9 x 18 = 162 on 18 CPUs). Now each process gets ``max(1, nthreads // min(nthreads, n_grids))``.
+    A ferre.x built without OpenMP ignores ``NTHREADS``; nothing changes for it.
+    ``PYAPS_FERRE_THREADS`` overrides: a whole number (threads per process) or ``mp`` (the old behaviour: ``nthreads`` for each process).
+    """
+    env = os.environ if env is None else env
+    forced = str(env.get('PYAPS_FERRE_THREADS', 'auto')).strip().lower()
+    if forced == 'mp':
+        return max(1, int(nthreads))
+    if forced.isdigit() and int(forced) >= 1:
+        return int(forced)
+    nthreads, n_grids = max(1, int(nthreads)), max(1, int(n_grids))
+    return max(1, nthreads // min(nthreads, n_grids))
+
+
 #create a FERRE control hash (content for a ferre input.nml file)
 #################################################################################################
 def mknml(synthfiles, path, pixel, k, order, nthreads=1, setups=None):
@@ -1914,7 +1936,7 @@ def proc_ferre(infiles, classfile, param_fits, aps_ids=None, targsrvy=None, targ
             synthfiles.append(gridfile)
 
         # Prepare ferre control file
-        nml = mknml(synthfiles, path, pixel, grid_id_k, maxorder[grid_id_k], nthreads=nthreads, setups=setups_original)
+        nml = mknml(synthfiles, path, pixel, grid_id_k, maxorder[grid_id_k], nthreads=ferre_threads_per_process(nthreads, len(grid_ids)), setups=setups_original)
 
         nmlfile = 'input.nml_' + str(grid_id_k)
         writenml(nml, nmlfile=nmlfile, path=path)
@@ -1926,6 +1948,8 @@ def proc_ferre(infiles, classfile, param_fits, aps_ids=None, targsrvy=None, targ
     ## Multiprocessing to run FERRE
     mpprocs = ThreadPool(nthreads)
     print("Running with {} processes".format(nthreads))
+    print("FERRE: up to {} ferre.x process(es) at a time, {} thread(s) each (NTHREADS of input.nml), {} CPUs of the stage".format(
+        min(nthreads, len(grid_ids)), ferre_threads_per_process(nthreads, len(grid_ids)), nthreads))
 
     if "OMP_NUM_THREADS" in os.environ:
         nthread = int(os.environ["OMP_NUM_THREADS"])

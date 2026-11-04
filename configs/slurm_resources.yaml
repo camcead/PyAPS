@@ -104,7 +104,132 @@ profiles:
         RRLEW: {cpus: 1,  status: legacy}
 
   v2:
-    description: "Allocation from the 2026-11 measurements. Rows marked unmeasured still hold the old value."
+    description: >
+      Allocation from the SLURM audit of 2026-11-04 (accounting of two sites, 5546 L2 jobs: cores really busy, run times, memory).
+      CPUs and time limits are from the accounting; memory is, for now, a conservative bound from the largest MaxRSS seen (sacct adds
+      the RSS of every forked worker, so it OVERSTATES the footprint: such a request cannot kill a healthy job, it only reserves
+      more than needed) and is to be tightened when the PSS measurements of the audit are final. Rows without any measurement
+      (mini IFU, CS) hold the old values and say so in `status`. No "HR doubles everything" rule: RR, PPXF, EMI, FR, IFU_PR and
+      IFU_Gal use the same number of cores in HR as in LR; only RVS (its worker pool is --mp) has an HR row.
     extends: default
-    limits: clamp
-    # rows are filled from the audit report (see doc/SLURM_RESOURCES.md); a row not listed here comes from `default`
+    limits: clamp                # a request above the largest node is lowered to it (and printed)
+
+    MOS:
+      common: []
+      stages:
+        RR:
+          cpus: 8
+          mem_gb: 96
+          time: "0-06:00:00"
+          status: measured
+          note: "busy cores p90 6.9, max 8.8 (LR) / 7.7, 12.2 (HR: not faster than LR); longest run 226 min; mem = largest MaxRSS-sum LR 81 GB (HR 151 GB), PSS pending"
+          cases:
+            - {when: {res: HR}, mem_gb: 160}
+        RVS:
+          cpus: 16
+          mem_gb: 80
+          time: "0-03:00:00"
+          status: measured
+          note: "uses 18.5 cores p50, 22.9 p90 (LR) and 25 / 35 (HR) with nothing to stop it; its pool is --mp; 46 min longest; mem = MaxRSS-sum max LR 72 GB / HR 136 GB"
+          cases:
+            - {when: {res: HR}, cpus: {set: 24}, mem_gb: 144}
+        FR:
+          cpus: 9
+          mem_gb: 8
+          time: "1-06:00:00"
+          status: measured
+          note: "one ferre.x per grid, 9 grids: at most 9 cores can be busy (6.3 measured); single products: 3 GB p50, 5 GB max; run 1121 min longest completed. An OpenMP ferre.x can use 2 threads per grid: profile v2_openmp"
+          cases:
+            - {when: {grid: m, res: LR}, mem_gb: 64, time: {set: "2-00:00:00"}, note: "fine grids (stack products): MaxRSS-sum 49 GB, run up to 1988 min"}
+            - {when: {grid: m, res: HR}, mem_gb: 128, time: {set: "2-00:00:00"}, note: "fine grids, HR: one job only (TIMEOUT), twice the LR value"}
+        PPXF:
+          cpus: 10
+          mem_gb: 36
+          time: "0-06:00:00"
+          status: measured
+          note: "busy cores p90 8.6 (LR) / 10.4 (HR), max 11; longest run 205 min; mem = MaxRSS-sum max LR 28.6 GB / HR 45.6 GB"
+          cases:
+            - {when: {res: HR}, mem_gb: 56}
+        EMI:
+          cpus: 6
+          mem_gb: 80
+          time: "0-04:00:00"
+          status: measured
+          note: "busy cores p90 4.2-4.9, max 5.9; longest run 111 min; mem = MaxRSS-sum max LR 62.8 GB / HR 98.4 GB"
+          cases:
+            - {when: {res: HR}, mem_gb: 124}
+        LS:
+          cpus: 2
+          mem_gb: 16
+          time: "0-00:30:00"
+          status: measured
+          note: "uses 0.9 core, 1-3 minutes; MaxRSS-sum max 10 GB (one another site job 29 GB)"
+        L2merge:
+          cpus: 1
+          mem_gb: 4
+          time: "0-00:15:00"
+          status: measured
+          note: "0.3 core, 1 minute, MaxRSS-sum max 3.4 GB"
+
+    LIFU:
+      common: []
+      stages:
+        IFU_PR:
+          cpus: 3
+          mem_gb: 32
+          time: "0-10:00:00"
+          status: measured
+          note: "1.3-2.1 cores; run 415 min longest; MaxRSS-sum max 27 GB"
+        IFU_ExGal:
+          cpus: 40
+          mem_gb: 240
+          time: "0-10:00:00"
+          status: unmeasured
+          note: "busy cores p90 33 (LR) with max 42, run 374 min longest, same in HR (no doubling: 60 cores were asked and 3.7 used). Memory: MaxRSS-sum 1.15 TB is a multiple count; 240 GB is the old request, never enforced - the PSS peak is pending"
+        IFU_Gal:
+          cpus: 2
+          mem_gb: 72
+          time: "0-16:00:00"
+          status: measured
+          note: "serial: 1.0 core in 100 % of the jobs (aps_ifu_ferre starts FERRE with nthreads=1); run 518 min LR / 696 min HR; MaxRSS max 69 GB LR / 184 GB HR"
+          cases:
+            - {when: {res: HR}, mem_gb: 144, time: {set: "1-00:00:00"}}
+
+    MIFU:
+      common:
+        - when: {res: HR}
+          cpus: {scale: 2}
+          note: "HR: every CPU value doubles (old rule, never measured: there is no mini IFU job in the accounting)"
+      stages:
+        IFU_PR:    {cpus: 3,  mem_gb: 32,  time: "0-10:00:00", status: unmeasured, note: "no mini IFU job has ever run; CPUs from the old values, memory and time from the large IFU"}
+        IFU_ExGal: {cpus: 10, mem_gb: 240, time: "0-10:00:00", status: unmeasured}
+        IFU_Gal:   {cpus: 10, mem_gb: 72,  time: "0-16:00:00", status: unmeasured, note: "IFU_Gal is serial: 2 CPUs are enough, confirm on the first mini IFU job"}
+
+    CS:
+      stages:
+        SPACE: {cpus: 1, status: derived, note: "the runner never gives aps_space.py an --mp, so it runs one process whatever is requested"}
+        RRLGV: {cpus: 1, status: derived, note: "no worker processes"}
+        RRLEW: {cpus: 1, status: derived, note: "no worker processes"}
+        FESWI:
+          cpus: 12
+          status: unmeasured
+          note: "no CS job has run on SLURM. The old 400 GB cannot run on a 351 GB node; FESWI reads the same fine FERRE grids as FR (MaxRSS-sum 49 GB for 9 processes), so 128 GB"
+          cases:
+            - {when: {grid: m}, mem_gb: 128}
+        # SQ, AMY, AN: unmeasured (no CS job has run on SLURM); they keep the old values of `default`
+
+  v2_openmp:
+    description: >
+      v2 for a site whose ferre.x is built with OpenMP: FR asks 18 CPUs, so each of the 9 ferre.x processes runs 2 threads (aps_ferre.py
+      sets NTHREADS to cpus // grids). Not measured: the audit saw 17-45 cores used with the OpenMP build when nothing limited it.
+    extends: v2
+    MOS:
+      stages:
+        FR:
+          cpus: 18
+          mem_gb: 8
+          time: "1-06:00:00"
+          status: unmeasured
+          cases:
+            - {when: {grid: m, res: LR}, mem_gb: 64, time: {set: "2-00:00:00"}}
+            - {when: {grid: m, res: HR}, mem_gb: 128, time: {set: "2-00:00:00"}}
