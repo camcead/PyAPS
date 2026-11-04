@@ -621,9 +621,16 @@ def slurm_time_arg(conf, stage):
 
 
 def _load_slurm_table(conf):
+    """The resource table: the script_params key ``slurm_resources_file``, else ``slurm_resources.yaml`` in the ``PyAPS_CONFIG`` folder of
+    the script_params (where the other configs of the run live), else the one of this checkout (``PYAPS_SLURM_RESOURCES_FILE`` wins)."""
     path = (conf or {}).get('slurm_resources_file')
+    if path is None or str(path).strip().upper() in ('', 'NONE'):
+        path = None
+        cfg_dir = (conf or {}).get('PyAPS_CONFIG')
+        if cfg_dir and not os.environ.get('PYAPS_SLURM_RESOURCES_FILE') and Path(str(cfg_dir)).joinpath(slres.TABLE_NAME).is_file():
+            path = Path(str(cfg_dir)).joinpath(slres.TABLE_NAME)
     try:
-        return slres.load_table(None if (path is None or str(path).strip().upper() in ('', 'NONE')) else path)
+        return slres.load_table(path)
     except slres.ResourceTableError as exc:
         sys.exit('ERROR: SLURM resource table: %s' % exc)
 
