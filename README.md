@@ -62,7 +62,7 @@ than the ones the code now imports, and the processing jobs then fail a few seco
 pip install -r requirements-lock-20261006.txt        # the frozen set; add --extra-index-url https://download.pytorch.org/whl/cpu on a Linux host without a GPU
 pip install --no-deps -e .
 pip check                                            # must print "No broken requirements found."
-plotly_get_chrome -y                                 # once per host and user: the Chrome that kaleido needs to write plot images (not a pip package)
+plotly_get_chrome -y                                 # once per host and user: the Chrome that kaleido needs to write plot images (not a pip package; only needed when the static images are switched on, they are off by default)
 python tools/check_env.py                            # the pipeline profile; --profile explorer for a viewer-only host, --profile all for everything
 ```
 
@@ -73,12 +73,17 @@ before a night is handed over; the production runner does so at the start of eac
 
 ### Static plot images
 
-The diagnostic pictures (PNG/PDF) are written through `PyAPS.apsPlot.export.write_image`, which renders them in a separate
-worker process with a deadline per image, so a browser that stops answering costs one picture and not the job (see the CHANGELOG).
-It needs the same Chrome as before (`plotly_get_chrome -y`). Settings, all optional environment variables: `PYAPS_PLOT_TIMEOUT`
-(seconds per image, default 120), `PYAPS_PLOT_START_TIMEOUT` (first image, 180), `PYAPS_PLOT_MAX_FAILURES` (timeouts in a row before
-the pictures of the process are switched off, 3), `PYAPS_PLOT_RECYCLE` (images per worker, 200), `PYAPS_PLOT_EXPORT`
-(`worker`, `inprocess` or `off`). Every L2 SLURM job also carries a `--time` limit (`slurm_time_<STAGE>` keys of the `script_params` file).
+The diagnostic pictures (PNG/PDF) are written through `PyAPS.apsPlot.export.write_image`. **They are OFF by default since 2026-11-04**: they
+are rendered by a headless Chrome behind Kaleido, which was most of the wall time and CPU of an L2 job (one RR job: 81 min and 520 CPU-minutes
+with pictures, 18 min and 117 CPU-minutes without), and no data product depends on a picture. A job log starts with
+`PyAPS plot export: mode=off source=default ...`. To write the pictures: `aps_runner.py --plot_export on`, or `plot_export: 'on'` in the
+`script_params` file, or `PYAPS_PLOT_EXPORT=worker` in the environment of the runner (that is the order of precedence: option, environment,
+file, default `off`). With the pictures on, they are rendered in a separate worker process with a deadline per image, so a browser that
+stops answering costs one picture and not the job (see the CHANGELOG); it needs the Chrome that `plotly_get_chrome -y` installs, and the
+settings, all optional environment variables, are `PYAPS_PLOT_TIMEOUT` (seconds per image, default 120), `PYAPS_PLOT_START_TIMEOUT` (first
+image, 180), `PYAPS_PLOT_MAX_FAILURES` (timeouts in a row before the pictures of the process are switched off, 3), `PYAPS_PLOT_RECYCLE`
+(images per worker, 200). `PYAPS_PLOT_EXPORT` itself takes `off`, `worker` (also written `on`) or `inprocess` (the plain call, no deadline,
+debugging only). Every L2 SLURM job also carries a `--time` limit (`slurm_time_<STAGE>` keys of the `script_params` file).
 
 ### Choosing what to install
 

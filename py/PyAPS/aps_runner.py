@@ -32,6 +32,7 @@ from scipy import sparse
 import PyAPS
 from PyAPS import aps_constants
 from PyAPS import aps_slurm_resources as slres
+from PyAPS.apsPlot import export as plot_export
 from PyAPS.aps_utils import (
     APSOB,
     l1_fileinfo,
@@ -261,6 +262,18 @@ def update_arms_ratio(infiles, res_mode, camera, arms_ratio, GR_ratio_HR=0.85, B
     return arms_ratio
 
 ############################################################################################
+# Static diagnostic images (Plotly/Kaleido/headless Chrome): OFF unless asked for. The option --plot_export of this runner,
+# PYAPS_PLOT_EXPORT in its environment or the script_params key plot_export choose; PyAPS.apsPlot.export.resolve_mode decides.
+_PLOT_EXPORT_CLI = None
+
+
+def plot_export_lines(conf):
+    """Shell lines for the top of every job script: export the mode of the static images and print it at the top of the job's log."""
+    mode, source = plot_export.resolve_mode(_PLOT_EXPORT_CLI, conf)
+    return ["export PYAPS_PLOT_EXPORT=%s " % mode, "echo %s" % shlex.quote(plot_export.describe(_PLOT_EXPORT_CLI, conf))]
+
+
+############################################################################################
 def write_bash(headname, script_filename, commands, JOB_ID_HEADNAME, conf, l1_info=None,
                log=True, logs_path=None, log_prefix=None,
                sbatch_ntasks=None, sbatch_mem=None, sbatch_depends_on=None, post_command=None, resources=None):
@@ -362,6 +375,8 @@ def write_bash(headname, script_filename, commands, JOB_ID_HEADNAME, conf, l1_in
         out_script.write("export MKL_NUM_THREADS=1 \n")
         out_script.write("export NUMEXPR_NUM_THREADS=1 \n")
         out_script.write("export HDF5_USE_FILE_LOCKING=FALSE \n")
+        for plot_line in plot_export_lines(conf):
+            out_script.write(plot_line + "\n")
         if resources is not None and log_prefix is not None:
             for hdr_line in slres.job_header_lines(resources):
                 out_script.write(hdr_line + "\n")
@@ -653,7 +668,11 @@ def resolve_slurm_resources(family, conf, ctx, mp_base, scripts_path, uapsid=Non
     print('SLURM resources of the %s jobs (profile %s, table %s %s):' % (family, next(iter(resolved.values())).profile,
                                                                          table.get('_path'), table.get('_sha256')))
     print(slres.format_table(resolved))
-    slres.write_effective(scripts_path, slres.effective_summary(resolved, ctx, table, family, uapsid=uapsid))
+    pe_mode, pe_source = plot_export.resolve_mode(_PLOT_EXPORT_CLI, conf)
+    print('Static diagnostic images (plot export): %s (%s)' % (pe_mode, pe_source))
+    summary = slres.effective_summary(resolved, ctx, table, family, uapsid=uapsid)
+    summary['plot_export'] = {'mode': pe_mode, 'source': pe_source}
+    slres.write_effective(scripts_path, summary)
     return resolved
 
 
@@ -2260,6 +2279,13 @@ def scriptGen_runner(options=None):
         "via SLURM (e.g. squeue --name <tag>) without ever being mistaken for, or landing alongside, an "
         "official product.")
 
+    parser.add_argument('--plot_export', choices=['off', 'on', 'worker', 'inprocess'], default=None, required=False,
+         help="Static diagnostic images (Plotly through Kaleido and headless Chrome) of the jobs this run generates: 'off' (the default: no "
+              "images; they were most of the wall time and CPU of the jobs), 'on' (= 'worker': images written by a watched worker process) or "
+              "'inprocess' (plain fig.write_image, debugging). Order: this option > PYAPS_PLOT_EXPORT in the environment > the script_params key "
+              "plot_export > off. The chosen mode is written into every job script and printed at the top of every job log. "
+              "Science products do not depend on it.")
+
     parser.add_argument('--slurm_profile',
          help='Profile of the SLURM resource table (configs/slurm_resources.yaml) to use for this run; default: the slurm_profile key of '
               'script_params, the PYAPS_SLURM_PROFILE variable or the default profile of the table',
@@ -2311,6 +2337,9 @@ def scriptGen_runner(options=None):
         print('---------------------------------------------------------------------------------')
 
         args = parser.parse_args(options)
+
+    global _PLOT_EXPORT_CLI
+    _PLOT_EXPORT_CLI = args.plot_export
 
     # test_mode: resolve ONE shared tag up front, so if both --run_L2 and
     # --run_CS are requested for the same call, they end up under the same

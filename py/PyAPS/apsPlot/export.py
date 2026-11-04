@@ -23,8 +23,14 @@ What it does.
 
 ``write_image`` never raises and never blocks beyond its deadline. It returns True when the file was written.
 
-``PYAPS_PLOT_EXPORT``: ``worker`` (default), ``inprocess`` (the plain ``fig.write_image``, errors logged and skipped,
-no deadline: for debugging only) or ``off`` (no static images at all).
+``PYAPS_PLOT_EXPORT``: ``off`` (DEFAULT since 2026-11-04: no static images at all), ``worker`` (the process described above; also
+written ``on``) or ``inprocess`` (the plain ``fig.write_image``, errors logged and skipped, no deadline: for debugging only).
+
+Why the default is ``off``. The pictures are diagnostics; the headless Chrome behind them was most of the wall time and CPU of the
+L2 jobs (one RR job of the SLURM audit: 81 min and 520 CPU-minutes with pictures, 18 min and 117 CPU-minutes without; RVS and
+IFU_ExGal also lost the 13-22 GB of Chrome). No data product depends on a picture (``write_image`` never raises and no caller
+reads its result). The runner (``aps_runner.py --plot_export``, the script_params key ``plot_export``) writes the chosen mode into
+every job script and prints it at the top of each job log: ``resolve_mode`` below is the single place that decides.
 """
 from __future__ import annotations
 
@@ -58,9 +64,57 @@ def _env_int(name, default):
     return int(_env_float(name, default))
 
 
+DEFAULT_MODE = "off"
+MODES = ("off", "worker", "inprocess")
+_ALIASES = {"on": "worker", "true": "worker", "yes": "worker", "1": "worker", "auto": None, "default": None, "": None,
+            "false": "off", "no": "off", "0": "off", "none": "off"}
+
+
+def normalize_mode(value):
+    """``off`` / ``worker`` / ``inprocess`` for a user's word (``on``, ``true``, ``0``...), None when it says nothing (unset, ``auto``).
+
+    Raises ValueError for a word that means nothing at all."""
+    if value is None:
+        return None
+    word = str(value).strip().lower()
+    if word in MODES:
+        return word
+    if word in _ALIASES:
+        return _ALIASES[word]
+    raise ValueError("plot export mode %r is not one of off, on (= worker), worker, inprocess" % (value,))
+
+
+def resolve_mode(cli=None, conf=None, env=None):
+    """``(mode, source)`` of a run: the option (``--plot_export``) > ``PYAPS_PLOT_EXPORT`` > the ``plot_export`` key of script_params > ``off``.
+
+    A word that means nothing is ignored (with source ``<where> (ignored: ...)`` appended) and the next source decides."""
+    env = os.environ if env is None else env
+    ignored = ""
+    for where, value in (("option --plot_export", cli), ("environment PYAPS_PLOT_EXPORT", env.get("PYAPS_PLOT_EXPORT")),
+                         ("script_params plot_export", (conf or {}).get("plot_export"))):
+        try:
+            mode = normalize_mode(value)
+        except ValueError:
+            ignored += " (ignored %s=%r)" % (where, value)
+            continue
+        if mode is not None:
+            return mode, where + ignored
+    return DEFAULT_MODE, "default" + ignored
+
+
+def describe(cli=None, conf=None, env=None):
+    """One line for the top of a job log."""
+    mode, source = resolve_mode(cli, conf, env)
+    hint = ("static diagnostic images are NOT written; plot_export: 'on' in script_params or PYAPS_PLOT_EXPORT=worker turns them on"
+            if mode == "off" else "static diagnostic images are written by Chrome through Kaleido (slow; PYAPS_PLOT_EXPORT=off to skip)")
+    return "PyAPS plot export: mode=%s source=%s; %s" % (mode, source, hint)
+
+
 def _mode():
-    mode = os.environ.get("PYAPS_PLOT_EXPORT", "worker").strip().lower()
-    return mode if mode in ("worker", "inprocess", "off") else "worker"
+    try:
+        return normalize_mode(os.environ.get("PYAPS_PLOT_EXPORT")) or DEFAULT_MODE
+    except ValueError:
+        return DEFAULT_MODE
 
 
 def _worker_command():
@@ -202,8 +256,12 @@ def reset():
     _state.sent = _state.written = _state.skipped = _state.timeouts = 0
 
 
-def _skip(path, why):
+def _skip(path, why, quiet=False):
     _state.skipped += 1
+    if quiet:
+        if _state.skipped == 1:                # one line per process: with the default (off) every picture is skipped
+            log.info("static images are off (%s); the first skipped picture is %s", why, path)
+        return False
     log.warning("image %s not written: %s", path, why)
     return False
 
@@ -246,7 +304,7 @@ def write_image(fig, path, *, scale=None, timeout=None, **kwargs):
         kwargs["scale"] = scale
     mode = _mode()
     if mode == "off":
-        return _skip(path, "static images are switched off (PYAPS_PLOT_EXPORT=off)")
+        return _skip(path, "PYAPS_PLOT_EXPORT=off, the default; PYAPS_PLOT_EXPORT=worker writes them", quiet=True)
     if mode == "inprocess":
         try:
             fig.write_image(path, **kwargs)
