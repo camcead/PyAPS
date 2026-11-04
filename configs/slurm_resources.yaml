@@ -1,0 +1,110 @@
+# The ONE table of the SLURM resources (CPUs, memory, time limit) of every PyAPS job.
+# Read by py/PyAPS/aps_slurm_resources.py; used by aps_runner.py for every sbatch line.
+# Operator guide: doc/SLURM_RESOURCES.md.   Show a row:  python -m PyAPS.aps_slurm_resources explain --family MOS --res HR --stack single
+#
+# Profiles
+#   default   what the runner did before this table existed, value for value (the CPU counts the DMS passed as --mp_MOS 8,12,18,10,20,6,1
+#             / --mp_LIFU 6,30,20 / --mp_MIFU 3,10,10 / --mp_CS 6,12,6,12,12,1,1, the HR doubling, FERRE halved for single exposures,
+#             the memory of FERRE / IFU_ExGal / FESWI, 48 h for every L2 stage). Nothing else has a memory request, so SLURM gives
+#             those jobs DefMemPerCPU x cpus.
+#   v2        allocations from the measurements of 2026-11 (see doc/SLURM_RESOURCES.md, section "Measured allocation").
+# Choose one: script_params key  slurm_profile: 'v2'   (or env PYAPS_SLURM_PROFILE, or aps_runner.py --slurm_profile v2).
+#
+# Row keys (stage rows):  cpus  mem_gb  time  status  note  cases
+#   cpus   CPUs of the job = sbatch --ntasks = the stage's --mp (every stage pins BLAS/OpenMP to one thread, so one process per CPU)
+#   mem_gb sbatch --mem in GB (1024 MB); null = no request (SLURM default per CPU)
+#   time   sbatch --time; null = no limit
+#   status legacy (the value that was in the code) | measured (set from the audit) | unmeasured (copied, nobody has measured it)
+#   cases  rules applied in order to this stage, then the family's `common` rules; see the module docstring
+# Conditions:  res: LR|HR   stack: single|stack|super|other   grid: m|n (FERRE grid prefix of the run)
+
+schema: 1
+default_profile: default
+# what SLURM gives a job without --mem, in GB per CPU (slurm.conf DefMemPerCPU = 1024); used to scale it after an out-of-memory
+assumed_default_mem_gb_per_cpu: 1
+
+# Per-site limits of ONE node (a job runs on one node). They stop a request that no node can ever run. Normally nothing is listed here:
+# the limits are read from SLURM (sinfo: the largest node and the partition time limit). To pin them for a site, add an entry and name it
+# with the script_params key `slurm_site` (or PYAPS_SLURM_SITE):
+#   sites:
+#     my_site: {max_mem_gb: 340, max_cpus: 90, max_time: "2-00:00:00", note: "workers of 90 CPUs, 360000 MB"}
+sites: {}
+
+profiles:
+
+  default:
+    description: "Exactly the values the code had before the table (golden-tested against PyAPS 2.0)."
+    limits: warn                 # off | warn (print, never change) | clamp (lower an impossible request to the node limit)
+
+    MOS:
+      common:
+        - when: {res: HR}
+          cpus: {scale: 2}
+          note: "HR: every CPU value doubles (the base values are for LR; aps_runner 14 June 2024)"
+      stages:
+        RR:      {cpus: 8,  time: "2-00:00:00", status: legacy}
+        RVS:     {cpus: 12, time: "2-00:00:00", status: legacy}
+        FR:
+          cpus: 18
+          time: "2-00:00:00"
+          status: legacy
+          cases:
+            - when: {stack: single}
+              cpus: {half_plus_one: true}
+              note: "single exposure: half the CPUs plus one (halved before the HR doubling)"
+            - when: {grid: m, res: HR}
+              mem_gb: 380
+              note: "fine FERRE grids, HR"
+            - when: {grid: m, res: LR}
+              mem_gb: 190
+              note: "fine FERRE grids, LR"
+        PPXF:    {cpus: 10, time: "2-00:00:00", status: legacy}
+        EMI:     {cpus: 20, time: "2-00:00:00", status: legacy}
+        LS:      {cpus: 6,  time: "2-00:00:00", status: legacy}
+        L2merge: {cpus: 1,  time: "2-00:00:00", status: legacy}
+
+    LIFU:
+      common:
+        - when: {res: HR}
+          cpus: {scale: 2}
+          note: "HR: every CPU value doubles"
+      stages:
+        IFU_PR:    {cpus: 6,  time: "2-00:00:00", status: legacy}
+        IFU_ExGal: {cpus: 30, mem_gb: 240, time: "2-00:00:00", status: legacy}
+        IFU_Gal:   {cpus: 20, time: "2-00:00:00", status: legacy}
+
+    MIFU:
+      common:
+        - when: {res: HR}
+          cpus: {scale: 2}
+          note: "HR: every CPU value doubles"
+      stages:
+        IFU_PR:    {cpus: 3,  time: "2-00:00:00", status: legacy}
+        IFU_ExGal: {cpus: 10, time: "2-00:00:00", status: legacy}     # mini IFU: smaller field, no memory request (was '')
+        IFU_Gal:   {cpus: 10, time: "2-00:00:00", status: legacy}
+
+    CS:
+      common:
+        - when: {res: HR}
+          cpus: {scale: 2}
+          note: "HR: every CPU value doubles"
+      stages:
+        SQ:    {cpus: 6,  status: legacy}          # the CS stages have never had a time limit
+        FESWI:
+          cpus: 12
+          status: legacy
+          cases:
+            - when: {grid: m}
+              mem_gb: 400
+              note: "fine FERRE grids"
+        SPACE: {cpus: 6,  status: legacy}
+        AMY:   {cpus: 12, status: legacy}
+        AN:    {cpus: 12, status: legacy}
+        RRLGV: {cpus: 1,  status: legacy}
+        RRLEW: {cpus: 1,  status: legacy}
+
+  v2:
+    description: "Allocation from the 2026-11 measurements. Rows marked unmeasured still hold the old value."
+    extends: default
+    limits: clamp
+    # rows are filled from the audit report (see doc/SLURM_RESOURCES.md); a row not listed here comes from `default`

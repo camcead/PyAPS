@@ -6,6 +6,17 @@ All notable changes to PyAPS are documented here. The format follows
 
 ## Unreleased
 
+### Added (SLURM resources: one table, memory requests, thread consistency)
+- **One table for the CPUs, memory and time limit of every job** (`configs/slurm_resources.yaml`, `py/PyAPS/aps_slurm_resources.py`, `doc/SLURM_RESOURCES.md`). The CPU lists the caller used to hand to the runner (`--mp_MOS 8,12,18,10,20,6,1` ...), the HR doubling, the FERRE halving for single exposures, the `--mem` of FERRE / IFU_ExGal / FESWI and the 48 h limits were separate pieces of code; they are now the rows and rules of the profile `default`, which reproduces them value for value (golden test `tests/test_slurm_resources_golden.py`: 29 observation classes, the `sbatch` lines and the `#SBATCH` pragmas of the old code against the new). A profile `v2` carries the allocation from the measurements; rows without a measurement are marked `unmeasured` and hold the old value. A profile can extend another, a row can carry rules (`when` resolution / stack level / FERRE grid), and the table is validated with named errors (`python -m PyAPS.aps_slurm_resources validate|show|explain`).
+- Choose a profile with `--slurm_profile`, `PYAPS_SLURM_PROFILE` or the script_params key `slurm_profile`; change one stage with `--slurm_set STAGE.cpus|mem_gb|time=...` or the script_params keys `slurm_cpus_<STAGE>`, `slurm_mem_gb_<STAGE>`, `slurm_time_<STAGE>` (the last one existed before). The legacy `--mp_*` lists still work and replace the base CPU counts.
+- Every job states what it asked for and what SLURM gave it at the top of its own log (profile, CPUs, memory, time, `SLURM_NTASKS`, a warning when they differ); the runner prints the table and writes `slurm_resources_effective.json` beside the job scripts. A request larger than the biggest node (read from `sinfo`, or the `sites` entry named by `slurm_site`) is reported, or lowered with the profile's `limits: clamp`.
+- Escalation record (`slurm_resources_escalation.json` beside the scripts, written by the operations layer): a stage that ended OUT_OF_MEMORY or TIMEOUT is generated again once with 1.5 x its memory / time limit (never beyond the largest node or the partition limit).
+- `aps_job_report.py` also reports a job that SLURM killed for exceeding its memory request but listed as FAILED (the job's own script is killed with it and writes no line); it reads the `.err` file.
+
+### Changed (SLURM resources)
+- A run without any `--mp_MOS/--mp_LIFU/--mp_MIFU/--mp_CS` list now takes the CPU counts of the table (it used to get one CPU per stage). `slurm_time_arg()` and `DEFAULT_SLURM_TIME` remain as thin wrappers over the table.
+- No change of behaviour with the `default` profile.
+
 ### Changed
 - **Every L2 SLURM stage may run 48 hours** (`DEFAULT_SLURM_TIME` of `py/PyAPS/aps_runner.py`, the partition limit; owner decision 2026-10-26). The earlier limits (RR/FR/PPXF 8 h, RVS/LS/L2merge 2 h, EMI 6 h, IFU 18 h) killed the FR (FERRE) stage of all 12 configurations of three OBs at 8 h. Per-stage values: `slurm_time_<STAGE>` in `script_params`.
 

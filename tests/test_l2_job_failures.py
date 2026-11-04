@@ -360,3 +360,17 @@ def test_job_report_lists_killed_jobs_of_the_tag_only(tmp_path):
 def test_mos_l2merge_script_calls_the_job_report():
     text = (Path(__file__).resolve().parent.parent / "py" / "PyAPS" / "aps_runner.py").read_text()
     assert "aps_job_report.py" in text and "post_command=post_cmd" in text
+
+
+def test_a_job_killed_by_the_memory_limit_is_reported_although_sacct_says_failed(tmp_path):
+    """With memory enforced through the accounting plugin sacct shows FAILED (exit 0:9) and the job's own script is killed too:
+    the .err file is the only witness. The last stage reports it as OUT_OF_MEMORY."""
+    from PyAPS import aps_job_report
+    logs = tmp_path / "logs"
+    logs.mkdir()
+    (logs / "FR_L2_abc123.77.err").write_text("slurmstepd: error: StepId=77.batch exceeded memory limit (9 > 8), being killed\n")
+    (logs / "EMI_L2_abc123.78.err").write_text("Traceback (most recent call last):\nValueError: x\n")
+    sacct = "77|FR_L2_abc123|FAILED|0:9\n78|EMI_L2_abc123|FAILED|1:0\n79|RR_L2_abc123|COMPLETED|0:0\n"
+    rows = aps_job_report.parse_sacct(sacct, "abc123", logs_path=logs)
+    assert [(r["job_id"], r["state"]) for r in rows] == [("77", "OUT_OF_MEMORY")]
+    assert aps_job_report.parse_sacct(sacct, "abc123") == []                 # without the logs the old behaviour
