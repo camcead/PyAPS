@@ -383,3 +383,14 @@ def test_v2_never_asks_more_than_the_smallest_big_node_of_the_two_sites(table):
 def test_v2_openmp_profile_gives_fr_two_threads_per_grid(table):
     r = R("MOS", table, {"res": "LR", "stack_level": 1, "grid": "n"}, profile="v2_openmp")
     assert r["FR"].cpus == 18 and r["RR"].cpus == 8 and r["FR"].profile == "v2_openmp"
+
+
+def test_v2_pss_only_lowers_memory_of_measured_stages_and_keeps_cpus_and_time(table):
+    for fam, ctx in (("MOS", {"res": "LR", "stack_level": 0, "grid": "n"}), ("MOS", {"res": "HR", "stack_level": 1, "grid": "n"}),
+                     ("LIFU", {"res": "LR", "stack_level": 1, "grid": "n"})):
+        a, b = R(fam, table, ctx, profile="v2"), R(fam, table, ctx, profile="v2_pss")
+        for s in a:
+            assert (a[s].cpus, a[s].time) == (b[s].cpus, b[s].time), (fam, s)
+            assert b[s].mem_gb <= a[s].mem_gb, (fam, s)
+    pss = R("MOS", table, {"res": "LR", "stack_level": 0, "grid": "n"}, profile="v2_pss")
+    assert pss["RR"].mem_gb == 16 and pss["FR"].mem_gb == 4 and pss["EMI"].mem_gb == 80      # EMI: no measurement, v2 bound kept
