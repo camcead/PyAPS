@@ -637,7 +637,7 @@ def resolve_slurm_resources(family, conf, ctx, mp_base, scripts_path, uapsid=Non
     """
     table = _load_slurm_table(conf)
     try:
-        esc = slres.read_escalation(scripts_path)
+        esc = slres.read_escalation(scripts_path, uapsid)
         resolved = slres.resolve(family, ctx, table=table, conf=conf, profile=slurm_profile, mp_base=mp_base,
                                  cli_set=slurm_set, escalation=esc)
     except slres.ResourceTableError as exc:

@@ -241,15 +241,17 @@ def test_time_helpers():
 
 # ---------------------------------------------------------------------------------------------- escalation
 def test_escalation_record_is_the_retry_counter(tmp_path):
-    assert slres.can_escalate(tmp_path, "FR")
-    rec = slres.record_escalation(tmp_path, "FR", "OUT_OF_MEMORY", job_id="12", uapsid="abc", previous={"mem_gb": 190})
+    assert slres.can_escalate(tmp_path, "abc", "FR")
+    rec = slres.record_escalation(tmp_path, "abc", "FR", "OUT_OF_MEMORY", job_id="12", previous={"mem_gb": 190})
     assert rec["attempts"] == 1 and rec["mem_factor"] == 1.5 and rec["time_factor"] == 1.0
-    assert not slres.can_escalate(tmp_path, "FR")                    # ONCE
-    assert slres.can_escalate(tmp_path, "RR")                        # per stage
+    assert not slres.can_escalate(tmp_path, "abc", "FR")             # ONCE
+    assert slres.can_escalate(tmp_path, "abc", "RR")                 # per stage
+    assert slres.can_escalate(tmp_path, "other", "FR")               # per run: the folder of an OB holds the scripts of every pair of the OB
     data = json.loads((tmp_path / slres.ESCALATION_NAME).read_text())
-    assert data["uapsid"] == "abc" and data["stages"]["FR"]["history"][0]["previous"] == {"mem_gb": 190}
+    assert data["runs"]["abc"]["FR"]["history"][0]["previous"] == {"mem_gb": 190}
+    assert slres.read_escalation(tmp_path, "abc")["FR"]["mem_factor"] == 1.5 and slres.read_escalation(tmp_path, "other") == {}
     with pytest.raises(slres.ResourceTableError):
-        slres.record_escalation(tmp_path, "RR", "FAILED")
+        slres.record_escalation(tmp_path, "abc", "RR", "FAILED")
 
 
 def test_escalation_scales_memory_and_time_when_the_scripts_are_generated_again(table):
@@ -300,9 +302,13 @@ def test_effective_file_and_job_header(tmp_path, table):
     summary = slres.effective_summary(res, {"res": "HR", "grid": "m"}, table, "MOS", uapsid="abc")
     slres.write_effective(tmp_path, summary)
     slres.write_effective(tmp_path, slres.effective_summary(R("CS", table), {"res": "LR"}, table, "CS", uapsid="abc"))
+    slres.write_effective(tmp_path, slres.effective_summary(R("MOS", table), {"res": "LR"}, table, "MOS", uapsid="def"))    # another pair of the OB
     data = json.loads((tmp_path / slres.EFFECTIVE_NAME).read_text())
-    assert data["L2"]["stages"]["FR"]["mem_gb"] == 380 and data["CS"]["stages"]["FESWI"]["cpus"] == 12
-    assert slres.read_effective(tmp_path)["stages"]["FR"]["cpus"] == 36
+    assert data["runs"]["abc"]["stages"]["FR"]["mem_gb"] == 380 and data["runs"]["abc:CS"]["stages"]["FESWI"]["cpus"] == 12
+    assert slres.read_effective(tmp_path, "abc")["stages"]["FR"]["cpus"] == 36
+    assert slres.read_effective(tmp_path, "def")["stages"]["FR"]["cpus"] == 18
+    assert slres.read_effective(tmp_path, slres.effective_tag("abc", "CS"))["family"] == "CS"
+    assert slres.read_effective(tmp_path, "none") == {}
     head = "\n".join(slres.job_header_lines(res["FR"]))
     assert "cpus=36" in head and "mem=380 GB" in head and "SLURM_NTASKS" in head and "profile=default" in head
 

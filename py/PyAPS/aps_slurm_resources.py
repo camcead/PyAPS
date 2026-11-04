@@ -360,37 +360,37 @@ def detect_cluster_limits(timeout=10) -> dict:
 
 
 # ----------------------------------------------------------------------------------------------------------- escalation
-def read_escalation(scripts_path) -> dict:
-    """The escalation record of an OB's scripts folder: ``{stage: {attempts, mem_factor, time_factor, ...}}`` (empty when none)."""
-    if not scripts_path:
-        return {}
-    p = Path(scripts_path) / ESCALATION_NAME
+def _read_json(path):
     try:
-        data = json.loads(p.read_text())
+        data = json.loads(Path(path).read_text())
     except (OSError, ValueError):
         return {}
-    return data.get("stages", {}) if isinstance(data, dict) else {}
+    return data if isinstance(data, dict) else {}
 
 
-def can_escalate(scripts_path, stage) -> bool:
-    return int(read_escalation(scripts_path).get(stage, {}).get("attempts", 0)) < ESCALATION_MAX_ATTEMPTS
+def read_escalation(scripts_path, tag) -> dict:
+    """The escalation record of one run (``tag``: the uapsid, or the head name of a manual run) in an OB's scripts folder:
+    ``{stage: {attempts, mem_factor, time_factor, history}}`` (empty when none). An OB folder holds the scripts of every pair of
+    the OB, so the record is kept per tag."""
+    if not scripts_path or not tag:
+        return {}
+    return _read_json(Path(scripts_path) / ESCALATION_NAME).get("runs", {}).get(str(tag), {})
 
 
-def record_escalation(scripts_path, stage, reason, job_id=None, uapsid=None, previous=None, now=None) -> dict:
-    """Record one escalation (OUT_OF_MEMORY -> memory x1.5, TIMEOUT -> time x1.5) of ``stage`` and return the stage's record.
-    The file is written whole (temporary file + rename) so a reader never sees a half file."""
+def can_escalate(scripts_path, tag, stage) -> bool:
+    return int(read_escalation(scripts_path, tag).get(stage, {}).get("attempts", 0)) < ESCALATION_MAX_ATTEMPTS
+
+
+def record_escalation(scripts_path, tag, stage, reason, job_id=None, previous=None, now=None) -> dict:
+    """Record one escalation (OUT_OF_MEMORY -> memory x1.5, TIMEOUT -> time x1.5) of ``stage`` of the run ``tag`` and return the stage's
+    record. The file is written whole (temporary file + rename) so a reader never sees a half file."""
     reason = str(reason).upper()
     if reason not in ("OUT_OF_MEMORY", "TIMEOUT"):
         raise ResourceTableError("escalation reason must be OUT_OF_MEMORY or TIMEOUT, got %r" % reason)
     p = Path(scripts_path) / ESCALATION_NAME
-    try:
-        data = json.loads(p.read_text())
-    except (OSError, ValueError):
-        data = {}
-    data.setdefault("schema", 1)
-    if uapsid:
-        data["uapsid"] = uapsid
-    stages = data.setdefault("stages", {})
+    data = _read_json(p)
+    data.setdefault("schema", 2)
+    stages = data.setdefault("runs", {}).setdefault(str(tag), {})
     rec = stages.get(stage) or {"attempts": 0, "mem_factor": 1.0, "time_factor": 1.0, "history": []}
     rec["attempts"] = int(rec.get("attempts", 0)) + 1
     if reason == "OUT_OF_MEMORY":
@@ -447,13 +447,15 @@ def resource_failures(job_info: dict, logs_dir=None) -> dict:
     return out
 
 
-def read_effective(scripts_path, level="L2") -> dict:
-    """The effective-resources record the runner wrote beside the scripts (``{}`` when there is none)."""
-    try:
-        data = json.loads((Path(scripts_path) / EFFECTIVE_NAME).read_text())
-    except (OSError, ValueError):
-        return {}
-    return data.get("CS" if level == "CS" else "L2", {})
+def effective_tag(uapsid, family) -> str:
+    """Key of a run in ``slurm_resources_effective.json``: the uapsid, plus ``:CS`` for the CS chain of the same pair."""
+    return "%s:CS" % uapsid if family == "CS" else str(uapsid)
+
+
+def read_effective(scripts_path, tag=None) -> dict:
+    """The effective-resources record the runner wrote beside the scripts, for the run ``tag`` (see :func:`effective_tag`; ``{}`` when
+    there is none). The file holds the runs of every pair of the OB: ``{"runs": {tag: summary}}``."""
+    return _read_json(Path(scripts_path) / EFFECTIVE_NAME).get("runs", {}).get(str(tag), {}) if tag else {}
 
 
 # ----------------------------------------------------------------------------------------------------------- resolution
@@ -746,17 +748,13 @@ def effective_summary(resolved: dict, ctx: dict, table: dict, family: str, uapsi
 
 
 def write_effective(path, summary: dict) -> None:
-    """Write the effective values beside the job scripts (never raises: a read-only folder must not stop the run)."""
+    """Write the effective values beside the job scripts, under the run's tag (the uapsid): the folder of an OB holds the scripts of every
+    pair of the OB, and the L2 and CS chains of a pair. Never raises: a read-only folder must not stop the run."""
     try:
         p = Path(path) / EFFECTIVE_NAME
-        # one file per OB and level: the CS stages keep their own entry under the same folder name
-        data = {}
-        if p.is_file():
-            try:
-                data = json.loads(p.read_text())
-            except ValueError:
-                data = {}
-        data[summary["family"] if summary["family"] == "CS" else "L2"] = summary
+        data = _read_json(p)
+        data["schema"] = 2
+        data.setdefault("runs", {})[effective_tag(summary.get("uapsid"), summary.get("family"))] = summary
         tmp = p.with_name(p.name + ".tmp")
         tmp.write_text(json.dumps(data, indent=1, sort_keys=True) + "\n")
         os.replace(tmp, p)

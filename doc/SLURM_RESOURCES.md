@@ -99,12 +99,14 @@ counts come from the table; before the table such a run got one CPU per stage.
 
 ## 6. A job killed for memory or time is retried once with more
 
-When memory is enforced by SLURM, a job that exceeds its `--mem` is killed. The operations layer (the DMS) recognises a stage whose latest job
-ended `OUT_OF_MEMORY` or `TIMEOUT` (or `FAILED` with SLURM's "exceeded memory limit" in the job's `.err`), and - only when the row ended failed
-and the stage was not escalated before - writes `slurm_resources_escalation.json` beside the scripts (memory x1.5 for an out-of-memory stage, time x1.5 for a
-timeout) and sends the row back to be scripted. The runner reads the file when it generates the scripts again and applies the factors (never
-beyond the largest node or the partition time limit). A second failure of the same stage is not escalated again: the row stays failed.
-Delete the file to reset the counter. Without memory enforcement on the cluster nothing is ever killed for memory, so nothing is retried.
+When SLURM enforces memory, a job that exceeds its `--mem` is killed: with the cgroup plugin its state is `OUT_OF_MEMORY`; with the
+accounting-plugin enforcement (`JobAcctGatherParams=OverMemoryKill`) it is `FAILED` and the job's `.err` says "exceeded memory limit". The
+operations layer (the DMS) recognises both, and a stage whose latest job ended `TIMEOUT` too, and - only when the row ended failed and the
+stage of that run was not escalated before - writes `slurm_resources_escalation.json` beside the scripts (per run, per stage: memory x1.5 for an
+out-of-memory stage, time x1.5 for a timeout) and sends the row back to be scripted. The runner reads the file when it generates the scripts
+again and applies the factors (never beyond the largest node or the partition time limit). A second failure of the same stage is not
+escalated again: the row stays failed. Delete the file to reset the counters. Without memory enforcement on the cluster nothing is ever killed for memory, so nothing is
+retried for memory (a TIMEOUT is retried whatever the cluster enforces).
 
 ## 7. Measured allocation (`v2`)
 
