@@ -29,6 +29,13 @@ def pytest_runtest_makereport(item, call):
 
 
 @pytest.fixture(autouse=True)
+def _no_pod_dms_config(monkeypatch):
+    """A test never sees the DMS config of the pod it runs on (slurm_profile, slurm_limits ... would change its answers): the lookup of
+    PyAPS.aps_dms_settings is switched off; the tests of that module name their own file with PYAPS_DMS_CONFIG or ``--dms-config``."""
+    monkeypatch.setenv("PYAPS_DMS_CONFIG", "none")
+
+
+@pytest.fixture(autouse=True)
 def _reset_explorer_state_between_files():
     """Explorer tests (test_aps_explorer.py) can leave EXPLORER.kind set with no
     real data behind it; a later test file that renders the layout would then

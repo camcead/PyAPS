@@ -12,6 +12,7 @@ code decides a CPU count, a `--mem` or a `--time`.
 * The static plot images (headless Chrome) are OFF by default and are a large part of what a job costs: section 8
 * The request is checked against the machine or cluster it will run on (CPUs, RAM, node sizes), with a policy `warn | clamp | error | off`: section 9
 * Depth-first order of the jobs (the first pair of a night completes first; a run someone waits for passes the daemon's jobs): section 10
+* Which profile, limits policy, site and plot-export mode a tool or a job really uses on a pod, and which source set each (the DMS config of the pod): section 11
 
 ## 1. The model
 
@@ -76,8 +77,9 @@ for a bash run) and the policy `limits` says what to do: `off`, `warn` (print, n
 ## 4. Change one run
 
 Order of precedence for the **profile**: `--slurm_profile NAME` of `aps_runner.py` > the environment variable `PYAPS_SLURM_PROFILE` >
-the script_params key `slurm_profile` > the table's `default_profile`. (The DMS passes `--slurm_profile auto`, which means "the usual
-choice"; its config key `slurm_profile` can fix one.)
+the `slurm_profile` key of the pod's **DMS config** > the script_params key `slurm_profile` > the table's `default_profile`. (The DMS passes
+`--slurm_profile auto` when its config has no value, which means "the usual choice"; with a value it passes that value. On a pod put the profile in
+the DMS config, not in `script_params.yaml`: section 11.)
 
 For **one stage**, in this order of precedence:
 
@@ -195,7 +197,7 @@ requests are then not checked and the run goes on. The whole probe is bounded (1
 | `clamp` | **only the value that does not fit** is lowered, loudly, and recorded as `requested` and `granted` | untouched |
 | `error` | refused **before anything is submitted**, and only when it can truly never run (more memory or CPUs than the largest node, more time than the partition allows; on a machine without SLURM: a stage that needs more RAM than the machine has); the message lists every such stage and what would fit | untouched |
 
-Chosen by (first that is set): `aps_runner.py --slurm_limits`, `PYAPS_SLURM_LIMITS`, the script_params key `slurm_limits`, the `limits` of the
+Chosen by (first that is set): `aps_runner.py --slurm_limits`, `PYAPS_SLURM_LIMITS`, the `slurm_limits` key of the pod's DMS config (section 11), the script_params key `slurm_limits`, the `limits` of the
 **site** (only for a machine without SLURM: `clamp`), the `limits` of the **profile** (`warn` for `default`; `v2` keeps its `clamp`), `warn`.
 The line that switches the check off for good: `slurm_limits: 'off'` in the script_params (or `PYAPS_SLURM_LIMITS=off` for one run). A message
 always names the way to submit as asked (`--slurm_limits warn` or `off`) and the way to make it fit (`--slurm_set STAGE.key=value`).
@@ -298,3 +300,63 @@ by `<STAGE>_L2_<uapsid>`).
 
 **What the experiments showed (2026-11-05, a private single-node SLURM with the production priority settings, age compressed 10 x, 24 CPUs, 12 chains of seven jobs submitted one after the other).**
 With the old allocation (`default`: CPU-bound) the problem reproduces: all 12 chains are open at once, the first one completes after 80 % of the whole span, and 20 of 24 late-stage jobs that waited more than ten minutes (real) were passed by an early-stage job of a later pair. With `v2` (memory requests: the node's memory binds first) it does not occur (3 chains open, the first complete after 15 % of the span). **The nice offsets did not change the order in either case** (same completion times to the second as without them), and a nice-only offline class did not move an offline chain ahead of the queue (it finished last of nine, like an unprioritised chain); an explicit `Priority` on the queued jobs (`--boost`) did (second of nine, 259 s instead of 1044 s). The cause that was seen: the jobs that overtake are small (8 CPUs) and fill the slots that free up one at a time while the big dependent jobs (10-20 CPUs) wait for room; with every priority at the queue's floor the nice does not reorder them. So **nice offsets are shipped but OFF**, and are not a promised fix; what does reduce open chains is holding new pairs back (`max_inflight_obs`, section above) and, for an offline run, `--boost`. Details and numbers: the private operations document `doc/ops/SLURM_RESOURCES_OPS.md`, section 11.
+
+## 11. How the profile is resolved on a pod: the DMS config and where each value comes from
+
+**One function decides, and every consumer calls it.** `py/PyAPS/aps_dms_settings.py` (standard library only) holds the precedence chain and the reader of the
+DMS config; `aps_slurm_resources.resolve()` (the runner, `aps-offline`, the operator commands `show | explain | check | site`) and `apsPlot.export.resolve_mode()`
+(the static images) both use it. Before 1.2.0 of the module the operator commands and a runner started by hand saw only the environment and
+`script_params.yaml`, so on a pod that runs profile `v2` they printed `default`.
+
+### 11.1 The order
+
+For each of the four settings that have all of the sources, the first one that is set wins:
+
+| | 1. option | 2. environment | 3. **DMS config key** | 4. script_params key | 5. otherwise |
+|---|---|---|---|---|---|
+| profile | `--slurm_profile` | `PYAPS_SLURM_PROFILE` | `slurm_profile` | `slurm_profile` | the profile of the detected site if the word is `site`, else the table's `default_profile` |
+| limits policy | `--slurm_limits` | `PYAPS_SLURM_LIMITS` | `slurm_limits` | `slurm_limits` | the site's (machines without SLURM), the profile's, `warn` |
+| site | `--slurm_site` | `PYAPS_SLURM_SITE` | `slurm_site` | `slurm_site` | detected from the machine |
+| plot export | `--plot_export` | `PYAPS_PLOT_EXPORT` | `plot_export` | `plot_export` | `off` |
+
+The runner's order is **unchanged for a run the DMS starts**: the DMS passes its own config values as options (`--slurm_profile v2`), and an option is
+rank 1. The new rank 3 only matters where nothing passed the option: a runner started by hand, `aps-offline` (its profile is the pod's unless
+`--slurm-profile` is given), and the operator commands. A fifth key, `max_inflight_obs`, is the DMS's own cap on the observations in flight; the tools only
+report it.
+
+### 11.2 What is read from the DMS config
+
+Exactly five keys: `slurm_profile`, `plot_export`, `slurm_limits`, `slurm_site`, `max_inflight_obs`. Nothing else of the file is read or kept (it holds the
+database password), and the tools never print the file. Where it is: the file named by `PYAPS_DMS_CONFIG` (`none` switches the lookup off), else
+`$HOME/.private_env_configs/PyAPS_dms_config.json`. A missing, unreadable or malformed file means "no values" and a one-line note, never an error. A caller
+that passes its own `env` mapping (the tests do, with `env={}`) sees only the file that mapping names, so a test never reads a pod's file; the tests of the
+repository set `PYAPS_DMS_CONFIG=none` for every test (`tests/conftest.py`).
+
+A value in the DMS config is treated as **the pod's configured value**: it ranks above script_params because it is what the DMS puts on the runner's command
+line anyway. The words `auto` (profile) and `none` mean "not set" and the next source decides.
+
+### 11.3 See which source set each value
+
+`show`, `explain`, `check` and `site` print a block `settings` (and the runner prints the same block at the top of every run):
+
+```
+settings  : first set wins: option > environment > DMS config > script_params > site / profile / table default
+            DMS config: ~/.private_env_configs/PyAPS_dms_config.json (read for slurm_profile, plot_export, slurm_limits, slurm_site, max_inflight_obs only)
+            slurm_profile     v2           set by DMS config slurm_profile   (also set, overridden: script_params slurm_profile=default)
+            slurm_limits      clamp        set by profile v2
+            slurm_site        imperial     set by detected (...)
+            plot_export       off          set by default
+            max_inflight_obs  6            set by DMS config max_inflight_obs   [the DMS caps the observations in flight with it; the runner does not read it]
+```
+
+`--json` of `site` and `check` carries the same list (`settings`). To see what another pod's file would do, name a copy with `--dms-config FILE` (only the five
+keys are read); `--dms-config none` shows what the tool says without it. `--plot-export` and `--script-params FILE` are the other inputs.
+
+### 11.4 Why `script_params.yaml` is not the place on a pod
+
+On the pods `configs/script_params.yaml` is **rendered**, not edited: `pyaps_site_setup.sh --ensure` (cron, every 15 minutes) runs `pyaps-admin local --yes`
+(PyAPS_admin `sync.apply_configs`), which renders `configs/script_params.yaml.example` with `sites/script_params.rules.yaml` for the pod's environment and
+replaces the file whenever the text differs (the old one is kept as `script_params.yaml.bak`). The step is *deferred* while SLURM jobs of the pod are queued or
+running or the runner holds its lock, so a hand edit survives until the first idle pass and then disappears; the public template carries `slurm_profile`,
+`slurm_limits`, `slurm_site` and `plot_export` only as commented lines, so none of them survives a render. Put the pod's values in the DMS config (host-local,
+git-ignored, never rendered, not mirrored between the sites by `pyaps_sync.sh`) or in the environment of the service.

@@ -57,10 +57,12 @@ from pathlib import Path
 
 try:                                                     # the package, or the file run as a script
     from PyAPS import aps_resource_probe as rprobe
+    from PyAPS import aps_dms_settings as dmsset
 except ImportError:                                      # pragma: no cover
     import aps_resource_probe as rprobe
+    import aps_dms_settings as dmsset
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 
 TABLE_NAME = "slurm_resources.yaml"
 SITES_NAME = "slurm_sites.yaml"
@@ -748,17 +750,15 @@ def collect_overrides(conf=None, cli_set=None, family=None):
     return out
 
 
-def choose_profile_ex(table, conf=None, cli_profile=None, env=None, site_profile=None):
-    """``(profile name, where it came from)``: ``--slurm_profile`` > ``PYAPS_SLURM_PROFILE`` > script_params ``slurm_profile`` > the table's
-    ``default_profile``. The word ``site`` (in any of the three) means the profile of the detected site (``site_profile``)."""
+def choose_profile_ex(table, conf=None, cli_profile=None, env=None, site_profile=None, dms=None):
+    """``(profile name, where it came from)``: ``--slurm_profile`` > ``PYAPS_SLURM_PROFILE`` > the pod's DMS config ``slurm_profile`` > script_params
+    ``slurm_profile`` > the table's ``default_profile``. The word ``site`` (in any of them) means the profile of the detected site (``site_profile``).
+
+    ``dms``: the DMS settings of the pod (:func:`aps_dms_settings.read_dms_settings`); None reads them from the DMS config of ``env``."""
     env = os.environ if env is None else env
-    if cli_profile is not None and str(cli_profile).strip().lower() in ("", "auto", "none"):
-        cli_profile = None                                     # 'auto' (what the DMS passes) = the usual choice below
-    for val, src in ((cli_profile, "--slurm_profile"), (env.get("PYAPS_SLURM_PROFILE"), "PYAPS_SLURM_PROFILE"),
-                     ((conf or {}).get("slurm_profile"), "script_params slurm_profile")):
-        if val:
-            name = str(val).strip()
-            break
+    got = dmsset.first("profile", cli_profile, conf, env, dms)      # 'auto' (what the DMS passes) and 'none' are ignored there: the usual choice below
+    if got[0] is not None:
+        name, src = str(got[0]).strip(), got[1]
     else:
         name, src = table.get("default_profile", "default"), "table default_profile"
     if name.lower() == "site":
@@ -772,8 +772,8 @@ def choose_profile_ex(table, conf=None, cli_profile=None, env=None, site_profile
     return name, src
 
 
-def choose_profile(table, conf=None, cli_profile=None, env=None, site_profile=None) -> str:
-    return choose_profile_ex(table, conf, cli_profile, env, site_profile)[0]
+def choose_profile(table, conf=None, cli_profile=None, env=None, site_profile=None, dms=None) -> str:
+    return choose_profile_ex(table, conf, cli_profile, env, site_profile, dms)[0]
 
 
 # ------------------------------------------------------------------------------------------------- sites and the environment
@@ -812,9 +812,14 @@ def all_sites(table, conf=None, env=None):
     return sites, messages
 
 
-def _operator(arg, env_name, conf_key, env, conf):
-    """First of: the argument, the environment variable, the script_params key -> ``(value, source)`` or ``(None, None)``."""
-    for val, src in ((arg, "option"), (env.get(env_name) if env_name else None, env_name), ((conf or {}).get(conf_key) if conf_key else None, "script_params " + str(conf_key))):
+def _operator(arg, env_name, conf_key, env, conf, dms=None):
+    """First of: the argument, the environment variable, the DMS config key (only the keys the DMS config may hold), the script_params key
+    -> ``(value, source)`` or ``(None, None)``."""
+    cands = [(arg, "option"), (env.get(env_name) if env_name else None, env_name)]
+    if dms and conf_key in dmsset.DMS_KEYS:
+        cands.append((dms.get(conf_key), "DMS config " + str(conf_key)))
+    cands.append(((conf or {}).get(conf_key) if conf_key else None, "script_params " + str(conf_key)))
+    for val, src in cands:
         if val is not None and str(val).strip() != "" and str(val).strip().upper() != "NONE":
             return val, src
     return None, None
@@ -878,14 +883,17 @@ class Environment:
 
 
 def detect_environment(table, conf=None, env=None, site=None, machine=None, target=None, hpc=None, ferre_exe=None, parallel_jobs=None,
-                       probe=True, quiet=True) -> Environment:
+                       probe=True, quiet=True, dms=None) -> Environment:
     """Look at the place the jobs will run and name it. Never raises on a probe failure (the answer is then 'unknown': no limits).
 
     ``target``  'slurm' | 'local' | None: None follows ``hpc`` (3 = SLURM, 1 = bash on this machine) and otherwise the machine (SLURM when present).
     ``machine`` a probe result to use instead of probing (tests, ``--machine-file``). ``probe=False``: do not look at all.
+    ``dms``     the DMS settings of the pod (``slurm_site`` is one of them); None reads the DMS config of ``env``.
     """
     env = os.environ if env is None else env
     conf = conf or {}
+    if dms is None:
+        dms = dmsset.read_dms_settings(env)
     e = Environment()
     sites, msgs = all_sites(table, conf, env)
     e.messages.extend(msgs)
@@ -912,7 +920,7 @@ def detect_environment(table, conf=None, env=None, site=None, machine=None, targ
     except (TypeError, ValueError):
         raise ResourceTableError("parallel_jobs %r is not a whole number" % (pj,))
     # --- the site: named, or detected
-    name, how = _operator(site, "PYAPS_SLURM_SITE", "slurm_site", env, conf)
+    name, how = _operator(site, "PYAPS_SLURM_SITE", "slurm_site", env, conf, dms)
     if name is not None and str(name).strip().lower() in ("auto", "detect"):
         name = None
     if name is not None:
@@ -1140,7 +1148,7 @@ def nice_of(prio, stage):
 
 def resolve(family, ctx, table=None, conf=None, profile=None, mp_base=None, cli_set=None, escalation=None, site=None,
             limits=None, env=None, quiet=False, environment=None, limits_policy=None, hpc=None, target=None, machine=None, ferre_exe=None,
-            parallel_jobs=None, priority_policy=None, priority_class=None, pair_index=None, previous_priority=None, uapsid=None):
+            parallel_jobs=None, priority_policy=None, priority_class=None, pair_index=None, previous_priority=None, uapsid=None, dms=None):
     """Resolve the resources of every stage of ``family`` for the observation described by ``ctx``.
 
     ``ctx``       ``{res: 'LR'|'HR', stack_level: 0|1|3|4, grid: 'm'|'n'|..., ...}`` (family is added).
@@ -1153,7 +1161,10 @@ def resolve(family, ctx, table=None, conf=None, profile=None, mp_base=None, cli_
     ``limits_policy`` off | warn | clamp | error (else ``PYAPS_SLURM_LIMITS``, script_params ``slurm_limits``, the site's, the profile's, warn).
     ``hpc``/``target``/``machine``/``ferre_exe``/``parallel_jobs``  see :func:`detect_environment`.
     ``priority_policy``/``priority_class``/``pair_index``/``previous_priority``/``uapsid``  depth-first order of the jobs (``--nice``, ``--comment``).
-    Returns ``{stage: Resources}`` in stage order (a dict that also carries ``.environment`` and ``.priority``).
+    ``dms``       the pod's DMS settings (``aps_dms_settings.read_dms_settings``: slurm_profile, slurm_limits, slurm_site, plot_export, max_inflight_obs).
+                  None reads them from ``~/.private_env_configs/PyAPS_dms_config.json`` (or PYAPS_DMS_CONFIG) of ``env``; ``{}`` = none. They rank
+                  below the option and the environment variable and above script_params (doc/SLURM_RESOURCES.md, "How the profile is resolved").
+    Returns ``{stage: Resources}`` in stage order (a dict that also carries ``.environment``, ``.priority``, ``.profile_source`` and ``.dms``).
     Raises :class:`ResourceLimitError` under the policy ``error`` when a request can never run (all stages are listed, with what would fit).
     """
     if family not in FAMILIES:
@@ -1161,8 +1172,10 @@ def resolve(family, ctx, table=None, conf=None, profile=None, mp_base=None, cli_
     table = table or load_table()
     env = os.environ if env is None else env
     conf = conf or {}
+    if dms is None:
+        dms = dmsset.read_dms_settings(env)
     # ---- the place and the policy
-    op_policy, op_src = _operator(limits_policy, "PYAPS_SLURM_LIMITS", "slurm_limits", env, conf)
+    op_policy, op_src = _operator(limits_policy, "PYAPS_SLURM_LIMITS", "slurm_limits", env, conf, dms)
     op_policy = norm_word(op_policy) if op_policy is not None else None
     if op_policy is not None and op_policy not in LIMIT_POLICIES:
         raise ResourceTableError("limits policy %r (from %s): one of %s" % (op_policy, op_src, ", ".join(LIMIT_POLICIES)))
@@ -1170,20 +1183,21 @@ def resolve(family, ctx, table=None, conf=None, profile=None, mp_base=None, cli_
         if limits is not None:                                 # the caller names the limits: nothing is looked at
             environment = Environment(target="slurm", limits=dict(limits, source="given") if limits else {})
         else:
-            guess = choose_profile_ex(table, conf, profile, env, site_profile=None)[0]      # the word `site` needs the place: it falls back here
-            wants_site = any(str(v or "").strip().lower() == "site" for v in (profile, env.get("PYAPS_SLURM_PROFILE"), conf.get("slurm_profile")))
-            named = bool(site or env.get("PYAPS_SLURM_SITE") or conf.get("slurm_site"))
+            guess = choose_profile_ex(table, conf, profile, env, site_profile=None, dms=dms)[0]      # the word `site` needs the place: it falls back here
+            wants_site = any(str(v or "").strip().lower() == "site" for v in (profile, env.get("PYAPS_SLURM_PROFILE"), dms.get("slurm_profile"),
+                                                                              conf.get("slurm_profile")))
+            named = bool(site or env.get("PYAPS_SLURM_SITE") or dms.get("slurm_site") or conf.get("slurm_site"))
             skip = op_policy == "off" or (op_policy is None and norm_word(table["profiles"][guess].get("limits", "warn")) == "off"
                                           and not wants_site and not named)
             environment = detect_environment(table, conf, env, site=site, machine=machine, target=target, hpc=hpc, ferre_exe=ferre_exe,
-                                             parallel_jobs=parallel_jobs, probe=not skip)
+                                             parallel_jobs=parallel_jobs, probe=not skip, dms=dms)
     environment.budget.setdefault("parallel_jobs", environment.parallel_jobs)
     site_profile = None
     if environment.site_entry:
         site_profile = environment.site_entry.get("profile")
         if environment.ferre_openmp and environment.site_entry.get("profile_openmp"):
             site_profile = environment.site_entry["profile_openmp"]
-    pname, pname_src = choose_profile_ex(table, conf, profile, env, site_profile=site_profile)
+    pname, pname_src = choose_profile_ex(table, conf, profile, env, site_profile=site_profile, dms=dms)
     prof = table["profiles"][pname]
     if op_policy is not None:
         policy, policy_src = op_policy, op_src
@@ -1207,7 +1221,7 @@ def resolve(family, ctx, table=None, conf=None, profile=None, mp_base=None, cli_
     if prio and environment.target == "local":              # nothing is queued in a bash run: no --nice to give
         prio = dict(prio, off=True)
     out, errors = ResolvedSet(), []
-    out.environment, out.priority, out.profile_source = environment, prio, pname_src
+    out.environment, out.priority, out.profile_source, out.dms = environment, prio, pname_src, dms
     for i, stage in enumerate(stages):
         row = flat["stages"][stage]
         trace = ["profile %s row (%s)" % (pname, row["_profile"])]
@@ -1325,6 +1339,7 @@ class ResolvedSet(dict):
     environment = None
     priority = None
     profile_source = None
+    dms = None                 # the DMS settings that were looked at (aps_dms_settings.DmsSettings)
 
 
 # --------------------------------------------------------------------------------------------------------- reporting
@@ -1433,6 +1448,68 @@ def format_environment(envm: Environment, profile_source=None) -> str:
     return "\n".join(L)
 
 
+def effective_settings(resolved, conf=None, env=None, cli=None) -> list:
+    """Which source set each machine-check setting: ``[{name, value, source, overridden: [(label, value)], note}]`` for slurm_profile, slurm_limits,
+    slurm_site, plot_export and max_inflight_obs. ``resolved`` is what :func:`resolve` returned (it carries the DMS settings that were looked at);
+    ``cli`` = ``{'profile': .., 'limits': .., 'site': .., 'plot_export': ..}`` the command-line options of the caller (None = not given)."""
+    env = os.environ if env is None else env
+    conf = conf or {}
+    cli = cli or {}
+    dms = getattr(resolved, "dms", None)
+    if dms is None:
+        dms = dmsset.read_dms_settings(env)
+    envm = getattr(resolved, "environment", None)
+    first = next(iter(resolved.values())) if resolved else None
+    out = []
+
+    def lost(setting):
+        return dmsset.overridden(setting, cli.get(setting), conf, env, dms)
+    out.append({"name": "slurm_profile", "value": first.profile if first else None, "source": getattr(resolved, "profile_source", None),
+                "overridden": lost("profile")})
+    if envm is not None:
+        out.append({"name": "slurm_limits", "value": envm.policy, "source": envm.policy_source, "overridden": lost("limits")})
+        site = envm.site or {}
+        out.append({"name": "slurm_site", "value": site.get("name") or "not named", "source": site.get("source") or "no site matched",
+                    "overridden": lost("site")})
+    try:
+        try:
+            from PyAPS.apsPlot import export as plot_export
+        except ImportError:                                                           # pragma: no cover
+            from apsPlot import export as plot_export
+        mode, src = plot_export.resolve_mode(cli.get("plot_export"), conf, env, dms)
+        out.append({"name": "plot_export", "value": mode, "source": src, "overridden": lost("plot_export")})
+    except Exception as exc:                                                          # the report never stops a run
+        out.append({"name": "plot_export", "value": None, "source": "not resolved (%s)" % exc, "overridden": []})
+    if "max_inflight_obs" in dms:
+        out.append({"name": "max_inflight_obs", "value": dms["max_inflight_obs"], "source": "DMS config max_inflight_obs", "overridden": [],
+                    "note": "the DMS caps the observations in flight with it; the runner does not read it"})
+    else:
+        out.append({"name": "max_inflight_obs", "value": None, "source": "not set in the DMS config", "overridden": [],
+                    "note": "the DMS uses its own default"})
+    return out
+
+
+def format_settings(resolved, conf=None, env=None, cli=None) -> str:
+    """Operator text for :func:`effective_settings`: one line per setting, the source that set it, and what it overrides."""
+    dms = getattr(resolved, "dms", None)
+    L = []
+    if dms is not None and dms.path:
+        L.append("DMS config: %s (read for %s only)" % (dms.path, ", ".join(dmsset.DMS_KEYS)))
+    elif dms is not None and dms.error:
+        L.append("DMS config: " + dms.error)
+    else:
+        L.append("DMS config: none found for this user (not a pod, or PYAPS_DMS_CONFIG=none): the pod's own values are not applied")
+    for it in effective_settings(resolved, conf, env, cli):
+        line = "  %-17s %-12s %s%s" % (it["name"], "-" if it["value"] is None else it["value"], "" if it["value"] is None else "set by ", it["source"])
+        if it["overridden"]:
+            line += "   (also set, overridden: %s)" % ", ".join("%s=%s" % (lab, v) for lab, v in it["overridden"])
+        if it.get("note"):
+            line += "   [%s]" % it["note"]
+        L.append(line)
+    return ("settings  : first set wins: option > environment > DMS config > script_params > site / profile / table default\n"
+            + "\n".join(("            " + x) if i == 0 else ("          " + x) for i, x in enumerate(L)))
+
+
 def format_adjustments(resolved: dict) -> str:
     rows = []
     for r in resolved.values():
@@ -1458,6 +1535,9 @@ def _add_place_options(p):
     p.add_argument("--ferre-exe", help="ferre.x to look at (OpenMP or not); default: FERRE_EXE of the script_params")
     p.add_argument("--machine-file", help="a probe made elsewhere (python -m PyAPS.aps_slurm_resources probe --json > file): see what a run THERE would do")
     p.add_argument("--script-params", help="script_params.yaml whose keys (slurm_profile, slurm_site, slurm_limits, FERRE_EXE, PyAPS_CONFIG ...) apply")
+    p.add_argument("--dms-config", help="the DMS config whose slurm_profile / slurm_limits / slurm_site / plot_export / max_inflight_obs apply (only these five are read); "
+                   "default: PYAPS_DMS_CONFIG or ~/.private_env_configs/PyAPS_dms_config.json; `none` = ignore it")
+    p.add_argument("--plot-export", choices=["off", "on", "worker", "inprocess"], help="the --plot_export option of the runner, to see which source decides the mode")
 
 
 def _conf_from(args) -> dict:
@@ -1481,13 +1561,28 @@ def _machine_from(args):
     return data.get("machine", data) if isinstance(data, dict) else None
 
 
+def _dms_from(args):
+    """The DMS settings of the pod this runs on (or of ``--dms-config``): the five keys of the file, nothing else."""
+    path = getattr(args, "dms_config", None)
+    if path is None:
+        return dmsset.read_dms_settings(os.environ)
+    if str(path).strip().lower() in ("", "none", "off"):
+        return dmsset.DmsSettings()
+    return dmsset.read_dms_settings(os.environ, path=os.path.expandvars(os.path.expanduser(path)))
+
+
+def _cli_of(args) -> dict:
+    return {"profile": getattr(args, "profile", None), "limits": getattr(args, "limits", None), "site": getattr(args, "site", None),
+            "plot_export": getattr(args, "plot_export", None)}
+
+
 def _resolve_from_args(args, table, family=None, **extra):
     ctx = _ctx_from_args(args)
     kw = dict(table=table, profile=getattr(args, "profile", None), cli_set=getattr(args, "set", []), site=getattr(args, "site", None),
               limits={} if getattr(args, "no_limits", False) else None, limits_policy=getattr(args, "limits", None), target=getattr(args, "target", None),
               parallel_jobs=getattr(args, "parallel_jobs", None), ferre_exe=getattr(args, "ferre_exe", None), machine=_machine_from(args),
               conf=_conf_from(args), quiet=True, priority_policy=getattr(args, "priority", None), priority_class=getattr(args, "priority_class", None),
-              pair_index=getattr(args, "pair_index", None))
+              pair_index=getattr(args, "pair_index", None), dms=_dms_from(args))
     kw.update(extra)
     return resolve(family or args.family, ctx, **kw)
 
@@ -1503,9 +1598,11 @@ def _cmd_site(args, table) -> int:
     envm = res.environment
     if args.json:
         print(json.dumps({"environment": envm.summary(), "profile": next(iter(res.values())).profile, "profile_source": res.profile_source,
+                          "settings": effective_settings(res, _conf_from(args), None, _cli_of(args)),
                           "priority": {k: v for k, v in (res.priority or {}).items() if k != "stage_remaining"}}, indent=1, default=str))
         return 0
     print(format_environment(envm, res.profile_source))
+    print(format_settings(res, _conf_from(args), None, _cli_of(args)))
     first = next(iter(res.values()))
     print("profile   : %s%s" % (first.profile, "   (the word `site` in --slurm_profile / slurm_profile would take it from the site)" if envm.site_entry.get("profile") else ""))
     if res.priority and not res.priority.get("off"):
@@ -1551,11 +1648,13 @@ def _cmd_check(args, table) -> int:
             worst = max(worst, 3 if hard else 1)
         rows.append("  %-10s asked cpus=%-3d mem=%-8s time=%-10s %s" % (st, r.cpus, ("%d GB" % r.mem_gb) if r.mem_gb else "default", r.time or "-", verdict))
     if args.json:
-        print(json.dumps({"environment": envm.summary(), "stages": {st: asked[st].as_dict() for st in asked},
+        print(json.dumps({"environment": envm.summary(), "settings": effective_settings(asked, _conf_from(args), None, _cli_of(args)),
+                          "stages": {st: asked[st].as_dict() for st in asked},
                           "if_clamped": {st: {"cpus": would[st].cpus, "mem_gb": would[st].mem_gb, "time": would[st].time} for st in would}}, indent=1, default=str))
         return worst
     real = _resolve_from_args(args, table, machine=envm.machine)            # the policy that would really apply (the check itself looks with warn)
     print(format_environment(real.environment, asked.profile_source))
+    print(format_settings(real, _conf_from(args), None, _cli_of(args)))
     print("\n%s %s %s grid=%s, profile %s:" % (args.family, args.res.upper(), args.stack, args.grid, next(iter(asked.values())).profile))
     print("\n".join(rows))
     print("\n" + ["Everything fits.", "Some stages need a change (policy warn keeps them as asked; clamp would lower them).",
@@ -1613,6 +1712,7 @@ def main(argv=None) -> int:
     adj = format_adjustments(res)
     if adj:
         print("\nrequests that do not fit this place:\n" + adj)
+    print("\n" + format_settings(res, _conf_from(args), None, _cli_of(args)))
     if args.cmd == "explain":
         print("\n" + format_environment(res.environment, res.profile_source))
         for r in res.values():
