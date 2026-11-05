@@ -684,6 +684,8 @@ def resolve_slurm_resources(family, conf, ctx, mp_base, scripts_path, uapsid=Non
                                                                          table.get('_path'), table.get('_sha256')))
     print(slres.format_table(resolved))
     print(slres.format_environment(resolved.environment, resolved.profile_source))
+    print(slres.format_settings(resolved, conf, None, {'profile': slurm_profile, 'limits': _RES_CLI.get('limits'), 'site': _RES_CLI.get('site'),
+                                                      'plot_export': _PLOT_EXPORT_CLI}))
     adj = slres.format_adjustments(resolved)
     if adj:
         print('Requests that do not fit this place:')

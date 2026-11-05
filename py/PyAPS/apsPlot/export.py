@@ -47,6 +47,11 @@ import threading
 import time
 from pathlib import Path
 
+try:                                                     # the package, or the file run as a script
+    from PyAPS import aps_dms_settings as dms_settings
+except ImportError:                                      # pragma: no cover
+    import aps_dms_settings as dms_settings
+
 log = logging.getLogger(__name__)
 
 _WORKER = Path(__file__).with_name("_export_worker.py")
@@ -84,14 +89,14 @@ def normalize_mode(value):
     raise ValueError("plot export mode %r is not one of off, on (= worker), worker, inprocess" % (value,))
 
 
-def resolve_mode(cli=None, conf=None, env=None):
-    """``(mode, source)`` of a run: the option (``--plot_export``) > ``PYAPS_PLOT_EXPORT`` > the ``plot_export`` key of script_params > ``off``.
+def resolve_mode(cli=None, conf=None, env=None, dms=None):
+    """``(mode, source)`` of a run: the option (``--plot_export``) > ``PYAPS_PLOT_EXPORT`` > the ``plot_export`` key of the DMS config of the pod
+    (``PyAPS.aps_dms_settings``) > the ``plot_export`` key of script_params > ``off``.
 
     A word that means nothing is ignored (with source ``<where> (ignored: ...)`` appended) and the next source decides."""
     env = os.environ if env is None else env
     ignored = ""
-    for where, value in (("option --plot_export", cli), ("environment PYAPS_PLOT_EXPORT", env.get("PYAPS_PLOT_EXPORT")),
-                         ("script_params plot_export", (conf or {}).get("plot_export"))):
+    for where, value in dms_settings.chain("plot_export", cli, conf, env, dms):
         try:
             mode = normalize_mode(value)
         except ValueError:
@@ -102,9 +107,9 @@ def resolve_mode(cli=None, conf=None, env=None):
     return DEFAULT_MODE, "default" + ignored
 
 
-def describe(cli=None, conf=None, env=None):
+def describe(cli=None, conf=None, env=None, dms=None):
     """One line for the top of a job log."""
-    mode, source = resolve_mode(cli, conf, env)
+    mode, source = resolve_mode(cli, conf, env, dms)
     hint = ("static diagnostic images are NOT written; plot_export: 'on' in script_params or PYAPS_PLOT_EXPORT=worker turns them on"
             if mode == "off" else "static diagnostic images are written by Chrome through Kaleido (slow; PYAPS_PLOT_EXPORT=off to skip)")
     return "PyAPS plot export: mode=%s source=%s; %s" % (mode, source, hint)
