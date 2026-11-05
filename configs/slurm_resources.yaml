@@ -105,7 +105,7 @@ profiles:
 
   v2:
     description: >
-      Allocation from the SLURM audit of 2026-11-04 and the rehearsal on the ARCUS dev pod (see doc/SLURM_RESOURCES.md, section 7).
+      Allocation from the SLURM audit of 2026-11-04 and the rehearsal on a development site (see doc/SLURM_RESOURCES.md, section 7).
       CPUs: the busy cores of the stages measured without the plot images, capped by what each stage can use; time limits: about 2 x the
       longest completed run of the class, because the limit only has to catch a hung job; memory: the true footprint (PSS: shared pages
       counted once) with a margin, NOT the sum of the RSS of the worker processes (which counts shared pages once per process and

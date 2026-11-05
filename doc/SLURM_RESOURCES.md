@@ -112,7 +112,7 @@ retried for memory (a TIMEOUT is retried whatever the cluster enforces).
 ## 7. Measured allocation (`v2`)
 
 `v2` is the allocation set from two measurements: the accounting of two sites (5 546 L2 jobs since 2026-09-23: busy cores, run times) and a
-rehearsal on the ARCUS dev pod (2026-11-05: the same pairs run with `default` and with `v2`, plot images off, true memory sampled as PSS every
+rehearsal on a development site (2026-11-05: the same pairs run with `default` and with `v2`, plot images off, true memory sampled as PSS every
 10 s). Every row of `configs/slurm_resources.yaml` carries its `status` and the numbers behind it in `note`.
 
 | stage | CPUs LR / HR | memory LR / HR | time limit | what it rests on |
