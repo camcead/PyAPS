@@ -123,10 +123,10 @@ rehearsal on a development site (2026-11-05: the same pairs run with `default` a
 | PPXF | 10 / 10 | 16 GB | 6 h | 7-8.4 busy cores of 10 (HR with 20 CPUs: 13.7 busy, the same 3 min as with 10); PSS peak 4-7 GB |
 | EMI | 6 / 6 | 28 / 40 GB | 4 h | 2.4-4.1 busy cores; 1-3 min with 6 CPUs as with 20 or 40; PSS peak 11 GB with 20 workers, 3-5 GB with 6 |
 | LS | 2 / 2 | 6 GB | 30 min | 0.5-1.0 core, 1-3 min; PSS 1-2.4 GB (3.5 GB at most in the audit) |
-| L2merge | 1 / 1 | 4 GB | 15 min | 0.3-0.5 core, under 1 min |
+| L2merge | 1 / 1 | 8 / 12 GB | 15 min | 0.3-0.5 core, under 1 min; **a 41 s peak that the 10 s samples missed**: killed at 4 GB and 6 GB (HR, cgroup enforcement on a private SLURM), passed at 8 GB with 5.6 GB MaxRSS |
 | IFU_PR | 3 / 3 | 24 / 36 GB | 6 h | 1.1-1.2 busy cores in 3 OBs (6 or 12 CPUs gave the same times); PSS peak 13-17 GB, 27 GB for a heavy HR cube |
 | IFU_ExGal | 40 / 40 | 80 / 128 GB | 10 h | up to 40 busy cores, 13 on a small cube (run 10 min); PSS 18 GB (the sum of the workers' RSS is 212 GB: shared pages counted per process) |
-| IFU_Gal | 4 / 4 | 72 / 144 GB | 16 h / 24 h | serial on the single-thread `ferre.x` of the production pod (1.0-1.3 busy cores, 4.3 at most); on an OpenMP `ferre.x` a small cube used 7 cores for 4 min against 1.8 cores for 12 min with 2 CPUs |
+| IFU_Gal | 4 / 4 | 48 / 96 GB | 16 h / 24 h | serial on the single-thread `ferre.x` of the production pod (1.0-1.3 busy cores, 4.3 at most); on an OpenMP `ferre.x` a small cube used 7 cores for 4 min against 1.8 cores for 12 min with 2 CPUs |
 | mini IFU, CS | as `default` | LIFU memory; FESWI 128 GB | | no mini IFU job exists on either site and no CS job has run on SLURM: unmeasured |
 
 Rules that were dropped: "HR doubles every CPU count" (only RR and RVS have an HR row, the others use the same cores in HR), "single exposure

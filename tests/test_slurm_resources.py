@@ -392,13 +392,16 @@ def test_v2_memory_is_the_true_footprint_with_a_margin_not_the_rss_sum(table):
     of sacct (RR 28-65 GB, IFU_ExGal 212 GB). It must stay above the largest peak seen: with cgroup enforcement it is the kill limit."""
     lr = R("MOS", table, {"res": "LR", "stack_level": 0, "grid": "n"}, profile="v2")
     hr = R("MOS", table, {"res": "HR", "stack_level": 0, "grid": "n"}, profile="v2")
-    peaks_lr = {"RR": 10.4, "RVS": 57.2, "FR": 3.0, "PPXF": 7.0, "EMI": 11.0, "LS": 3.5, "L2merge": 1.5}
-    peaks_hr = {"RR": 17.5, "RVS": 97.3, "FR": 3.0, "PPXF": 7.0, "EMI": 6.0, "LS": 3.5, "L2merge": 1.5}
+    peaks_lr = {"RR": 10.4, "RVS": 57.2, "FR": 3.0, "PPXF": 7.0, "EMI": 11.0, "LS": 3.5, "L2merge": 3.3}
+    peaks_hr = {"RR": 17.5, "RVS": 97.3, "FR": 3.0, "PPXF": 7.0, "EMI": 6.0, "LS": 3.5, "L2merge": 5.6}    # L2merge: MaxRSS under cgroup enforcement
     for s, peak in peaks_lr.items():
         assert lr[s].mem_gb >= 1.25 * peak, (s, lr[s].mem_gb, peak)
     for s, peak in peaks_hr.items():
         assert hr[s].mem_gb >= 1.25 * peak, (s, hr[s].mem_gb, peak)
     assert lr["RR"].mem_gb == 24 and hr["RR"].mem_gb == 36 and lr["RVS"].mem_gb == 72 and hr["RVS"].mem_gb == 144
+    assert lr["L2merge"].mem_gb == 8 and hr["L2merge"].mem_gb == 12
+    lifu = R("LIFU", table, {"res": "LR", "stack_level": 1, "grid": "n"}, profile="v2")
+    assert lifu["IFU_Gal"].mem_gb == 48 and lifu["IFU_Gal"].mem_gb >= 1.25 * 36.4       # 36.4 GB: 20 workers; 4 CPUs start fewer
 
 
 def test_the_old_v2_pss_profile_is_gone(table):
