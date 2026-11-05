@@ -19,7 +19,7 @@ import numpy as np
 from collections import OrderedDict
 import argparse
 import PyAPS
-from PyAPS.aps_utils import APSOB, makeR, print_args, none_or_str, str2bool, aps_ids_class,l1_fileinfo, gen_targlist, overlap_finder, add_extra_columns, index_in_class, check_and_fix_overlap
+from PyAPS.aps_utils import APSOB, makeR, print_args, none_or_str, str2bool, aps_ids_class,l1_fileinfo, gen_targlist, overlap_finder, add_extra_columns, index_in_class, check_and_fix_overlap, vectorized_snr_calculation
 from PyAPS.aps_common_args import build_common_parser, resolve_common_args
 from PyAPS import aps_constants
 from PyAPS.apsPlot.ferre import make_fr_plot
@@ -55,6 +55,7 @@ versions:
  4.0 By Thomas Hajnik (CASU, Apr 2026) - Added option to use linemasks for stellar parameter fitting
  4.1 By Thomas Hajnik (CASU, Jul 2026) - Full spectrum and model information is now retained in the ferre_spec* output files when using linemasks
  4.2 (CASU, Aug 2026) - make_fr_plot moved to PyAPS.apsPlot.ferre (Plotly), built on the same spectrum_overlay_figure shared with aps_rr/aps_rvs - part of the new cross-module PyAPS.apsPlot platform. Same output convention and layout (2 arms x 2 halves).
+ 4.3 By Thomas Hajnik (CASU, Nov 2026) - SNR_FR is now the median S/N over the pixels FERRE actually fits (masked/invalid pixels excluded) instead of FERRE's median over all pixels; CHISQ_TOT is renormalised to the fitted pixels
 """
 
 #################################################
@@ -221,6 +222,60 @@ def _prepare_ferre_error_arrays(yivar, yflux):
     ferre_ivar[invalid_mask] = mask_ivar
 
     return ferre_ivar, output_error, invalid_mask
+
+
+def _ferre_fit_stats(flux2d, err2d):
+    """Per-spectrum S/N and pixel counts of the arrays exactly as written to FERRE.
+
+    flux2d, err2d : (n_spec, n_pix) flux and error arrays of the .frd/.err files
+    (all arms concatenated). Masked/invalid pixels carry err = large_error.
+
+    Returns a dict of 1-D arrays:
+      snr      : median flux/err over the fitted pixels (err < large_error);
+                 FERRE's own median S/N also counts the masked pixels (S/N ~ 0).
+      n_all    : number of pixels FERRE receives
+      n_pos    : pixels with flux not <= 0 (FERRE gives flux <= 0 zero weight)
+      n_fitpos : fitted pixels with flux not <= 0 (the pixels entering FERRE's chi**2)
+    """
+    flux2d = np.atleast_2d(np.asarray(flux2d, dtype=float))
+    err2d = np.atleast_2d(np.asarray(err2d, dtype=float))
+
+    ivar_mask_value = 1.0 / (aps_constants.large_error**2)
+    with np.errstate(divide='ignore', invalid='ignore', over='ignore'):
+        ivar2d = 1.0 / err2d**2
+    ivar2d[~np.isfinite(ivar2d)] = 0.0
+
+    snr, _ = vectorized_snr_calculation(flux2d, ivar2d, ivar_mask_value, stat="median")
+
+    fitted = ivar2d > 10 * ivar_mask_value
+    # FERRE: "where (obs <= 0) w = 0", so NaN counts as positive here as well
+    positive = ~(flux2d <= 0.0)
+
+    return {
+        'snr': snr,
+        'n_all': np.full(flux2d.shape[0], flux2d.shape[1], dtype=int),
+        'n_pos': np.sum(positive, axis=1),
+        'n_fitpos': np.sum(fitted & positive, axis=1),
+    }
+
+
+def _corrected_chisq(chisq, nov, n_all, n_pos, n_fitpos):
+    """Renormalise FERRE's reduced chi**2 to the pixels that were actually fitted.
+
+    FERRE (pcachi=0) returns
+        chisq = (n_all / n_pos) * sum_fit r**2 / (n_all - nov + 1),
+    where masked pixels (err = large_error) add ~0 to the sum but still count
+    in n_all. The returned value is sum_fit r**2 / (n_fitpos - nov + 1).
+    Non-finite or non-positive input (failed fits) is returned unchanged;
+    NaN if fewer than nov fitted pixels remain.
+    """
+    chisq = float(chisq)
+    if not np.isfinite(chisq) or chisq <= 0.0:
+        return chisq
+    denom = n_all * (n_fitpos - nov + 1)
+    if n_pos <= 0 or denom <= 0:
+        return np.nan
+    return chisq * n_pos * (n_all - nov + 1) / denom
 
 
 #################################################################################################
@@ -1018,7 +1073,8 @@ def ferre_execute(cmd, path=None, return_err=False):
 ## return a dictionary, contain all FERRE outputs and a few empty columns to be filled out later
 #################################################################################################
 def ferre_outdict(pixel, targs_info, targs_setups, grid_prefix='n', path=None,
-                  output_error_by_id=None, invalid_mask_by_id=None):
+                  output_error_by_id=None, invalid_mask_by_id=None,
+                  fit_stats_by_id=None):
 
     if path is None:
         path = "./"
@@ -1381,6 +1437,21 @@ def ferre_outdict(pixel, targs_info, targs_setups, grid_prefix='n', path=None,
             outdict['FLAG_FR'].append(1)
         else:
             outdict['FLAG_FR'].append(0)
+
+        # Replace FERRE's median S/N (which also counts masked pixels, S/N ~ 0)
+        # by the median S/N over the fitted pixels, and renormalise CHISQ_TOT
+        # to the fitted pixels. FLAG_FR above is still based on FERRE's values.
+        if fit_stats_by_id is not None and m_cells in (19, 39, 12):
+            if int(aps_id) not in fit_stats_by_id:
+                raise KeyError(
+                    f'Missing fit statistics for APS_ID {int(aps_id)}'
+                )
+            stats = fit_stats_by_id[int(aps_id)]
+            outdict['SNR_FR'][-1] = np.float64(stats['snr'])
+            outdict['CHISQ_TOT'][-1] = np.float64(_corrected_chisq(
+                outdict['CHISQ_TOT'][-1], ndim, stats['n_all'],
+                stats['n_pos'], stats['n_fitpos']
+            ))
 
     out_param.close()
 
@@ -1853,6 +1924,14 @@ def proc_ferre(infiles, classfile, param_fits, aps_ids=None, targsrvy=None, targ
         int(tgs): invalid_pixels[index] for index, tgs in enumerate(targs_id)
     }
 
+    # S/N and pixel counts over the pixels FERRE actually fits (same arrays as
+    # written to .frd/.err); used for SNR_FR and to renormalise CHISQ_TOT.
+    fit_stats = _ferre_fit_stats(yy, eyy)
+    fit_stats_by_id = {
+        int(tgs): {key: fit_stats[key][index] for key in fit_stats}
+        for index, tgs in enumerate(targs_id)
+    }
+
     ## Prepare FERRE control files and grids
     print('--> Preparing FERRE control files (input.nml_[seq]) and grids...')
 
@@ -2053,6 +2132,7 @@ def proc_ferre(infiles, classfile, param_fits, aps_ids=None, targsrvy=None, targ
         pixel, targs_info, targs_setups, grid_prefix=grid_prefix, path=path,
         output_error_by_id=output_error_by_id,
         invalid_mask_by_id=invalid_mask_by_id,
+        fit_stats_by_id=fit_stats_by_id,
     )
 
     ## GENERATE PLOTS

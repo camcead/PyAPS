@@ -3166,8 +3166,14 @@ def vectorized_arms_ratio_correction(fl, iv, arms_ratio):
     return fl, iv, True
 
 
-def vectorized_snr_calculation(fl, iv, ivar_mask_value):
+def vectorized_snr_calculation(fl, iv, ivar_mask_value, stat="mean"):
     """Calculate SNR for all spaxels simultaneously.
+
+    `stat` selects the per-spectrum statistic of `fl * sqrt(iv)` over the
+    unmasked pixels (`iv > 10 * ivar_mask_value`): "mean" (default, the
+    behaviour described below) or "median" (used by aps_ferre for SNR_FR,
+    i.e. the median S/N over the pixels FERRE actually fits). Spectra with
+    no unmasked pixel get NaN in both cases.
 
     Used to build `snr_values = fl * sqrt(iv)`, NaN out the masked entries,
     then take `np.nanmean(snr_values[valid_spaxels], axis=1)` -- profiled
@@ -3193,15 +3199,24 @@ def vectorized_snr_calculation(fl, iv, ivar_mask_value):
     removes was the same `numpy.array` cost showing up separately in the
     per-arm profile).
     """
+    if stat not in ("mean", "median"):
+        raise ValueError(f"stat must be 'mean' or 'median', got {stat!r}")
+
     nomask = iv > 10 * ivar_mask_value
     nz_array = np.sum(nomask, axis=1)
 
     snr_array = np.full(fl.shape[0], np.nan)
     valid_spaxels = nz_array > 0
     if np.any(valid_spaxels):
-        vals = np.where(nomask, fl * np.sqrt(iv), 0.0)
-        sums = vals.sum(axis=1)
-        snr_array[valid_spaxels] = sums[valid_spaxels] / nz_array[valid_spaxels]
+        if stat == "median":
+            vals = np.where(nomask, fl * np.sqrt(iv), np.nan)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", category=RuntimeWarning)
+                snr_array[valid_spaxels] = np.nanmedian(vals[valid_spaxels], axis=1)
+        else:
+            vals = np.where(nomask, fl * np.sqrt(iv), 0.0)
+            sums = vals.sum(axis=1)
+            snr_array[valid_spaxels] = sums[valid_spaxels] / nz_array[valid_spaxels]
 
     return snr_array, nz_array
 
