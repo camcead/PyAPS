@@ -265,6 +265,10 @@ def update_arms_ratio(infiles, res_mode, camera, arms_ratio, GR_ratio_HR=0.85, B
 # Static diagnostic images (Plotly/Kaleido/headless Chrome): OFF unless asked for. The option --plot_export of this runner,
 # PYAPS_PLOT_EXPORT in its environment or the script_params key plot_export choose; PyAPS.apsPlot.export.resolve_mode decides.
 _PLOT_EXPORT_CLI = None
+# Options of the machine check and of the depth-first priority (set from the command line in main()); the environment variables and
+# the script_params keys are read by aps_slurm_resources.
+_RES_CLI = {}
+_ENV_CACHE = {}
 
 
 def plot_export_lines(conf):
@@ -354,6 +358,10 @@ def write_bash(headname, script_filename, commands, JOB_ID_HEADNAME, conf, l1_in
                 # ignored by sbatch -- caught by inspecting a real
                 # generated script before committing this).
                 out_script.write(f"#SBATCH {sbatch_mem}\n")
+            if resources is not None and getattr(resources, 'nice', None):
+                out_script.write(f"#SBATCH --nice={int(resources.nice)}\n")
+            if resources is not None and getattr(resources, 'comment', None):
+                out_script.write(f"#SBATCH --comment={resources.comment}\n")
             if sbatch_depends_on:
                 out_script.write(
                     f"# DEPENDS ON: {sbatch_depends_on}\n"
@@ -378,7 +386,7 @@ def write_bash(headname, script_filename, commands, JOB_ID_HEADNAME, conf, l1_in
         for plot_line in plot_export_lines(conf):
             out_script.write(plot_line + "\n")
         if resources is not None and log_prefix is not None:
-            for hdr_line in slres.job_header_lines(resources):
+            for hdr_line in slres.job_header_lines(resources, getattr(resources, 'environment', None)):
                 out_script.write(hdr_line + "\n")
         # The templates_RVS key of the script_params file in use wins over template_lib of
         # rvs_config.yaml (aps_utils.resolve_rvs_template_lib reads this variable).
@@ -650,24 +658,40 @@ def _load_slurm_table(conf):
         sys.exit('ERROR: SLURM resource table: %s' % exc)
 
 
-def resolve_slurm_resources(family, conf, ctx, mp_base, scripts_path, uapsid=None, slurm_profile=None, slurm_set=None):
+def resolve_slurm_resources(family, conf, ctx, mp_base, scripts_path, uapsid=None, slurm_profile=None, slurm_set=None, hpc=None):
     """Resolve, print and record the resources of every stage of ``family`` for this observation.
 
     ``mp_base``: the legacy ``--mp_*`` list of the caller (None: the table's CPU counts). Returns ``{stage: Resources}``.
     The effective values go to the screen, to ``slurm_resources_effective.json`` in the scripts folder and, per job, to the header
     of the job's own log (see ``write_bash``). An escalation recorded by the DMS (``slurm_resources_escalation.json``) is applied here.
+    The place the jobs run (a SLURM cluster, or this machine for ``--hpc 1``) is looked at once per run and each request is checked against
+    it by the policy ``limits`` (warn by default: reported, never changed; ``--slurm_limits clamp|error|off``).
     """
     table = _load_slurm_table(conf)
     try:
         esc = slres.read_escalation(scripts_path, uapsid)
+        previous = slres.read_effective(scripts_path, slres.effective_tag(uapsid, family)).get('priority') if esc else None
         resolved = slres.resolve(family, ctx, table=table, conf=conf, profile=slurm_profile, mp_base=mp_base,
-                                 cli_set=slurm_set, escalation=esc)
+                                 cli_set=slurm_set, escalation=esc, hpc=hpc, environment=_ENV_CACHE.get('env'),
+                                 limits_policy=_RES_CLI.get('limits'), site=_RES_CLI.get('site'), parallel_jobs=_RES_CLI.get('parallel_jobs'),
+                                 priority_policy=_RES_CLI.get('priority'), priority_class=_RES_CLI.get('priority_class'),
+                                 pair_index=_RES_CLI.get('pair_index'), previous_priority=previous, uapsid=uapsid)
     except slres.ResourceTableError as exc:
         sys.exit('ERROR: SLURM resources: %s' % exc)
+    _ENV_CACHE['env'] = resolved.environment               # one look at the place for the families of this run
     print('')
     print('SLURM resources of the %s jobs (profile %s, table %s %s):' % (family, next(iter(resolved.values())).profile,
                                                                          table.get('_path'), table.get('_sha256')))
     print(slres.format_table(resolved))
+    print(slres.format_environment(resolved.environment, resolved.profile_source))
+    adj = slres.format_adjustments(resolved)
+    if adj:
+        print('Requests that do not fit this place:')
+        print(adj)
+    if resolved.priority and not resolved.priority.get('off'):
+        p = resolved.priority
+        print('Priority (depth-first): class %s, pair %s (%s); nice per stage: %s' % (
+            p['class'], p['pair_index'], p['pair_source'], ', '.join('%s=%s' % (st, r.nice) for st, r in resolved.items())))
     pe_mode, pe_source = plot_export.resolve_mode(_PLOT_EXPORT_CLI, conf)
     print('Static diagnostic images (plot export): %s (%s)' % (pe_mode, pe_source))
     summary = slres.effective_summary(resolved, ctx, table, family, uapsid=uapsid)
@@ -680,8 +704,14 @@ def sbatch_driver_line(jid_var, res, job_name, script, slurm_out, slurm_err, dep
     """One ``jid=$(sbatch ...)`` line of a driver script: nodes, CPUs, time, dependency, memory, name - all from ``res``."""
     dep = ' --dependency=%s' % dependency if dependency else ''
     mem = ' ' + res.mem_arg() if res.mem_gb else ''
-    return ("%s=$(sbatch --parsable --output=%s --error=%s  --nodes=1 --ntasks=%d%s%s%s --job-name=%s  %s) \n "
-            % (jid_var, slurm_out, slurm_err, res.cpus, res.time_arg(), dep, mem, job_name, script))
+    # depth-first priority (only when the policy is on): a non-negative --nice and a --comment that names the chain in squeue (%k)
+    prio = ''
+    if getattr(res, 'nice', None):
+        prio += ' --nice=%d' % res.nice
+    if getattr(res, 'comment', None):
+        prio += ' --comment=%s' % shlex.quote(res.comment)
+    return ("%s=$(sbatch --parsable --output=%s --error=%s  --nodes=1 --ntasks=%d%s%s%s%s --job-name=%s  %s) \n "
+            % (jid_var, slurm_out, slurm_err, res.cpus, res.time_arg(), dep, mem, prio, job_name, script))
 
 
 def sbatch_guard(jid_var, label, abort=True):
@@ -949,7 +979,7 @@ def mos_scriptGEN(infiles, config_file, cat_list=None, aps_ids=None, wlranges=No
     # `mp` (the caller's legacy --mp_MOS list, if any) replaces the base CPU counts of the table; the rules apply to it as before.
     slurm_res = resolve_slurm_resources(
         'MOS', conf, {'res': res_mode[0].upper(), 'stack_level': stack_level(infiles[0]), 'grid': conf['MOS_Gal_grid_prefix_FR']},
-        mp, scripts_path, uapsid=JOB_ID_HEADNAME, slurm_profile=slurm_profile, slurm_set=slurm_set)
+        mp, scripts_path, uapsid=JOB_ID_HEADNAME, slurm_profile=slurm_profile, slurm_set=slurm_set, hpc=hpc)
     mp = [slurm_res[st].mp for st in slres.FAMILIES['MOS']]
     memory_limit_ferre = slurm_res['FR'].mem_arg()
 
@@ -1355,7 +1385,7 @@ def ifu_scriptGEN(infiles, config_file, cat_list=None, aps_ids=None, wlranges=No
 
     slurm_res = resolve_slurm_resources(
         ifu_family, conf, {'res': res_mode[0].upper(), 'stack_level': stack_level(infiles[0]), 'grid': conf.get('IFU_Gal_grid_prefix_FR', 'n')},
-        mp_caller, scripts_path, uapsid=JOB_ID_HEADNAME, slurm_profile=slurm_profile, slurm_set=slurm_set)
+        mp_caller, scripts_path, uapsid=JOB_ID_HEADNAME, slurm_profile=slurm_profile, slurm_set=slurm_set, hpc=hpc)
     mp = [slurm_res[st].mp for st in slres.FAMILIES[ifu_family]]
     memory_limit_IFU = slurm_res['IFU_ExGal'].mem_arg()
 
@@ -1934,7 +1964,7 @@ def cs_scriptGEN(infiles, config_file, cat_list=None, aps_ids=None, wlranges=Non
     # memory of the fine FERRE grids are rules of the profile. The legacy --mp_CS list of the caller (if any) replaces the base CPUs.
     slurm_res = resolve_slurm_resources(
         'CS', conf, {'res': res_mode[0].upper(), 'stack_level': stack_level(infiles[0]), 'grid': conf.get('FESWI_grid_prefix', 'n')},
-        mp, scripts_path, uapsid=JOB_ID_HEADNAME, slurm_profile=slurm_profile, slurm_set=slurm_set)
+        mp, scripts_path, uapsid=JOB_ID_HEADNAME, slurm_profile=slurm_profile, slurm_set=slurm_set, hpc=hpc)
     mp = [slurm_res[st].mp for st in slres.FAMILIES['CS']]
 
 
@@ -2291,6 +2321,22 @@ def scriptGen_runner(options=None):
               'script_params, the PYAPS_SLURM_PROFILE variable or the default profile of the table',
         required=False, type=none_or_str, default=None)
 
+    parser.add_argument('--slurm_limits', choices=['off', 'warn', 'clamp', 'error'], default=None, required=False,
+         help="What to do with a request that does not fit the machine or cluster the jobs run on (looked at before anything is submitted): "
+              "'warn' (the default of the production profiles: report it, change nothing), 'clamp' (lower only what does not fit, loudly), "
+              "'error' (refuse a request that can never run, and say what would fit), 'off' (do not look). A request that fits is never changed. "
+              "Order: this option > PYAPS_SLURM_LIMITS > script_params slurm_limits > the site's > the profile's > warn.")
+    parser.add_argument('--slurm_site', default=None, required=False, type=none_or_str,
+         help="Name of the site (see sites in the resource table and slurm_sites.yaml); default: detected from the machine.")
+    parser.add_argument('--parallel_jobs', type=int, default=None, required=False,
+         help="Machine without SLURM: how many runs share this machine at the same time (the CPUs and RAM are divided between them). Default 1.")
+    parser.add_argument('--slurm_priority', choices=['off', 'depth_first'], default=None, required=False,
+         help="Depth-first order of the jobs: the first pair of a night and the last stages of every chain get the smallest --nice, so chains "
+              "are finished before new ones start. Default: the profile's (off for 'default').")
+    parser.add_argument('--priority_class', choices=['offline', 'scheduled'], default=None, required=False,
+         help="'offline' (a run someone waits for: aps-offline) is always ahead of 'scheduled' (the daemon). Default: scheduled.")
+    parser.add_argument('--pair_index', type=int, default=None, required=False,
+         help="Order of this pair among the pairs submitted together (0 = first); the DMS passes it in PYAPS_PAIR_INDEX.")
     parser.add_argument('--slurm_set', action='append', default=None, metavar='STAGE.key=value',
          help='Change one value of one stage for this run (repeatable), e.g. --slurm_set FR.mem_gb=120 --slurm_set RR.cpus=4 '
               '--slurm_set LS.time=00:30:00 (key: cpus, mem_gb, time). The value is final for that stage (no HR doubling on top).',
@@ -2340,6 +2386,8 @@ def scriptGen_runner(options=None):
 
     global _PLOT_EXPORT_CLI
     _PLOT_EXPORT_CLI = args.plot_export
+    _RES_CLI.update({'limits': args.slurm_limits, 'site': args.slurm_site, 'parallel_jobs': args.parallel_jobs, 'priority': args.slurm_priority,
+                     'priority_class': args.priority_class, 'pair_index': args.pair_index})
 
     # test_mode: resolve ONE shared tag up front, so if both --run_L2 and
     # --run_CS are requested for the same call, they end up under the same

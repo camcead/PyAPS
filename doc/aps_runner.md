@@ -189,6 +189,10 @@ Entry point: `scriptGen_runner()`, invoked via `bin/aps_runner` or
 | `--mp_MOS`, `--mp_LIFU`, `--mp_MIFU`, `--mp_CS` | `None` | LEGACY: CPU counts per module (single value or per-module list); they replace the base CPU counts of the resource table. Leave them out: CPUs, memory and time then come from `configs/slurm_resources.yaml` (see [SLURM_RESOURCES.md](SLURM_RESOURCES.md)) |
 | `--slurm_profile` | `None` | profile of the resource table (default: `slurm_profile` of script_params, `PYAPS_SLURM_PROFILE`, the table's default) |
 | `--plot_export` | `None` (= `off`) | static diagnostic plot images (Plotly/Kaleido/headless Chrome) of the jobs this run generates: `off` (default), `on` (= `worker`) or `inprocess`. Order: this option, `PYAPS_PLOT_EXPORT`, the `plot_export` key of script_params, `off`. The mode is written into every job script (`export PYAPS_PLOT_EXPORT=...`) and printed at the top of every job log (`PyAPS plot export: mode=off source=...`); science products do not depend on it |
+| `--slurm_limits` | `None` | `off\|warn\|clamp\|error`: what to do with a request that does not fit the machine or cluster (default: the site's / the profile's, `warn` for production profiles) |
+| `--slurm_site` | `None` | name of the site (default: detected); see `doc/SLURM_RESOURCES.md` section 9 |
+| `--parallel_jobs` | `None` | machine without SLURM: runs sharing the machine (the CPUs and the RAM are divided) |
+| `--slurm_priority` / `--priority_class` / `--pair_index` | `None` | depth-first order of the jobs (`off\|depth_first`), class `offline\|scheduled`, order of the pair in the night: section 10 |
 | `--slurm_set` | `None` | repeatable `STAGE.cpus\|mem_gb\|time=value`, e.g. `--slurm_set FR.mem_gb=120`: one stage, this run, final value |
 | `--seg2d_white_images`, `--patch_file` | `None` | IFU-specific inputs |
 

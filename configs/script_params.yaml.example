@@ -42,7 +42,15 @@ runner_log: 'None'
 # plot_export: 'off'
 # SLURM resource profile (CPUs, memory, time limit of every job) from configs/slurm_resources.yaml; leave it out for the table's default
 # profile. See doc/SLURM_RESOURCES.md.
-# slurm_profile: 'default'
+# slurm_profile: 'default'     # or 'site': the profile of the detected site (v2 / v2_openmp on a cluster, laptop on a machine without SLURM)
+# Machine checks (doc/SLURM_RESOURCES.md section 9): what to do with a request that does not fit the machine or cluster the jobs run on.
+# warn = report, change nothing (default of the production profiles); clamp = lower only what does not fit; error = refuse what can never run;
+# off = do not look. Order: --slurm_limits > PYAPS_SLURM_LIMITS > this key > the site's > the profile's > warn.
+# slurm_limits: 'warn'
+# slurm_site: 'auto'            # a site of the table or of slurm_sites.yaml; 'auto' = detected from the machine
+# slurm_sites_file: 'None'      # the installation's own list of sites (default: slurm_sites.yaml in PyAPS_CONFIG)
+# Depth-first order of the jobs (--nice per stage and pair): off | depth_first; default: the profile's (v2: depth_first, default: off)
+# slurm_priority: 'off'
 fsuffix: '.fits'
 aps_suffix: '_APS'
 kiko_script_name: 'PyAPS_bash.sh'

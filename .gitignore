@@ -146,3 +146,4 @@ configs/*.local.*
 configs/explorer.env
 *.env
 !*.env.example
+configs/slurm_sites.yaml
