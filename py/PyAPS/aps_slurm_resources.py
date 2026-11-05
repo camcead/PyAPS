@@ -1533,15 +1533,20 @@ def _cmd_check(args, table) -> int:
                 verdict += "  (~%.0f GB expected)" % r.footprint_gb
         else:
             hard = any(a["hard"] for a in r.adjustments)
-            parts = ["%s %s -> %s" % (a["what"], a["requested"], a["fit"] if a["fit"] is not None else "nothing fits") for a in r.adjustments]
-            verdict = ("NEVER RUNS as asked: " if hard else "needs a change: ") + "; ".join(parts) + "  | " + "; ".join(a["use"] for a in r.adjustments if a.get("use"))
+            merged = {}                                   # one line per value: asked first, what fits last (a stage can be cut by the CPU share and then by the RAM)
+            for a in r.adjustments:
+                m = merged.setdefault(a["what"], dict(a))
+                m["fit"], m["use"] = a["fit"], a.get("use")
+            parts = ["%s %s -> %s" % (a["what"], a["requested"], a["fit"] if a["fit"] is not None else "nothing fits") for a in merged.values()]
+            verdict = ("NEVER RUNS as asked: " if hard else "needs a change: ") + "; ".join(parts) + "  | " + "; ".join(a["use"] for a in merged.values() if a.get("use"))
             worst = max(worst, 3 if hard else 1)
         rows.append("  %-10s asked cpus=%-3d mem=%-8s time=%-10s %s" % (st, r.cpus, ("%d GB" % r.mem_gb) if r.mem_gb else "default", r.time or "-", verdict))
     if args.json:
         print(json.dumps({"environment": envm.summary(), "stages": {st: asked[st].as_dict() for st in asked},
                           "if_clamped": {st: {"cpus": would[st].cpus, "mem_gb": would[st].mem_gb, "time": would[st].time} for st in would}}, indent=1, default=str))
         return worst
-    print(format_environment(envm, asked.profile_source))
+    real = _resolve_from_args(args, table, machine=envm.machine)            # the policy that would really apply (the check itself looks with warn)
+    print(format_environment(real.environment, asked.profile_source))
     print("\n%s %s %s grid=%s, profile %s:" % (args.family, args.res.upper(), args.stack, args.grid, next(iter(asked.values())).profile))
     print("\n".join(rows))
     print("\n" + ["Everything fits.", "Some stages need a change (policy warn keeps them as asked; clamp would lower them).",
