@@ -261,7 +261,7 @@ reaches PPXF, EMI or L2merge, the RR of every later pair has been aging since it
 night ends with many half-finished chains; in the accounting of three weeks, 83-84 % of the late-stage jobs that waited more than 10 minutes
 had been passed by an early-stage job of a later pair, and on a busy night the first complete result came 11-25 hours after the first submission.
 
-**The scheme** (profile policy `priority: depth_first`, table section `priority`; `v2` has it, `default` does not): every job of a chain gets a
+**The scheme** (profile policy `priority: depth_first`, table section `priority`; **OFF in every profile**: switch it on with `slurm_priority: 'depth_first'`): every job of a chain gets a
 non-negative `--nice` (a normal user cannot give a negative one) and a `--comment`:
 
 ```
@@ -291,9 +291,10 @@ by `<STAGE>_L2_<uapsid>`).
   suspends another job. A dependent stage of an offline chain becomes eligible with age 0, so it waits one priority calculation behind the floor
   before it passes the scheduled jobs; `--boost` removes that wait.
 * **Cap**: `max_inflight_obs` in the DMS config (existing) holds new pairs until chains in flight have finished; off by default.
-* **Switches**: `--slurm_priority off|depth_first`, `PYAPS_SLURM_PRIORITY`, script_params `slurm_priority`, then the profile's `priority.policy`. In a
+* **Switches**: `--slurm_priority off|depth_first`, `PYAPS_SLURM_PRIORITY`, script_params `slurm_priority`, then the profile's `priority.policy` (off everywhere). In a
   bash run (`--hpc 1`) nothing is queued and no nice is given.
 * **Stronger modes that are NOT built in** (they would stop other jobs): holding or suspending the pending/running jobs of the daemon while an offline
   run executes, and preemption (`PreemptType`, a QOS). They need the cluster configuration and the owner's decision.
 
-Evidence and the numbers behind the values: the private operations document `doc/ops/SLURM_RESOURCES_OPS.md`, section 12.
+**What the experiments showed (2026-11-05, a private single-node SLURM with the production priority settings, age compressed 10 x, 24 CPUs, 12 chains of seven jobs submitted one after the other).**
+With the old allocation (`default`: CPU-bound) the problem reproduces: all 12 chains are open at once, the first one completes after 80 % of the whole span, and 20 of 24 late-stage jobs that waited more than ten minutes (real) were passed by an early-stage job of a later pair. With `v2` (memory requests: the node's memory binds first) it does not occur (3 chains open, the first complete after 15 % of the span). **The nice offsets did not change the order in either case** (same completion times to the second as without them), and a nice-only offline class did not move an offline chain ahead of the queue (it finished last of nine, like an unprioritised chain); an explicit `Priority` on the queued jobs (`--boost`) did (second of nine, 259 s instead of 1044 s). The cause that was seen: the jobs that overtake are small (8 CPUs) and fill the slots that free up one at a time while the big dependent jobs (10-20 CPUs) wait for room; with every priority at the queue's floor the nice does not reorder them. So **nice offsets are shipped but OFF**, and are not a promised fix; what does reduce open chains is holding new pairs back (`max_inflight_obs`, section above) and, for an offline run, `--boost`. Details and numbers: the private operations document `doc/ops/SLURM_RESOURCES_OPS.md`, section 11.

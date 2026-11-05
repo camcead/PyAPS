@@ -89,7 +89,7 @@ footprint:
 # at the first priority calculation and pass every scheduled job that is still at the floor (nice 4500 = 10.8 h of age; the largest scheduled sum is 8500,
 # below the age cap of 10000). Stage and pair steps would put an offline job at the floor too, so the offline class has none.
 priority:
-  policy: "off"                # off | depth_first (a profile may say otherwise; --slurm_priority / PYAPS_SLURM_PRIORITY / slurm_priority win)
+  policy: "off"                # off | depth_first. OFF in every profile: the nice offsets did not change the order in the 2026-11-05 experiments (doc section 10); switch on with slurm_priority: 'depth_first'
   default_class: scheduled
   classes:
     offline: {nice: 0, stage_step: 0, pair_step: 0}     # nothing is added: a nice above the age of a job keeps it at priority 1 (see above)
@@ -200,7 +200,6 @@ profiles:
       hold the old values and say so in `status`.
     extends: default
     limits: clamp                # a request above the largest node is lowered to it (and printed)
-    priority: {policy: depth_first}
 
     MOS:
       common: []

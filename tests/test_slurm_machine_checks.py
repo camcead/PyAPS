@@ -327,18 +327,20 @@ def test_stage_log_header_says_asked_granted_and_the_place(tmp_path, table):
 
 
 # ------------------------------------------------------------------------------------------------------------ depth-first priority
-def test_priority_is_off_for_the_default_profile_and_on_for_v2(tmp_path, table):
+def test_priority_is_off_in_every_profile_unless_asked(tmp_path, table):
     machine = probe_of(tmp_path, F.CLUSTER_BIG)
     d = R(table, "MOS", CTX_LR_SINGLE_N, machine, profile="default", hpc=3, uapsid="abc")
-    v = R(table, "MOS", CTX_LR_SINGLE_N, machine, profile="v2", hpc=3, uapsid="abc")
     assert all(r.nice is None and r.comment is None for r in d.values())
+    for prof in ("v2", "v2_openmp", "laptop"):
+        assert all(r.nice is None for r in R(table, "MOS", CTX_LR_SINGLE_N, machine, profile=prof, hpc=3, uapsid="abc").values())
+    v = R(table, "MOS", CTX_LR_SINGLE_N, machine, profile="v2", hpc=3, uapsid="abc", priority_policy="depth_first")
     assert [v[s].nice for s in slres.FAMILIES["MOS"]] == [7700, 6900, 6100, 6900, 6100, 5300, 4500]    # scheduled: 4500 + 800 x stages still to come
     assert v["RR"].comment == "pyaps:abc:p0:scheduled:RR"
 
 
 def test_the_first_pair_and_the_last_stages_get_the_smallest_nice(tmp_path, table):
     machine = probe_of(tmp_path, F.CLUSTER_BIG)
-    nice = lambda **kw: R(table, "MOS", CTX_LR_SINGLE_N, machine, profile="v2", hpc=3, **kw)             # noqa: E731
+    nice = lambda **kw: R(table, "MOS", CTX_LR_SINGLE_N, machine, profile="v2", hpc=3, priority_policy="depth_first", **kw)             # noqa: E731
     first, third, far = nice(pair_index=0), nice(pair_index=2), nice(pair_index=50)
     assert third["RR"].nice == first["RR"].nice + 200 and far["RR"].nice == first["RR"].nice + 800        # pair_step 100, capped at 8 pairs
     assert first["L2merge"].nice < first["LS"].nice < first["FR"].nice < first["RVS"].nice < first["RR"].nice
@@ -347,8 +349,8 @@ def test_the_first_pair_and_the_last_stages_get_the_smallest_nice(tmp_path, tabl
 
 def test_offline_class_is_always_ahead_of_scheduled(tmp_path, table):
     machine = probe_of(tmp_path, F.CLUSTER_BIG)
-    off = R(table, "MOS", CTX_LR_SINGLE_N, machine, profile="v2", hpc=3, priority_class="offline", pair_index=8)
-    sch = R(table, "MOS", CTX_LR_SINGLE_N, machine, profile="v2", hpc=3, priority_class="scheduled", pair_index=0)
+    off = R(table, "MOS", CTX_LR_SINGLE_N, machine, profile="v2", hpc=3, priority_policy="depth_first", priority_class="offline", pair_index=8)
+    sch = R(table, "MOS", CTX_LR_SINGLE_N, machine, profile="v2", hpc=3, priority_policy="depth_first", priority_class="scheduled", pair_index=0)
     assert max(r.nice for r in off.values()) < min(r.nice for r in sch.values())
     assert all(r.nice == 0 for r in off.values())                       # no nice at all: a nice above the age of a job keeps it at the queue's floor of 1
     assert off["RR"].comment.endswith(":offline:RR") and off.priority["class_base"] == 0 and off.priority["pair_nice"] == 0
@@ -357,7 +359,7 @@ def test_offline_class_is_always_ahead_of_scheduled(tmp_path, table):
 def test_priority_operator_order_and_off(tmp_path, table):
     machine = probe_of(tmp_path, F.CLUSTER_BIG)
     a = R(table, "MOS", CTX_LR_SINGLE_N, machine, profile="v2", hpc=3, priority_policy="off")
-    b = R(table, "MOS", CTX_LR_SINGLE_N, machine, profile="v2", hpc=3, env={"PYAPS_SLURM_PRIORITY": "off"})
+    b = R(table, "MOS", CTX_LR_SINGLE_N, machine, profile="v2", hpc=3, env={"PYAPS_SLURM_PRIORITY": "off", "PYAPS_SLURM_PRIORITY_X": "1"})
     c = R(table, "MOS", CTX_LR_SINGLE_N, machine, profile="default", hpc=3, priority_policy="depth_first", env={"PYAPS_PRIORITY_CLASS": "scheduled", "PYAPS_PAIR_INDEX": "3"})
     assert all(r.nice is None for r in a.values()) and all(r.nice is None for r in b.values())
     assert c["RR"].nice == 4500 + 3200 + 300 and c.priority["class_source"] == "PYAPS_PRIORITY_CLASS"
@@ -366,13 +368,13 @@ def test_priority_operator_order_and_off(tmp_path, table):
 def test_escalation_retry_keeps_the_pair_index_of_the_first_generation(tmp_path, table):
     machine = probe_of(tmp_path, F.CLUSTER_BIG)
     esc = {"FR": {"mem_factor": 1.5, "time_factor": 1.0}}
-    again = R(table, "MOS", CTX_LR_SINGLE_N, machine, profile="v2", hpc=3, escalation=esc, pair_index=40, previous_priority={"pair_index": 1})
-    fresh = R(table, "MOS", CTX_LR_SINGLE_N, machine, profile="v2", hpc=3, pair_index=40, previous_priority={"pair_index": 1})
+    again = R(table, "MOS", CTX_LR_SINGLE_N, machine, profile="v2", hpc=3, priority_policy="depth_first", escalation=esc, pair_index=40, previous_priority={"pair_index": 1})
+    fresh = R(table, "MOS", CTX_LR_SINGLE_N, machine, profile="v2", hpc=3, priority_policy="depth_first", pair_index=40, previous_priority={"pair_index": 1})
     assert again.priority["pair_index"] == 1 and "escalation" in again.priority["pair_source"] and fresh.priority["pair_index"] == 40
 
 
 def test_no_nice_in_a_bash_run(tmp_path, table):
-    res = R(table, "MOS", CTX_LR_SINGLE_N, laptop(tmp_path), profile="v2", hpc=1)
+    res = R(table, "MOS", CTX_LR_SINGLE_N, laptop(tmp_path), profile="v2", hpc=1, priority_policy="depth_first")
     assert all(r.nice is None for r in res.values())
 
 
