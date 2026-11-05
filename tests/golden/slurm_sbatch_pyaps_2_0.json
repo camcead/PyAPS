@@ -1,0 +1,847 @@
+{
+ "LIFU-L2-HR": {
+  "driver": [
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=12 --time=2-00:00:00 --job-name=IFU_PR_L2_abcdef012345 <SCRIPT:IFU_Prepare.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=60 --time=2-00:00:00 --dependency=afterany:$jid_PR --mem=240GB --job-name=IFU_ExGal_L2_abcdef012345 <SCRIPT:IFU_ExGal.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=40 --time=2-00:00:00 --dependency=afterany:$jid_PR --job-name=IFU_Gal_L2_abcdef012345 <SCRIPT:IFU_Gal.sh>"
+  ],
+  "pragmas": {
+   "IFU_ExGal.sh": [
+    "#SBATCH --ntasks=60",
+    "#SBATCH --mem=240GB"
+   ],
+   "IFU_Gal.sh": [
+    "#SBATCH --ntasks=40"
+   ],
+   "IFU_Prepare.sh": [
+    "#SBATCH --ntasks=12"
+   ]
+  }
+ },
+ "LIFU-L2-LR": {
+  "driver": [
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=6 --time=2-00:00:00 --job-name=IFU_PR_L2_abcdef012345 <SCRIPT:IFU_Prepare.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=30 --time=2-00:00:00 --dependency=afterany:$jid_PR --mem=240GB --job-name=IFU_ExGal_L2_abcdef012345 <SCRIPT:IFU_ExGal.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=20 --time=2-00:00:00 --dependency=afterany:$jid_PR --job-name=IFU_Gal_L2_abcdef012345 <SCRIPT:IFU_Gal.sh>"
+  ],
+  "pragmas": {
+   "IFU_ExGal.sh": [
+    "#SBATCH --ntasks=30",
+    "#SBATCH --mem=240GB"
+   ],
+   "IFU_Gal.sh": [
+    "#SBATCH --ntasks=20"
+   ],
+   "IFU_Prepare.sh": [
+    "#SBATCH --ntasks=6"
+   ]
+  }
+ },
+ "LIFU-L2-LR-time": {
+  "driver": [
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=6 --time=2-00:00:00 --job-name=IFU_PR_L2_abcdef012345 <SCRIPT:IFU_Prepare.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=30 --time=1-12:00:00 --dependency=afterany:$jid_PR --mem=240GB --job-name=IFU_ExGal_L2_abcdef012345 <SCRIPT:IFU_ExGal.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=20 --time=2-00:00:00 --dependency=afterany:$jid_PR --job-name=IFU_Gal_L2_abcdef012345 <SCRIPT:IFU_Gal.sh>"
+  ],
+  "pragmas": {
+   "IFU_ExGal.sh": [
+    "#SBATCH --ntasks=30",
+    "#SBATCH --mem=240GB"
+   ],
+   "IFU_Gal.sh": [
+    "#SBATCH --ntasks=20"
+   ],
+   "IFU_Prepare.sh": [
+    "#SBATCH --ntasks=6"
+   ]
+  }
+ },
+ "MIFU-L2-HR": {
+  "driver": [
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=6 --time=2-00:00:00 --job-name=IFU_PR_L2_abcdef012345 <SCRIPT:IFU_Prepare.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=20 --time=2-00:00:00 --dependency=afterany:$jid_PR --job-name=IFU_ExGal_L2_abcdef012345 <SCRIPT:IFU_ExGal.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=20 --time=2-00:00:00 --dependency=afterany:$jid_PR --job-name=IFU_Gal_L2_abcdef012345 <SCRIPT:IFU_Gal.sh>"
+  ],
+  "pragmas": {
+   "IFU_ExGal.sh": [
+    "#SBATCH --ntasks=20"
+   ],
+   "IFU_Gal.sh": [
+    "#SBATCH --ntasks=20"
+   ],
+   "IFU_Prepare.sh": [
+    "#SBATCH --ntasks=6"
+   ]
+  }
+ },
+ "MIFU-L2-LR": {
+  "driver": [
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=3 --time=2-00:00:00 --job-name=IFU_PR_L2_abcdef012345 <SCRIPT:IFU_Prepare.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=10 --time=2-00:00:00 --dependency=afterany:$jid_PR --job-name=IFU_ExGal_L2_abcdef012345 <SCRIPT:IFU_ExGal.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=10 --time=2-00:00:00 --dependency=afterany:$jid_PR --job-name=IFU_Gal_L2_abcdef012345 <SCRIPT:IFU_Gal.sh>"
+  ],
+  "pragmas": {
+   "IFU_ExGal.sh": [
+    "#SBATCH --ntasks=10"
+   ],
+   "IFU_Gal.sh": [
+    "#SBATCH --ntasks=10"
+   ],
+   "IFU_Prepare.sh": [
+    "#SBATCH --ntasks=3"
+   ]
+  }
+ },
+ "MIFU-L2-LR-mp5": {
+  "driver": [
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=5 --time=2-00:00:00 --job-name=IFU_PR_L2_abcdef012345 <SCRIPT:IFU_Prepare.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=5 --time=2-00:00:00 --dependency=afterany:$jid_PR --job-name=IFU_ExGal_L2_abcdef012345 <SCRIPT:IFU_ExGal.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=5 --time=2-00:00:00 --dependency=afterany:$jid_PR --job-name=IFU_Gal_L2_abcdef012345 <SCRIPT:IFU_Gal.sh>"
+  ],
+  "pragmas": {
+   "IFU_ExGal.sh": [
+    "#SBATCH --ntasks=5"
+   ],
+   "IFU_Gal.sh": [
+    "#SBATCH --ntasks=5"
+   ],
+   "IFU_Prepare.sh": [
+    "#SBATCH --ntasks=5"
+   ]
+  }
+ },
+ "MOS-CS-HR-gridm": {
+  "driver": [
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=12 --job-name=SQ_CS_abcdef012345 <SCRIPT:CS_SQ.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=24 --mem=400GB --job-name=FESWI_CS_abcdef012345 <SCRIPT:CS_FESWI.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=12 --job-name=SPACE_CS_abcdef012345 <SCRIPT:CS_SPACE.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=24 --job-name=AMY_CS_abcdef012345 <SCRIPT:CS_AMY.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=24 --job-name=AN_CS_abcdef012345 <SCRIPT:CS_AN.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=2 --job-name=RRLGV_CS_abcdef012345 <SCRIPT:CS_RRLGV.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=2 --job-name=RRLEW_CS_abcdef012345 <SCRIPT:CS_RRLEW.sh>"
+  ],
+  "pragmas": {
+   "CS_AMY.sh": [],
+   "CS_AN.sh": [],
+   "CS_FESWI.sh": [],
+   "CS_RRLEW.sh": [],
+   "CS_RRLGV.sh": [],
+   "CS_SPACE.sh": [],
+   "CS_SQ.sh": []
+  }
+ },
+ "MOS-CS-HR-gridn": {
+  "driver": [
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=12 --job-name=SQ_CS_abcdef012345 <SCRIPT:CS_SQ.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=24 --job-name=FESWI_CS_abcdef012345 <SCRIPT:CS_FESWI.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=12 --job-name=SPACE_CS_abcdef012345 <SCRIPT:CS_SPACE.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=24 --job-name=AMY_CS_abcdef012345 <SCRIPT:CS_AMY.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=24 --job-name=AN_CS_abcdef012345 <SCRIPT:CS_AN.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=2 --job-name=RRLGV_CS_abcdef012345 <SCRIPT:CS_RRLGV.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=2 --job-name=RRLEW_CS_abcdef012345 <SCRIPT:CS_RRLEW.sh>"
+  ],
+  "pragmas": {
+   "CS_AMY.sh": [],
+   "CS_AN.sh": [],
+   "CS_FESWI.sh": [],
+   "CS_RRLEW.sh": [],
+   "CS_RRLGV.sh": [],
+   "CS_SPACE.sh": [],
+   "CS_SQ.sh": []
+  }
+ },
+ "MOS-CS-LR-gridm": {
+  "driver": [
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=6 --job-name=SQ_CS_abcdef012345 <SCRIPT:CS_SQ.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=12 --mem=400GB --job-name=FESWI_CS_abcdef012345 <SCRIPT:CS_FESWI.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=6 --job-name=SPACE_CS_abcdef012345 <SCRIPT:CS_SPACE.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=12 --job-name=AMY_CS_abcdef012345 <SCRIPT:CS_AMY.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=12 --job-name=AN_CS_abcdef012345 <SCRIPT:CS_AN.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=1 --job-name=RRLGV_CS_abcdef012345 <SCRIPT:CS_RRLGV.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=1 --job-name=RRLEW_CS_abcdef012345 <SCRIPT:CS_RRLEW.sh>"
+  ],
+  "pragmas": {
+   "CS_AMY.sh": [],
+   "CS_AN.sh": [],
+   "CS_FESWI.sh": [],
+   "CS_RRLEW.sh": [],
+   "CS_RRLGV.sh": [],
+   "CS_SPACE.sh": [],
+   "CS_SQ.sh": []
+  }
+ },
+ "MOS-CS-LR-gridn": {
+  "driver": [
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=6 --job-name=SQ_CS_abcdef012345 <SCRIPT:CS_SQ.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=12 --job-name=FESWI_CS_abcdef012345 <SCRIPT:CS_FESWI.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=6 --job-name=SPACE_CS_abcdef012345 <SCRIPT:CS_SPACE.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=12 --job-name=AMY_CS_abcdef012345 <SCRIPT:CS_AMY.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=12 --job-name=AN_CS_abcdef012345 <SCRIPT:CS_AN.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=1 --job-name=RRLGV_CS_abcdef012345 <SCRIPT:CS_RRLGV.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=1 --job-name=RRLEW_CS_abcdef012345 <SCRIPT:CS_RRLEW.sh>"
+  ],
+  "pragmas": {
+   "CS_AMY.sh": [],
+   "CS_AN.sh": [],
+   "CS_FESWI.sh": [],
+   "CS_RRLEW.sh": [],
+   "CS_RRLGV.sh": [],
+   "CS_SPACE.sh": [],
+   "CS_SQ.sh": []
+  }
+ },
+ "MOS-L2-HR-stack0-gridm": {
+  "driver": [
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=16 --time=2-00:00:00 --job-name=RR_L2_abcdef012345 <SCRIPT:MOS_RR.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=24 --time=2-00:00:00 --dependency=afterany:$jid_RR --job-name=RVS_L2_abcdef012345 <SCRIPT:MOS_RVS.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=20 --time=2-00:00:00 --dependency=afterany:$jid_RVS --job-name=FR_L2_abcdef012345 <SCRIPT:MOS_FR.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=20 --time=2-00:00:00 --dependency=afterany:$jid_RR --job-name=PPXF_L2_abcdef012345 <SCRIPT:MOS_PPXF.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=40 --time=2-00:00:00 --dependency=afterany:$jid_PPXF --job-name=EMI_L2_abcdef012345 <SCRIPT:MOS_EMI.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=12 --time=2-00:00:00 --dependency=afterany:$jid_PPXF:$jid_EMI --job-name=LS_L2_abcdef012345 <SCRIPT:MOS_LS.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=2 --time=2-00:00:00 --dependency=afterany:$jid_RR:$jid_RVS:$jid_FR:$jid_PPXF:$jid_EMI:$jid_LS --job-name=L2merge_L2_abcdef012345 <SCRIPT:MOS_L2merge.sh>"
+  ],
+  "pragmas": {
+   "MOS_EMI.sh": [
+    "#SBATCH --ntasks=40"
+   ],
+   "MOS_FR.sh": [
+    "#SBATCH --ntasks=20"
+   ],
+   "MOS_L2merge.sh": [
+    "#SBATCH --ntasks=2"
+   ],
+   "MOS_LS.sh": [
+    "#SBATCH --ntasks=12"
+   ],
+   "MOS_PPXF.sh": [
+    "#SBATCH --ntasks=20"
+   ],
+   "MOS_RR.sh": [
+    "#SBATCH --ntasks=16"
+   ],
+   "MOS_RVS.sh": [
+    "#SBATCH --ntasks=24"
+   ]
+  }
+ },
+ "MOS-L2-HR-stack0-gridm-mpcustom": {
+  "driver": [
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=6 --time=2-00:00:00 --job-name=RR_L2_abcdef012345 <SCRIPT:MOS_RR.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=10 --time=2-00:00:00 --dependency=afterany:$jid_RR --job-name=RVS_L2_abcdef012345 <SCRIPT:MOS_RVS.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=8 --time=2-00:00:00 --dependency=afterany:$jid_RVS --job-name=FR_L2_abcdef012345 <SCRIPT:MOS_FR.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=18 --time=2-00:00:00 --dependency=afterany:$jid_RR --job-name=PPXF_L2_abcdef012345 <SCRIPT:MOS_PPXF.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=22 --time=2-00:00:00 --dependency=afterany:$jid_PPXF --job-name=EMI_L2_abcdef012345 <SCRIPT:MOS_EMI.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=26 --time=2-00:00:00 --dependency=afterany:$jid_PPXF:$jid_EMI --job-name=LS_L2_abcdef012345 <SCRIPT:MOS_LS.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=4 --time=2-00:00:00 --dependency=afterany:$jid_RR:$jid_RVS:$jid_FR:$jid_PPXF:$jid_EMI:$jid_LS --job-name=L2merge_L2_abcdef012345 <SCRIPT:MOS_L2merge.sh>"
+  ],
+  "pragmas": {
+   "MOS_EMI.sh": [
+    "#SBATCH --ntasks=22"
+   ],
+   "MOS_FR.sh": [
+    "#SBATCH --ntasks=8"
+   ],
+   "MOS_L2merge.sh": [
+    "#SBATCH --ntasks=4"
+   ],
+   "MOS_LS.sh": [
+    "#SBATCH --ntasks=26"
+   ],
+   "MOS_PPXF.sh": [
+    "#SBATCH --ntasks=18"
+   ],
+   "MOS_RR.sh": [
+    "#SBATCH --ntasks=6"
+   ],
+   "MOS_RVS.sh": [
+    "#SBATCH --ntasks=10"
+   ]
+  }
+ },
+ "MOS-L2-HR-stack0-gridn": {
+  "driver": [
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=16 --time=2-00:00:00 --job-name=RR_L2_abcdef012345 <SCRIPT:MOS_RR.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=24 --time=2-00:00:00 --dependency=afterany:$jid_RR --job-name=RVS_L2_abcdef012345 <SCRIPT:MOS_RVS.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=20 --time=2-00:00:00 --dependency=afterany:$jid_RVS --job-name=FR_L2_abcdef012345 <SCRIPT:MOS_FR.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=20 --time=2-00:00:00 --dependency=afterany:$jid_RR --job-name=PPXF_L2_abcdef012345 <SCRIPT:MOS_PPXF.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=40 --time=2-00:00:00 --dependency=afterany:$jid_PPXF --job-name=EMI_L2_abcdef012345 <SCRIPT:MOS_EMI.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=12 --time=2-00:00:00 --dependency=afterany:$jid_PPXF:$jid_EMI --job-name=LS_L2_abcdef012345 <SCRIPT:MOS_LS.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=2 --time=2-00:00:00 --dependency=afterany:$jid_RR:$jid_RVS:$jid_FR:$jid_PPXF:$jid_EMI:$jid_LS --job-name=L2merge_L2_abcdef012345 <SCRIPT:MOS_L2merge.sh>"
+  ],
+  "pragmas": {
+   "MOS_EMI.sh": [
+    "#SBATCH --ntasks=40"
+   ],
+   "MOS_FR.sh": [
+    "#SBATCH --ntasks=20"
+   ],
+   "MOS_L2merge.sh": [
+    "#SBATCH --ntasks=2"
+   ],
+   "MOS_LS.sh": [
+    "#SBATCH --ntasks=12"
+   ],
+   "MOS_PPXF.sh": [
+    "#SBATCH --ntasks=20"
+   ],
+   "MOS_RR.sh": [
+    "#SBATCH --ntasks=16"
+   ],
+   "MOS_RVS.sh": [
+    "#SBATCH --ntasks=24"
+   ]
+  }
+ },
+ "MOS-L2-HR-stack1-gridm": {
+  "driver": [
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=16 --time=2-00:00:00 --job-name=RR_L2_abcdef012345 <SCRIPT:MOS_RR.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=24 --time=2-00:00:00 --dependency=afterany:$jid_RR --job-name=RVS_L2_abcdef012345 <SCRIPT:MOS_RVS.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=36 --time=2-00:00:00 --dependency=afterany:$jid_RVS --mem=380GB --job-name=FR_L2_abcdef012345 <SCRIPT:MOS_FR.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=20 --time=2-00:00:00 --dependency=afterany:$jid_RR --job-name=PPXF_L2_abcdef012345 <SCRIPT:MOS_PPXF.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=40 --time=2-00:00:00 --dependency=afterany:$jid_PPXF --job-name=EMI_L2_abcdef012345 <SCRIPT:MOS_EMI.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=12 --time=2-00:00:00 --dependency=afterany:$jid_PPXF:$jid_EMI --job-name=LS_L2_abcdef012345 <SCRIPT:MOS_LS.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=2 --time=2-00:00:00 --dependency=afterany:$jid_RR:$jid_RVS:$jid_FR:$jid_PPXF:$jid_EMI:$jid_LS --job-name=L2merge_L2_abcdef012345 <SCRIPT:MOS_L2merge.sh>"
+  ],
+  "pragmas": {
+   "MOS_EMI.sh": [
+    "#SBATCH --ntasks=40"
+   ],
+   "MOS_FR.sh": [
+    "#SBATCH --ntasks=36",
+    "#SBATCH --mem=380GB"
+   ],
+   "MOS_L2merge.sh": [
+    "#SBATCH --ntasks=2"
+   ],
+   "MOS_LS.sh": [
+    "#SBATCH --ntasks=12"
+   ],
+   "MOS_PPXF.sh": [
+    "#SBATCH --ntasks=20"
+   ],
+   "MOS_RR.sh": [
+    "#SBATCH --ntasks=16"
+   ],
+   "MOS_RVS.sh": [
+    "#SBATCH --ntasks=24"
+   ]
+  }
+ },
+ "MOS-L2-HR-stack1-gridn": {
+  "driver": [
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=16 --time=2-00:00:00 --job-name=RR_L2_abcdef012345 <SCRIPT:MOS_RR.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=24 --time=2-00:00:00 --dependency=afterany:$jid_RR --job-name=RVS_L2_abcdef012345 <SCRIPT:MOS_RVS.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=36 --time=2-00:00:00 --dependency=afterany:$jid_RVS --job-name=FR_L2_abcdef012345 <SCRIPT:MOS_FR.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=20 --time=2-00:00:00 --dependency=afterany:$jid_RR --job-name=PPXF_L2_abcdef012345 <SCRIPT:MOS_PPXF.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=40 --time=2-00:00:00 --dependency=afterany:$jid_PPXF --job-name=EMI_L2_abcdef012345 <SCRIPT:MOS_EMI.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=12 --time=2-00:00:00 --dependency=afterany:$jid_PPXF:$jid_EMI --job-name=LS_L2_abcdef012345 <SCRIPT:MOS_LS.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=2 --time=2-00:00:00 --dependency=afterany:$jid_RR:$jid_RVS:$jid_FR:$jid_PPXF:$jid_EMI:$jid_LS --job-name=L2merge_L2_abcdef012345 <SCRIPT:MOS_L2merge.sh>"
+  ],
+  "pragmas": {
+   "MOS_EMI.sh": [
+    "#SBATCH --ntasks=40"
+   ],
+   "MOS_FR.sh": [
+    "#SBATCH --ntasks=36"
+   ],
+   "MOS_L2merge.sh": [
+    "#SBATCH --ntasks=2"
+   ],
+   "MOS_LS.sh": [
+    "#SBATCH --ntasks=12"
+   ],
+   "MOS_PPXF.sh": [
+    "#SBATCH --ntasks=20"
+   ],
+   "MOS_RR.sh": [
+    "#SBATCH --ntasks=16"
+   ],
+   "MOS_RVS.sh": [
+    "#SBATCH --ntasks=24"
+   ]
+  }
+ },
+ "MOS-L2-HR-stack3-gridm": {
+  "driver": [
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=16 --time=2-00:00:00 --job-name=RR_L2_abcdef012345 <SCRIPT:MOS_RR.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=24 --time=2-00:00:00 --dependency=afterany:$jid_RR --job-name=RVS_L2_abcdef012345 <SCRIPT:MOS_RVS.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=36 --time=2-00:00:00 --dependency=afterany:$jid_RVS --mem=380GB --job-name=FR_L2_abcdef012345 <SCRIPT:MOS_FR.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=20 --time=2-00:00:00 --dependency=afterany:$jid_RR --job-name=PPXF_L2_abcdef012345 <SCRIPT:MOS_PPXF.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=40 --time=2-00:00:00 --dependency=afterany:$jid_PPXF --job-name=EMI_L2_abcdef012345 <SCRIPT:MOS_EMI.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=12 --time=2-00:00:00 --dependency=afterany:$jid_PPXF:$jid_EMI --job-name=LS_L2_abcdef012345 <SCRIPT:MOS_LS.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=2 --time=2-00:00:00 --dependency=afterany:$jid_RR:$jid_RVS:$jid_FR:$jid_PPXF:$jid_EMI:$jid_LS --job-name=L2merge_L2_abcdef012345 <SCRIPT:MOS_L2merge.sh>"
+  ],
+  "pragmas": {
+   "MOS_EMI.sh": [
+    "#SBATCH --ntasks=40"
+   ],
+   "MOS_FR.sh": [
+    "#SBATCH --ntasks=36",
+    "#SBATCH --mem=380GB"
+   ],
+   "MOS_L2merge.sh": [
+    "#SBATCH --ntasks=2"
+   ],
+   "MOS_LS.sh": [
+    "#SBATCH --ntasks=12"
+   ],
+   "MOS_PPXF.sh": [
+    "#SBATCH --ntasks=20"
+   ],
+   "MOS_RR.sh": [
+    "#SBATCH --ntasks=16"
+   ],
+   "MOS_RVS.sh": [
+    "#SBATCH --ntasks=24"
+   ]
+  }
+ },
+ "MOS-L2-HR-stack3-gridn": {
+  "driver": [
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=16 --time=2-00:00:00 --job-name=RR_L2_abcdef012345 <SCRIPT:MOS_RR.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=24 --time=2-00:00:00 --dependency=afterany:$jid_RR --job-name=RVS_L2_abcdef012345 <SCRIPT:MOS_RVS.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=36 --time=2-00:00:00 --dependency=afterany:$jid_RVS --job-name=FR_L2_abcdef012345 <SCRIPT:MOS_FR.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=20 --time=2-00:00:00 --dependency=afterany:$jid_RR --job-name=PPXF_L2_abcdef012345 <SCRIPT:MOS_PPXF.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=40 --time=2-00:00:00 --dependency=afterany:$jid_PPXF --job-name=EMI_L2_abcdef012345 <SCRIPT:MOS_EMI.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=12 --time=2-00:00:00 --dependency=afterany:$jid_PPXF:$jid_EMI --job-name=LS_L2_abcdef012345 <SCRIPT:MOS_LS.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=2 --time=2-00:00:00 --dependency=afterany:$jid_RR:$jid_RVS:$jid_FR:$jid_PPXF:$jid_EMI:$jid_LS --job-name=L2merge_L2_abcdef012345 <SCRIPT:MOS_L2merge.sh>"
+  ],
+  "pragmas": {
+   "MOS_EMI.sh": [
+    "#SBATCH --ntasks=40"
+   ],
+   "MOS_FR.sh": [
+    "#SBATCH --ntasks=36"
+   ],
+   "MOS_L2merge.sh": [
+    "#SBATCH --ntasks=2"
+   ],
+   "MOS_LS.sh": [
+    "#SBATCH --ntasks=12"
+   ],
+   "MOS_PPXF.sh": [
+    "#SBATCH --ntasks=20"
+   ],
+   "MOS_RR.sh": [
+    "#SBATCH --ntasks=16"
+   ],
+   "MOS_RVS.sh": [
+    "#SBATCH --ntasks=24"
+   ]
+  }
+ },
+ "MOS-L2-HR-stack4-gridm": {
+  "driver": [
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=16 --time=2-00:00:00 --job-name=RR_L2_abcdef012345 <SCRIPT:MOS_RR.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=24 --time=2-00:00:00 --dependency=afterany:$jid_RR --job-name=RVS_L2_abcdef012345 <SCRIPT:MOS_RVS.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=36 --time=2-00:00:00 --dependency=afterany:$jid_RVS --mem=380GB --job-name=FR_L2_abcdef012345 <SCRIPT:MOS_FR.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=20 --time=2-00:00:00 --dependency=afterany:$jid_RR --job-name=PPXF_L2_abcdef012345 <SCRIPT:MOS_PPXF.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=40 --time=2-00:00:00 --dependency=afterany:$jid_PPXF --job-name=EMI_L2_abcdef012345 <SCRIPT:MOS_EMI.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=12 --time=2-00:00:00 --dependency=afterany:$jid_PPXF:$jid_EMI --job-name=LS_L2_abcdef012345 <SCRIPT:MOS_LS.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=2 --time=2-00:00:00 --dependency=afterany:$jid_RR:$jid_RVS:$jid_FR:$jid_PPXF:$jid_EMI:$jid_LS --job-name=L2merge_L2_abcdef012345 <SCRIPT:MOS_L2merge.sh>"
+  ],
+  "pragmas": {
+   "MOS_EMI.sh": [
+    "#SBATCH --ntasks=40"
+   ],
+   "MOS_FR.sh": [
+    "#SBATCH --ntasks=36",
+    "#SBATCH --mem=380GB"
+   ],
+   "MOS_L2merge.sh": [
+    "#SBATCH --ntasks=2"
+   ],
+   "MOS_LS.sh": [
+    "#SBATCH --ntasks=12"
+   ],
+   "MOS_PPXF.sh": [
+    "#SBATCH --ntasks=20"
+   ],
+   "MOS_RR.sh": [
+    "#SBATCH --ntasks=16"
+   ],
+   "MOS_RVS.sh": [
+    "#SBATCH --ntasks=24"
+   ]
+  }
+ },
+ "MOS-L2-HR-stack4-gridn": {
+  "driver": [
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=16 --time=2-00:00:00 --job-name=RR_L2_abcdef012345 <SCRIPT:MOS_RR.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=24 --time=2-00:00:00 --dependency=afterany:$jid_RR --job-name=RVS_L2_abcdef012345 <SCRIPT:MOS_RVS.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=36 --time=2-00:00:00 --dependency=afterany:$jid_RVS --job-name=FR_L2_abcdef012345 <SCRIPT:MOS_FR.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=20 --time=2-00:00:00 --dependency=afterany:$jid_RR --job-name=PPXF_L2_abcdef012345 <SCRIPT:MOS_PPXF.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=40 --time=2-00:00:00 --dependency=afterany:$jid_PPXF --job-name=EMI_L2_abcdef012345 <SCRIPT:MOS_EMI.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=12 --time=2-00:00:00 --dependency=afterany:$jid_PPXF:$jid_EMI --job-name=LS_L2_abcdef012345 <SCRIPT:MOS_LS.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=2 --time=2-00:00:00 --dependency=afterany:$jid_RR:$jid_RVS:$jid_FR:$jid_PPXF:$jid_EMI:$jid_LS --job-name=L2merge_L2_abcdef012345 <SCRIPT:MOS_L2merge.sh>"
+  ],
+  "pragmas": {
+   "MOS_EMI.sh": [
+    "#SBATCH --ntasks=40"
+   ],
+   "MOS_FR.sh": [
+    "#SBATCH --ntasks=36"
+   ],
+   "MOS_L2merge.sh": [
+    "#SBATCH --ntasks=2"
+   ],
+   "MOS_LS.sh": [
+    "#SBATCH --ntasks=12"
+   ],
+   "MOS_PPXF.sh": [
+    "#SBATCH --ntasks=20"
+   ],
+   "MOS_RR.sh": [
+    "#SBATCH --ntasks=16"
+   ],
+   "MOS_RVS.sh": [
+    "#SBATCH --ntasks=24"
+   ]
+  }
+ },
+ "MOS-L2-LR-stack0-gridm": {
+  "driver": [
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=8 --time=2-00:00:00 --job-name=RR_L2_abcdef012345 <SCRIPT:MOS_RR.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=12 --time=2-00:00:00 --dependency=afterany:$jid_RR --job-name=RVS_L2_abcdef012345 <SCRIPT:MOS_RVS.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=10 --time=2-00:00:00 --dependency=afterany:$jid_RVS --job-name=FR_L2_abcdef012345 <SCRIPT:MOS_FR.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=10 --time=2-00:00:00 --dependency=afterany:$jid_RR --job-name=PPXF_L2_abcdef012345 <SCRIPT:MOS_PPXF.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=20 --time=2-00:00:00 --dependency=afterany:$jid_PPXF --job-name=EMI_L2_abcdef012345 <SCRIPT:MOS_EMI.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=6 --time=2-00:00:00 --dependency=afterany:$jid_PPXF:$jid_EMI --job-name=LS_L2_abcdef012345 <SCRIPT:MOS_LS.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=1 --time=2-00:00:00 --dependency=afterany:$jid_RR:$jid_RVS:$jid_FR:$jid_PPXF:$jid_EMI:$jid_LS --job-name=L2merge_L2_abcdef012345 <SCRIPT:MOS_L2merge.sh>"
+  ],
+  "pragmas": {
+   "MOS_EMI.sh": [
+    "#SBATCH --ntasks=20"
+   ],
+   "MOS_FR.sh": [
+    "#SBATCH --ntasks=10"
+   ],
+   "MOS_L2merge.sh": [
+    "#SBATCH --ntasks=1"
+   ],
+   "MOS_LS.sh": [
+    "#SBATCH --ntasks=6"
+   ],
+   "MOS_PPXF.sh": [
+    "#SBATCH --ntasks=10"
+   ],
+   "MOS_RR.sh": [
+    "#SBATCH --ntasks=8"
+   ],
+   "MOS_RVS.sh": [
+    "#SBATCH --ntasks=12"
+   ]
+  }
+ },
+ "MOS-L2-LR-stack0-gridn": {
+  "driver": [
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=8 --time=2-00:00:00 --job-name=RR_L2_abcdef012345 <SCRIPT:MOS_RR.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=12 --time=2-00:00:00 --dependency=afterany:$jid_RR --job-name=RVS_L2_abcdef012345 <SCRIPT:MOS_RVS.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=10 --time=2-00:00:00 --dependency=afterany:$jid_RVS --job-name=FR_L2_abcdef012345 <SCRIPT:MOS_FR.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=10 --time=2-00:00:00 --dependency=afterany:$jid_RR --job-name=PPXF_L2_abcdef012345 <SCRIPT:MOS_PPXF.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=20 --time=2-00:00:00 --dependency=afterany:$jid_PPXF --job-name=EMI_L2_abcdef012345 <SCRIPT:MOS_EMI.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=6 --time=2-00:00:00 --dependency=afterany:$jid_PPXF:$jid_EMI --job-name=LS_L2_abcdef012345 <SCRIPT:MOS_LS.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=1 --time=2-00:00:00 --dependency=afterany:$jid_RR:$jid_RVS:$jid_FR:$jid_PPXF:$jid_EMI:$jid_LS --job-name=L2merge_L2_abcdef012345 <SCRIPT:MOS_L2merge.sh>"
+  ],
+  "pragmas": {
+   "MOS_EMI.sh": [
+    "#SBATCH --ntasks=20"
+   ],
+   "MOS_FR.sh": [
+    "#SBATCH --ntasks=10"
+   ],
+   "MOS_L2merge.sh": [
+    "#SBATCH --ntasks=1"
+   ],
+   "MOS_LS.sh": [
+    "#SBATCH --ntasks=6"
+   ],
+   "MOS_PPXF.sh": [
+    "#SBATCH --ntasks=10"
+   ],
+   "MOS_RR.sh": [
+    "#SBATCH --ntasks=8"
+   ],
+   "MOS_RVS.sh": [
+    "#SBATCH --ntasks=12"
+   ]
+  }
+ },
+ "MOS-L2-LR-stack1-gridm": {
+  "driver": [
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=8 --time=2-00:00:00 --job-name=RR_L2_abcdef012345 <SCRIPT:MOS_RR.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=12 --time=2-00:00:00 --dependency=afterany:$jid_RR --job-name=RVS_L2_abcdef012345 <SCRIPT:MOS_RVS.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=18 --time=2-00:00:00 --dependency=afterany:$jid_RVS --mem=190GB --job-name=FR_L2_abcdef012345 <SCRIPT:MOS_FR.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=10 --time=2-00:00:00 --dependency=afterany:$jid_RR --job-name=PPXF_L2_abcdef012345 <SCRIPT:MOS_PPXF.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=20 --time=2-00:00:00 --dependency=afterany:$jid_PPXF --job-name=EMI_L2_abcdef012345 <SCRIPT:MOS_EMI.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=6 --time=2-00:00:00 --dependency=afterany:$jid_PPXF:$jid_EMI --job-name=LS_L2_abcdef012345 <SCRIPT:MOS_LS.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=1 --time=2-00:00:00 --dependency=afterany:$jid_RR:$jid_RVS:$jid_FR:$jid_PPXF:$jid_EMI:$jid_LS --job-name=L2merge_L2_abcdef012345 <SCRIPT:MOS_L2merge.sh>"
+  ],
+  "pragmas": {
+   "MOS_EMI.sh": [
+    "#SBATCH --ntasks=20"
+   ],
+   "MOS_FR.sh": [
+    "#SBATCH --ntasks=18",
+    "#SBATCH --mem=190GB"
+   ],
+   "MOS_L2merge.sh": [
+    "#SBATCH --ntasks=1"
+   ],
+   "MOS_LS.sh": [
+    "#SBATCH --ntasks=6"
+   ],
+   "MOS_PPXF.sh": [
+    "#SBATCH --ntasks=10"
+   ],
+   "MOS_RR.sh": [
+    "#SBATCH --ntasks=8"
+   ],
+   "MOS_RVS.sh": [
+    "#SBATCH --ntasks=12"
+   ]
+  }
+ },
+ "MOS-L2-LR-stack1-gridm-mp4": {
+  "driver": [
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=4 --time=2-00:00:00 --job-name=RR_L2_abcdef012345 <SCRIPT:MOS_RR.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=4 --time=2-00:00:00 --dependency=afterany:$jid_RR --job-name=RVS_L2_abcdef012345 <SCRIPT:MOS_RVS.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=4 --time=2-00:00:00 --dependency=afterany:$jid_RVS --mem=190GB --job-name=FR_L2_abcdef012345 <SCRIPT:MOS_FR.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=4 --time=2-00:00:00 --dependency=afterany:$jid_RR --job-name=PPXF_L2_abcdef012345 <SCRIPT:MOS_PPXF.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=4 --time=2-00:00:00 --dependency=afterany:$jid_PPXF --job-name=EMI_L2_abcdef012345 <SCRIPT:MOS_EMI.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=4 --time=2-00:00:00 --dependency=afterany:$jid_PPXF:$jid_EMI --job-name=LS_L2_abcdef012345 <SCRIPT:MOS_LS.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=4 --time=2-00:00:00 --dependency=afterany:$jid_RR:$jid_RVS:$jid_FR:$jid_PPXF:$jid_EMI:$jid_LS --job-name=L2merge_L2_abcdef012345 <SCRIPT:MOS_L2merge.sh>"
+  ],
+  "pragmas": {
+   "MOS_EMI.sh": [
+    "#SBATCH --ntasks=4"
+   ],
+   "MOS_FR.sh": [
+    "#SBATCH --ntasks=4",
+    "#SBATCH --mem=190GB"
+   ],
+   "MOS_L2merge.sh": [
+    "#SBATCH --ntasks=4"
+   ],
+   "MOS_LS.sh": [
+    "#SBATCH --ntasks=4"
+   ],
+   "MOS_PPXF.sh": [
+    "#SBATCH --ntasks=4"
+   ],
+   "MOS_RR.sh": [
+    "#SBATCH --ntasks=4"
+   ],
+   "MOS_RVS.sh": [
+    "#SBATCH --ntasks=4"
+   ]
+  }
+ },
+ "MOS-L2-LR-stack1-gridm-time": {
+  "driver": [
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=8 --time=12:00:00 --job-name=RR_L2_abcdef012345 <SCRIPT:MOS_RR.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=12 --time=2-00:00:00 --dependency=afterany:$jid_RR --job-name=RVS_L2_abcdef012345 <SCRIPT:MOS_RVS.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=18 --dependency=afterany:$jid_RVS --mem=190GB --job-name=FR_L2_abcdef012345 <SCRIPT:MOS_FR.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=10 --time=2-00:00:00 --dependency=afterany:$jid_RR --job-name=PPXF_L2_abcdef012345 <SCRIPT:MOS_PPXF.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=20 --time=2-00:00:00 --dependency=afterany:$jid_PPXF --job-name=EMI_L2_abcdef012345 <SCRIPT:MOS_EMI.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=6 --time=2-00:00:00 --dependency=afterany:$jid_PPXF:$jid_EMI --job-name=LS_L2_abcdef012345 <SCRIPT:MOS_LS.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=1 --time=2-00:00:00 --dependency=afterany:$jid_RR:$jid_RVS:$jid_FR:$jid_PPXF:$jid_EMI:$jid_LS --job-name=L2merge_L2_abcdef012345 <SCRIPT:MOS_L2merge.sh>"
+  ],
+  "pragmas": {
+   "MOS_EMI.sh": [
+    "#SBATCH --ntasks=20"
+   ],
+   "MOS_FR.sh": [
+    "#SBATCH --ntasks=18",
+    "#SBATCH --mem=190GB"
+   ],
+   "MOS_L2merge.sh": [
+    "#SBATCH --ntasks=1"
+   ],
+   "MOS_LS.sh": [
+    "#SBATCH --ntasks=6"
+   ],
+   "MOS_PPXF.sh": [
+    "#SBATCH --ntasks=10"
+   ],
+   "MOS_RR.sh": [
+    "#SBATCH --ntasks=8"
+   ],
+   "MOS_RVS.sh": [
+    "#SBATCH --ntasks=12"
+   ]
+  }
+ },
+ "MOS-L2-LR-stack1-gridn": {
+  "driver": [
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=8 --time=2-00:00:00 --job-name=RR_L2_abcdef012345 <SCRIPT:MOS_RR.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=12 --time=2-00:00:00 --dependency=afterany:$jid_RR --job-name=RVS_L2_abcdef012345 <SCRIPT:MOS_RVS.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=18 --time=2-00:00:00 --dependency=afterany:$jid_RVS --job-name=FR_L2_abcdef012345 <SCRIPT:MOS_FR.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=10 --time=2-00:00:00 --dependency=afterany:$jid_RR --job-name=PPXF_L2_abcdef012345 <SCRIPT:MOS_PPXF.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=20 --time=2-00:00:00 --dependency=afterany:$jid_PPXF --job-name=EMI_L2_abcdef012345 <SCRIPT:MOS_EMI.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=6 --time=2-00:00:00 --dependency=afterany:$jid_PPXF:$jid_EMI --job-name=LS_L2_abcdef012345 <SCRIPT:MOS_LS.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=1 --time=2-00:00:00 --dependency=afterany:$jid_RR:$jid_RVS:$jid_FR:$jid_PPXF:$jid_EMI:$jid_LS --job-name=L2merge_L2_abcdef012345 <SCRIPT:MOS_L2merge.sh>"
+  ],
+  "pragmas": {
+   "MOS_EMI.sh": [
+    "#SBATCH --ntasks=20"
+   ],
+   "MOS_FR.sh": [
+    "#SBATCH --ntasks=18"
+   ],
+   "MOS_L2merge.sh": [
+    "#SBATCH --ntasks=1"
+   ],
+   "MOS_LS.sh": [
+    "#SBATCH --ntasks=6"
+   ],
+   "MOS_PPXF.sh": [
+    "#SBATCH --ntasks=10"
+   ],
+   "MOS_RR.sh": [
+    "#SBATCH --ntasks=8"
+   ],
+   "MOS_RVS.sh": [
+    "#SBATCH --ntasks=12"
+   ]
+  }
+ },
+ "MOS-L2-LR-stack3-gridm": {
+  "driver": [
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=8 --time=2-00:00:00 --job-name=RR_L2_abcdef012345 <SCRIPT:MOS_RR.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=12 --time=2-00:00:00 --dependency=afterany:$jid_RR --job-name=RVS_L2_abcdef012345 <SCRIPT:MOS_RVS.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=18 --time=2-00:00:00 --dependency=afterany:$jid_RVS --mem=190GB --job-name=FR_L2_abcdef012345 <SCRIPT:MOS_FR.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=10 --time=2-00:00:00 --dependency=afterany:$jid_RR --job-name=PPXF_L2_abcdef012345 <SCRIPT:MOS_PPXF.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=20 --time=2-00:00:00 --dependency=afterany:$jid_PPXF --job-name=EMI_L2_abcdef012345 <SCRIPT:MOS_EMI.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=6 --time=2-00:00:00 --dependency=afterany:$jid_PPXF:$jid_EMI --job-name=LS_L2_abcdef012345 <SCRIPT:MOS_LS.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=1 --time=2-00:00:00 --dependency=afterany:$jid_RR:$jid_RVS:$jid_FR:$jid_PPXF:$jid_EMI:$jid_LS --job-name=L2merge_L2_abcdef012345 <SCRIPT:MOS_L2merge.sh>"
+  ],
+  "pragmas": {
+   "MOS_EMI.sh": [
+    "#SBATCH --ntasks=20"
+   ],
+   "MOS_FR.sh": [
+    "#SBATCH --ntasks=18",
+    "#SBATCH --mem=190GB"
+   ],
+   "MOS_L2merge.sh": [
+    "#SBATCH --ntasks=1"
+   ],
+   "MOS_LS.sh": [
+    "#SBATCH --ntasks=6"
+   ],
+   "MOS_PPXF.sh": [
+    "#SBATCH --ntasks=10"
+   ],
+   "MOS_RR.sh": [
+    "#SBATCH --ntasks=8"
+   ],
+   "MOS_RVS.sh": [
+    "#SBATCH --ntasks=12"
+   ]
+  }
+ },
+ "MOS-L2-LR-stack3-gridn": {
+  "driver": [
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=8 --time=2-00:00:00 --job-name=RR_L2_abcdef012345 <SCRIPT:MOS_RR.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=12 --time=2-00:00:00 --dependency=afterany:$jid_RR --job-name=RVS_L2_abcdef012345 <SCRIPT:MOS_RVS.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=18 --time=2-00:00:00 --dependency=afterany:$jid_RVS --job-name=FR_L2_abcdef012345 <SCRIPT:MOS_FR.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=10 --time=2-00:00:00 --dependency=afterany:$jid_RR --job-name=PPXF_L2_abcdef012345 <SCRIPT:MOS_PPXF.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=20 --time=2-00:00:00 --dependency=afterany:$jid_PPXF --job-name=EMI_L2_abcdef012345 <SCRIPT:MOS_EMI.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=6 --time=2-00:00:00 --dependency=afterany:$jid_PPXF:$jid_EMI --job-name=LS_L2_abcdef012345 <SCRIPT:MOS_LS.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=1 --time=2-00:00:00 --dependency=afterany:$jid_RR:$jid_RVS:$jid_FR:$jid_PPXF:$jid_EMI:$jid_LS --job-name=L2merge_L2_abcdef012345 <SCRIPT:MOS_L2merge.sh>"
+  ],
+  "pragmas": {
+   "MOS_EMI.sh": [
+    "#SBATCH --ntasks=20"
+   ],
+   "MOS_FR.sh": [
+    "#SBATCH --ntasks=18"
+   ],
+   "MOS_L2merge.sh": [
+    "#SBATCH --ntasks=1"
+   ],
+   "MOS_LS.sh": [
+    "#SBATCH --ntasks=6"
+   ],
+   "MOS_PPXF.sh": [
+    "#SBATCH --ntasks=10"
+   ],
+   "MOS_RR.sh": [
+    "#SBATCH --ntasks=8"
+   ],
+   "MOS_RVS.sh": [
+    "#SBATCH --ntasks=12"
+   ]
+  }
+ },
+ "MOS-L2-LR-stack4-gridm": {
+  "driver": [
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=8 --time=2-00:00:00 --job-name=RR_L2_abcdef012345 <SCRIPT:MOS_RR.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=12 --time=2-00:00:00 --dependency=afterany:$jid_RR --job-name=RVS_L2_abcdef012345 <SCRIPT:MOS_RVS.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=18 --time=2-00:00:00 --dependency=afterany:$jid_RVS --mem=190GB --job-name=FR_L2_abcdef012345 <SCRIPT:MOS_FR.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=10 --time=2-00:00:00 --dependency=afterany:$jid_RR --job-name=PPXF_L2_abcdef012345 <SCRIPT:MOS_PPXF.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=20 --time=2-00:00:00 --dependency=afterany:$jid_PPXF --job-name=EMI_L2_abcdef012345 <SCRIPT:MOS_EMI.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=6 --time=2-00:00:00 --dependency=afterany:$jid_PPXF:$jid_EMI --job-name=LS_L2_abcdef012345 <SCRIPT:MOS_LS.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=1 --time=2-00:00:00 --dependency=afterany:$jid_RR:$jid_RVS:$jid_FR:$jid_PPXF:$jid_EMI:$jid_LS --job-name=L2merge_L2_abcdef012345 <SCRIPT:MOS_L2merge.sh>"
+  ],
+  "pragmas": {
+   "MOS_EMI.sh": [
+    "#SBATCH --ntasks=20"
+   ],
+   "MOS_FR.sh": [
+    "#SBATCH --ntasks=18",
+    "#SBATCH --mem=190GB"
+   ],
+   "MOS_L2merge.sh": [
+    "#SBATCH --ntasks=1"
+   ],
+   "MOS_LS.sh": [
+    "#SBATCH --ntasks=6"
+   ],
+   "MOS_PPXF.sh": [
+    "#SBATCH --ntasks=10"
+   ],
+   "MOS_RR.sh": [
+    "#SBATCH --ntasks=8"
+   ],
+   "MOS_RVS.sh": [
+    "#SBATCH --ntasks=12"
+   ]
+  }
+ },
+ "MOS-L2-LR-stack4-gridn": {
+  "driver": [
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=8 --time=2-00:00:00 --job-name=RR_L2_abcdef012345 <SCRIPT:MOS_RR.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=12 --time=2-00:00:00 --dependency=afterany:$jid_RR --job-name=RVS_L2_abcdef012345 <SCRIPT:MOS_RVS.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=18 --time=2-00:00:00 --dependency=afterany:$jid_RVS --job-name=FR_L2_abcdef012345 <SCRIPT:MOS_FR.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=10 --time=2-00:00:00 --dependency=afterany:$jid_RR --job-name=PPXF_L2_abcdef012345 <SCRIPT:MOS_PPXF.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=20 --time=2-00:00:00 --dependency=afterany:$jid_PPXF --job-name=EMI_L2_abcdef012345 <SCRIPT:MOS_EMI.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=6 --time=2-00:00:00 --dependency=afterany:$jid_PPXF:$jid_EMI --job-name=LS_L2_abcdef012345 <SCRIPT:MOS_LS.sh>",
+   "--output=<LOG> --error=<LOG> --nodes=1 --ntasks=1 --time=2-00:00:00 --dependency=afterany:$jid_RR:$jid_RVS:$jid_FR:$jid_PPXF:$jid_EMI:$jid_LS --job-name=L2merge_L2_abcdef012345 <SCRIPT:MOS_L2merge.sh>"
+  ],
+  "pragmas": {
+   "MOS_EMI.sh": [
+    "#SBATCH --ntasks=20"
+   ],
+   "MOS_FR.sh": [
+    "#SBATCH --ntasks=18"
+   ],
+   "MOS_L2merge.sh": [
+    "#SBATCH --ntasks=1"
+   ],
+   "MOS_LS.sh": [
+    "#SBATCH --ntasks=6"
+   ],
+   "MOS_PPXF.sh": [
+    "#SBATCH --ntasks=10"
+   ],
+   "MOS_RR.sh": [
+    "#SBATCH --ntasks=8"
+   ],
+   "MOS_RVS.sh": [
+    "#SBATCH --ntasks=12"
+   ]
+  }
+ }
+}

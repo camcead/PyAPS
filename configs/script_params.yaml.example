@@ -35,6 +35,14 @@ templates_ExGal: '${PYAPS_HOME}/PyAPS_templates/templates_ExGal'
 # out of memory (job id, job name, exit code, path of its .err file). Use the log file of your pipeline runner
 # so SLURM failures show up there; 'None' = off (the failure then only shows in the job's own .err file).
 runner_log: 'None'
+# Static diagnostic plot images (Plotly through Kaleido and a headless Chrome). OFF by default since 2026-11-04: the pictures were most of the
+# wall time and CPU of an L2 job, and no data product depends on them. 'on' writes them again (the same as PYAPS_PLOT_EXPORT=worker in the
+# environment of the runner or --plot_export on). Order: --plot_export > PYAPS_PLOT_EXPORT > this key > off. The runner writes the mode into
+# every job script and prints it at the top of every job log. Leave the key out to take the default (off).
+# plot_export: 'off'
+# SLURM resource profile (CPUs, memory, time limit of every job) from configs/slurm_resources.yaml; leave it out for the table's default
+# profile. See doc/SLURM_RESOURCES.md.
+# slurm_profile: 'default'
 fsuffix: '.fits'
 aps_suffix: '_APS'
 kiko_script_name: 'PyAPS_bash.sh'

@@ -85,6 +85,7 @@ def worker(tmp_path, monkeypatch):
     for var in ("PYAPS_PLOT_EXPORT", "PYAPS_PLOT_TIMEOUT", "PYAPS_PLOT_START_TIMEOUT", "PYAPS_PLOT_MAX_FAILURES",
                 "PYAPS_PLOT_RECYCLE"):
         monkeypatch.delenv(var, raising=False)
+    monkeypatch.setenv("PYAPS_PLOT_EXPORT", "worker")                  # the default is off since 2026-11-04; these tests are about the worker
     monkeypatch.setenv("PYAPS_PLOT_TIMEOUT", "2")
     monkeypatch.setenv("PYAPS_PLOT_START_TIMEOUT", "2")
     export.reset()
@@ -262,7 +263,7 @@ def test_every_static_image_call_of_the_pipeline_goes_through_the_guarded_export
 def test_real_worker_renders_png_and_pdf(tmp_path, monkeypatch):
     """The real worker with the real Kaleido and Chrome: many images from one browser, atomic file, then a clean exit."""
     go = pytest.importorskip("plotly.graph_objects")
-    monkeypatch.delenv("PYAPS_PLOT_EXPORT", raising=False)
+    monkeypatch.setenv("PYAPS_PLOT_EXPORT", "worker")
     monkeypatch.setenv("PYAPS_PLOT_START_TIMEOUT", "120")
     export.reset()
     try:
@@ -304,3 +305,64 @@ def test_a_real_worker_ends_with_its_process_group_when_the_parent_is_gone(tmp_p
             break
         time.sleep(0.1)
     assert not alive(worker_pid)
+
+
+# ---------------------------------------------------------------------------------------------------- the default is off
+def test_default_mode_is_off_and_nothing_is_rendered(worker, tmp_path, monkeypatch):
+    monkeypatch.delenv("PYAPS_PLOT_EXPORT", raising=False)
+    assert export.DEFAULT_MODE == "off" and export.status()["mode"] == "off"
+    assert export.write_image(Fig(), tmp_path / "d.png") is False
+    assert not (tmp_path / "d.png").exists() and not pids(worker)           # no worker was even started
+
+
+def test_off_by_default_logs_one_line_not_one_warning_per_picture(worker, tmp_path, monkeypatch, caplog):
+    import logging
+    monkeypatch.delenv("PYAPS_PLOT_EXPORT", raising=False)
+    caplog.set_level(logging.INFO, logger=export.log.name)
+    for i in range(5):
+        export.write_image(Fig(), tmp_path / ("p%d.png" % i))
+    records = [r for r in caplog.records if "static images are off" in r.getMessage()]
+    assert len(records) == 1 and records[0].levelno == logging.INFO
+    assert not [r for r in caplog.records if r.levelno >= logging.WARNING]
+
+
+@pytest.mark.parametrize("word,expected", [("off", "off"), ("OFF", "off"), ("0", "off"), ("false", "off"), ("none", "off"),
+                                            ("on", "worker"), ("true", "worker"), ("1", "worker"), ("worker", "worker"),
+                                            ("inprocess", "inprocess"), ("auto", None), ("", None), (None, None)])
+def test_normalize_mode(word, expected):
+    assert export.normalize_mode(word) == expected
+
+
+def test_normalize_mode_rejects_nonsense():
+    with pytest.raises(ValueError):
+        export.normalize_mode("sometimes")
+
+
+def test_resolve_mode_precedence_option_then_environment_then_script_params_then_off():
+    env = {}
+    assert export.resolve_mode(None, {}, env) == ("off", "default")
+    assert export.resolve_mode(None, {"plot_export": "on"}, env)[0] == "worker"
+    env = {"PYAPS_PLOT_EXPORT": "off"}
+    assert export.resolve_mode(None, {"plot_export": "on"}, env)[0] == "off"            # the environment beats the file
+    assert export.resolve_mode("on", {"plot_export": "off"}, env)[0] == "worker"        # the option beats the environment
+    mode, source = export.resolve_mode(None, {"plot_export": "on"}, {"PYAPS_PLOT_EXPORT": "bogus"})
+    assert mode == "worker" and "ignored" in source                                      # nonsense is ignored, the next source decides
+
+
+def test_describe_names_the_mode_and_how_to_change_it():
+    off = export.describe(None, {}, {})
+    on = export.describe("on", {}, {})
+    assert "mode=off" in off and "source=default" in off and "plot_export" in off
+    assert "mode=worker" in on and "--plot_export" in on
+
+
+def test_runner_writes_the_mode_into_every_job_script(tmp_path, monkeypatch):
+    pytest.importorskip("astropy")
+    from PyAPS import aps_runner
+    monkeypatch.delenv("PYAPS_PLOT_EXPORT", raising=False)
+    monkeypatch.setattr(aps_runner, "_PLOT_EXPORT_CLI", None)
+    lines = aps_runner.plot_export_lines({})
+    assert lines[0].strip() == "export PYAPS_PLOT_EXPORT=off" and "mode=off" in lines[1]
+    monkeypatch.setattr(aps_runner, "_PLOT_EXPORT_CLI", "on")
+    lines = aps_runner.plot_export_lines({"plot_export": "off"})
+    assert lines[0].strip() == "export PYAPS_PLOT_EXPORT=worker" and "mode=worker" in lines[1]

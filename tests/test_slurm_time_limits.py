@@ -46,12 +46,17 @@ def test_the_cs_stages_and_unknown_stages_have_no_limit():
     assert aps_runner.slurm_time_arg(None, "RR") == " --time=2-00:00:00"
 
 
-def test_every_mos_and_ifu_sbatch_line_of_the_runner_passes_the_limit():
-    """Source check: each sbatch line of an L2 stage must add slurm_time_arg for its own stage."""
+def test_every_mos_and_ifu_sbatch_line_of_the_runner_takes_its_row_from_the_resource_table():
+    """Source check: each sbatch line of an L2 stage is written by sbatch_driver_line() from the resolved row of its own stage
+    (the row carries the --time of the profile); the golden test (test_slurm_resources_golden.py) pins the resulting lines."""
     path = pathlib.Path(aps_runner.__file__)
-    source = path.read_text()
-    tree = ast.parse(source)
-    used = {node.args[1].value for node in ast.walk(tree)
-            if isinstance(node, ast.Call) and getattr(node.func, "id", "") == "slurm_time_arg"
-            and len(node.args) == 2 and isinstance(node.args[1], ast.Constant)}
-    assert used == set(STAGES)
+    tree = ast.parse(path.read_text())
+    used = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call) and getattr(node.func, "id", "") == "sbatch_driver_line" and len(node.args) >= 2:
+            row = node.args[1]
+            if isinstance(row, ast.Subscript) and isinstance(row.slice, ast.Constant):
+                used.add(row.slice.value)
+    assert set(STAGES) <= used
+    # no sbatch line is written by hand any more: the only format string with --ntasks is the one of the helper
+    assert len([n for n in ast.walk(tree) if isinstance(n, ast.Constant) and isinstance(n.value, str) and "--ntasks=%d" in n.value]) == 1

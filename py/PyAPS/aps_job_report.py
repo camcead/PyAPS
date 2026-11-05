@@ -30,8 +30,22 @@ KILLED_STATES = ("TIMEOUT", "CANCELLED", "OUT_OF_MEMORY", "NODE_FAIL", "BOOT_FAI
 ALL_BAD_STATES = KILLED_STATES + ("FAILED",)
 
 
-def parse_sacct(text, tag, states=KILLED_STATES):
-    """Rows of ``sacct -X -n -P -o JobID,JobName,State,ExitCode`` text for jobs of ``tag`` in a bad state."""
+def _memory_killed(logs_path, name, job_id):
+    """True when the job's .err file says SLURM killed it for exceeding its memory request. On a cluster that enforces memory through
+    the accounting plugin (``JobAcctGatherParams=OverMemoryKill``) such a job is reported by sacct as plain FAILED, and its own script
+    is killed with it, so it writes no error line itself."""
+    if not logs_path:
+        return False
+    try:
+        from PyAPS import aps_slurm_resources as slres
+        return slres._err_says_oom(logs_path, name, job_id)
+    except Exception:
+        return False
+
+
+def parse_sacct(text, tag, states=KILLED_STATES, logs_path=None):
+    """Rows of ``sacct -X -n -P -o JobID,JobName,State,ExitCode`` text for jobs of ``tag`` in a bad state.
+    With ``logs_path`` a FAILED job whose .err file shows a memory-limit kill is listed too, as OUT_OF_MEMORY."""
     rows = []
     for line in text.splitlines():
         parts = line.strip().split("|")
@@ -41,6 +55,8 @@ def parse_sacct(text, tag, states=KILLED_STATES):
         base_state = state.split()[0].upper()          # e.g. "CANCELLED by 1000"
         if name.endswith("_" + str(tag)) and base_state in states:
             rows.append({"job_id": job_id, "name": name, "state": base_state, "exit_code": exit_code})
+        elif name.endswith("_" + str(tag)) and base_state == "FAILED" and _memory_killed(logs_path, name, job_id):
+            rows.append({"job_id": job_id, "name": name, "state": "OUT_OF_MEMORY", "exit_code": exit_code})
     return rows
 
 
@@ -66,7 +82,7 @@ def report(tag, logs_path, runner_log=None, sacct_text=None):
         except (OSError, subprocess.SubprocessError) as exc:
             print(f"aps_job_report: could not query sacct: {exc}", file=sys.stderr)
             return []
-    lines = [format_line(r, logs_path) for r in parse_sacct(sacct_text, tag)]
+    lines = [format_line(r, logs_path) for r in parse_sacct(sacct_text, tag, logs_path=logs_path)]
     for line in lines:
         print(line)
     runner_log = runner_log or os.environ.get("PYAPS_RUNNER_LOG")

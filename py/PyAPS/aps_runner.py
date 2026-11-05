@@ -31,6 +31,8 @@ from scipy import sparse
 
 import PyAPS
 from PyAPS import aps_constants
+from PyAPS import aps_slurm_resources as slres
+from PyAPS.apsPlot import export as plot_export
 from PyAPS.aps_utils import (
     APSOB,
     l1_fileinfo,
@@ -260,9 +262,21 @@ def update_arms_ratio(infiles, res_mode, camera, arms_ratio, GR_ratio_HR=0.85, B
     return arms_ratio
 
 ############################################################################################
+# Static diagnostic images (Plotly/Kaleido/headless Chrome): OFF unless asked for. The option --plot_export of this runner,
+# PYAPS_PLOT_EXPORT in its environment or the script_params key plot_export choose; PyAPS.apsPlot.export.resolve_mode decides.
+_PLOT_EXPORT_CLI = None
+
+
+def plot_export_lines(conf):
+    """Shell lines for the top of every job script: export the mode of the static images and print it at the top of the job's log."""
+    mode, source = plot_export.resolve_mode(_PLOT_EXPORT_CLI, conf)
+    return ["export PYAPS_PLOT_EXPORT=%s " % mode, "echo %s" % shlex.quote(plot_export.describe(_PLOT_EXPORT_CLI, conf))]
+
+
+############################################################################################
 def write_bash(headname, script_filename, commands, JOB_ID_HEADNAME, conf, l1_info=None,
                log=True, logs_path=None, log_prefix=None,
-               sbatch_ntasks=None, sbatch_mem=None, sbatch_depends_on=None, post_command=None):
+               sbatch_ntasks=None, sbatch_mem=None, sbatch_depends_on=None, post_command=None, resources=None):
     """
     Write a single-command or multi-command (kiko-ready) bash script for
     one processing stage (or the full OB, when `commands` is a dict).
@@ -293,6 +307,10 @@ def write_bash(headname, script_filename, commands, JOB_ID_HEADNAME, conf, l1_in
     post_command : optional shell command run after the stage command (single-command
         scripts only), its status ignored. Used by the last MOS stage to report killed
         jobs of the OB (aps_job_report.py).
+
+    resources : optional ``aps_slurm_resources.Resources`` of the stage (single-command scripts only): the script prints what the job
+        asked for (profile, CPUs, memory, time) and what SLURM granted at the top of the job's own log, and warns when the number
+        of tasks SLURM gave differs from the CPUs the stage's --mp expects.
 
     When the script_params file has a `runner_log` key (a file, or 'None'), the script
     exports it as PYAPS_RUNNER_LOG and a stage that ends with a non-zero exit code appends
@@ -357,6 +375,11 @@ def write_bash(headname, script_filename, commands, JOB_ID_HEADNAME, conf, l1_in
         out_script.write("export MKL_NUM_THREADS=1 \n")
         out_script.write("export NUMEXPR_NUM_THREADS=1 \n")
         out_script.write("export HDF5_USE_FILE_LOCKING=FALSE \n")
+        for plot_line in plot_export_lines(conf):
+            out_script.write(plot_line + "\n")
+        if resources is not None and log_prefix is not None:
+            for hdr_line in slres.job_header_lines(resources):
+                out_script.write(hdr_line + "\n")
         # The templates_RVS key of the script_params file in use wins over template_lib of
         # rvs_config.yaml (aps_utils.resolve_rvs_template_lib reads this variable).
         rvs_templates = conf.get('templates_RVS')
@@ -574,37 +597,91 @@ def safe_str(txt):
 ############################################################################################
 
 ############################################################################################
-# Wall-time limit of every L2 SLURM job
+# SLURM resources of every job: ONE table (configs/slurm_resources.yaml, module aps_slurm_resources.py)
 #
-# A job that waits for ever (a render that never came back, 2026-10-08..12) used to run until the partition limit
-# (2 days) and kept its night PROCESSING for that time, so every L2 stage got a --time sized from the jobs that
-# completed on the two APS pods (longest completed job: RR 162 min, FR 204, PPXF 205, EMI 111, RVS 23, LS 3, L2merge 1,
-# IFU_PR 415, IFU_ExGal 374, IFU_Gal 518). Those limits were too tight for real work: on 2026-10-23..25 the FR (FERRE)
-# stage of all 12 configurations of the OBs 22079, 23653 and 23674 ended TIMEOUT at 8 h. DECISION OF THE OWNER,
-# 2026-10-26: every stage may run 48 hours (the partition limit) until the resources of each module are set from the
-# CPU-efficiency measurements. Override one stage with the script_params key slurm_time_<STAGE> (quote the value:
-# an unquoted 08:00:00 is a number to YAML), switch one off with 'None'. The CS stages are not limited (no statistics yet).
-DEFAULT_SLURM_TIME = {
-    'RR': '2-00:00:00', 'RVS': '2-00:00:00', 'FR': '2-00:00:00', 'PPXF': '2-00:00:00', 'EMI': '2-00:00:00',
-    'LS': '2-00:00:00', 'L2merge': '2-00:00:00',
-    'IFU_PR': '2-00:00:00', 'IFU_ExGal': '2-00:00:00', 'IFU_Gal': '2-00:00:00',
-}
-_SLURM_TIME_RE = re.compile(r'^(\d+|\d+:\d{2}|\d+:\d{2}:\d{2}|\d+-\d{1,2}|\d+-\d{1,2}:\d{2}|\d+-\d{1,2}:\d{2}:\d{2})$')
+# History of the wall-time limit (kept here because the reasoning still holds): a job that waits for ever (a render that never
+# came back, 2026-10-08..12) used to run until the partition limit (2 days) and kept its night PROCESSING for that time, so every L2
+# stage got a --time sized from the jobs that completed on the two APS pods (longest completed job: RR 162 min, FR 204, PPXF 205,
+# EMI 111, RVS 23, LS 3, L2merge 1, IFU_PR 415, IFU_ExGal 374, IFU_Gal 518). Those limits were too tight for real work: on
+# 2026-10-23..25 the FR (FERRE) stage of all 12 configurations of the OBs 22079, 23653 and 23674 ended TIMEOUT at 8 h. DECISION OF
+# THE OWNER, 2026-10-26: every stage may run 48 hours (the partition limit) until the resources of each module are set from the
+# CPU-efficiency measurements.  Since the resource table the limit of each stage is the `time` of its row in the profile in use;
+# the script_params key slurm_time_<STAGE> (quote the value: an unquoted 08:00:00 is a number to YAML; 'None' = no limit) still
+# overrides one stage, as do slurm_cpus_<STAGE> and slurm_mem_gb_<STAGE>, and `--slurm_set STAGE.time=...` of this runner.
+
+
+def _default_slurm_times():
+    """{stage: time} of the ``default`` profile (the limits of the runner before the table), for callers of the old names."""
+    try:
+        table = slres.load_table()
+        flat = slres.flatten_profile(table, "default")
+        return {st: row.get("time") for fam in ("MOS", "LIFU") for st, row in flat[fam]["stages"].items() if row.get("time")}
+    except Exception:                                    # the table must never stop an import
+        return {}
+
+
+DEFAULT_SLURM_TIME = _default_slurm_times()
 
 
 def slurm_time_arg(conf, stage):
-    """The ``--time=...`` option of the sbatch line of ``stage`` (with a leading space), or '' when the stage has no limit."""
-    value = (conf or {}).get('slurm_time_' + stage, DEFAULT_SLURM_TIME.get(stage))
-    if value is None or str(value).strip().upper() in ('', 'NONE'):
+    """The ``--time=...`` option of the sbatch line of ``stage`` (with a leading space), or '' when the stage has no limit.
+    Compatibility wrapper: the runner itself reads the whole row from the resource table (see ``resolve_slurm_resources``)."""
+    fam = next((f for f in ("MOS", "LIFU", "CS") if stage in slres.FAMILIES[f]), None)
+    if fam is None:
         return ''
-    value = str(value).strip()
-    if not _SLURM_TIME_RE.match(value):
-        print("Warning: slurm_time_%s = %r is not a SLURM time (minutes, HH:MM:SS or D-HH:MM:SS); using %s"
-              % (stage, value, DEFAULT_SLURM_TIME.get(stage, 'no limit')))
-        value = DEFAULT_SLURM_TIME.get(stage)
-        if not value:
-            return ''
-    return ' --time=%s' % value
+    ctx = {'res': 'LR', 'stack_level': 1, 'grid': 'n'}
+    res = slres.resolve(fam, ctx, table=_load_slurm_table(conf), conf=conf or {}, profile='default' if not (conf or {}).get('slurm_profile') else None,
+                        limits={}, env={}, quiet=False)[stage]
+    return res.time_arg()
+
+
+def _load_slurm_table(conf):
+    """The resource table: the script_params key ``slurm_resources_file``, else ``slurm_resources.yaml`` in the ``PyAPS_CONFIG`` folder of
+    the script_params (where the other configs of the run live), else the one of this checkout (``PYAPS_SLURM_RESOURCES_FILE`` wins)."""
+    path = (conf or {}).get('slurm_resources_file')
+    if path is None or str(path).strip().upper() in ('', 'NONE'):
+        path = None
+        cfg_dir = (conf or {}).get('PyAPS_CONFIG')
+        if cfg_dir and not os.environ.get('PYAPS_SLURM_RESOURCES_FILE') and Path(str(cfg_dir)).joinpath(slres.TABLE_NAME).is_file():
+            path = Path(str(cfg_dir)).joinpath(slres.TABLE_NAME)
+    try:
+        return slres.load_table(path)
+    except slres.ResourceTableError as exc:
+        sys.exit('ERROR: SLURM resource table: %s' % exc)
+
+
+def resolve_slurm_resources(family, conf, ctx, mp_base, scripts_path, uapsid=None, slurm_profile=None, slurm_set=None):
+    """Resolve, print and record the resources of every stage of ``family`` for this observation.
+
+    ``mp_base``: the legacy ``--mp_*`` list of the caller (None: the table's CPU counts). Returns ``{stage: Resources}``.
+    The effective values go to the screen, to ``slurm_resources_effective.json`` in the scripts folder and, per job, to the header
+    of the job's own log (see ``write_bash``). An escalation recorded by the DMS (``slurm_resources_escalation.json``) is applied here.
+    """
+    table = _load_slurm_table(conf)
+    try:
+        esc = slres.read_escalation(scripts_path, uapsid)
+        resolved = slres.resolve(family, ctx, table=table, conf=conf, profile=slurm_profile, mp_base=mp_base,
+                                 cli_set=slurm_set, escalation=esc)
+    except slres.ResourceTableError as exc:
+        sys.exit('ERROR: SLURM resources: %s' % exc)
+    print('')
+    print('SLURM resources of the %s jobs (profile %s, table %s %s):' % (family, next(iter(resolved.values())).profile,
+                                                                         table.get('_path'), table.get('_sha256')))
+    print(slres.format_table(resolved))
+    pe_mode, pe_source = plot_export.resolve_mode(_PLOT_EXPORT_CLI, conf)
+    print('Static diagnostic images (plot export): %s (%s)' % (pe_mode, pe_source))
+    summary = slres.effective_summary(resolved, ctx, table, family, uapsid=uapsid)
+    summary['plot_export'] = {'mode': pe_mode, 'source': pe_source}
+    slres.write_effective(scripts_path, summary)
+    return resolved
+
+
+def sbatch_driver_line(jid_var, res, job_name, script, slurm_out, slurm_err, dependency=None):
+    """One ``jid=$(sbatch ...)`` line of a driver script: nodes, CPUs, time, dependency, memory, name - all from ``res``."""
+    dep = ' --dependency=%s' % dependency if dependency else ''
+    mem = ' ' + res.mem_arg() if res.mem_gb else ''
+    return ("%s=$(sbatch --parsable --output=%s --error=%s  --nodes=1 --ntasks=%d%s%s%s --job-name=%s  %s) \n "
+            % (jid_var, slurm_out, slurm_err, res.cpus, res.time_arg(), dep, mem, job_name, script))
 
 
 def sbatch_guard(jid_var, label, abort=True):
@@ -680,7 +757,8 @@ def apply_test_mode(test_mode, UAPSID, base_res_dir, dir_stamp, obid_val):
 
 def mos_scriptGEN(infiles, config_file, cat_list=None, aps_ids=None, wlranges=None ,targsrvy=None,
     targclass=None, mask_aps_ids=None, area=None, mask_areas=None, arms_ratio=None, headname = None,
-    hname_suffix=None, log=False, aps_ovr=False, mp = None, hpc=0 ,UAPSID=None ,CPS_path=True, test_mode=False):
+    hname_suffix=None, log=False, aps_ovr=False, mp = None, hpc=0 ,UAPSID=None ,CPS_path=True, test_mode=False,
+    slurm_profile=None, slurm_set=None):
 
 
 
@@ -863,22 +941,17 @@ def mos_scriptGEN(infiles, config_file, cat_list=None, aps_ids=None, wlranges=No
 
 
     if stack_level(infiles[0]) == 0:
-        print('Warning: for stacking level = 0, we use n grids and also half of the dedicated cpus for FERRE module')
+        print('Warning: for stacking level = 0, we use n grids (and the resource table gives FERRE half of the CPUs plus one)')
         conf['MOS_Gal_grid_prefix_FR'] = 'n'
-        mp[2]=int(mp[2]/2) + 1
 
-    # for HR mode we double the allocated resource (input mp are set for LIFU)
-    if res_mode[0].upper() == 'HR':
-        mp = [mp_i * 2  for mp_i in mp]
-
-
-    # also apply some memory consideration for running ferre with the fine grids(m prefix)
-    if conf['MOS_Gal_grid_prefix_FR'] == 'm' and res_mode[0].upper() == 'HR':
-        memory_limit_ferre='--mem=380GB'
-    elif conf['MOS_Gal_grid_prefix_FR'] == 'm' and res_mode[0].upper() == 'LR':
-        memory_limit_ferre='--mem=190GB'
-    else:
-        memory_limit_ferre = ''
+    # CPUs, memory and time of every job come from the resource table (configs/slurm_resources.yaml, module aps_slurm_resources):
+    # the HR doubling, the single-exposure FERRE halving and the FERRE memory of the fine grids are rows/rules of the profile.
+    # `mp` (the caller's legacy --mp_MOS list, if any) replaces the base CPU counts of the table; the rules apply to it as before.
+    slurm_res = resolve_slurm_resources(
+        'MOS', conf, {'res': res_mode[0].upper(), 'stack_level': stack_level(infiles[0]), 'grid': conf['MOS_Gal_grid_prefix_FR']},
+        mp, scripts_path, uapsid=JOB_ID_HEADNAME, slurm_profile=slurm_profile, slurm_set=slurm_set)
+    mp = [slurm_res[st].mp for st in slres.FAMILIES['MOS']]
+    memory_limit_ferre = slurm_res['FR'].mem_arg()
 
 
     #########################################################################################
@@ -939,14 +1012,13 @@ def mos_scriptGEN(infiles, config_file, cat_list=None, aps_ids=None, wlranges=No
     # below actually submits with, for a human resubmitting a single stage
     # by hand. mp[]/memory_limit_ferre are already resolved above.
     MOS_SBATCH_META = {
-        'MOS_RR':      dict(ntasks=mp[0], mem=None,               depends_on=None),
-        'MOS_RVS':     dict(ntasks=mp[1], mem=None,               depends_on='RR'),
-        'MOS_FR':      dict(ntasks=mp[2], mem=memory_limit_ferre, depends_on='RVS'),
-        'MOS_PPXF':    dict(ntasks=mp[3], mem=None,               depends_on='RR'),
-        'MOS_EMI':     dict(ntasks=mp[4], mem=None,               depends_on='PPXF'),
-        'MOS_LS':      dict(ntasks=mp[5], mem=None,               depends_on='PPXF and EMI'),
-        'MOS_L2merge': dict(ntasks=mp[6] if len(mp) > 6 else 1, mem=None,
-                             depends_on='RR, RVS, FR, PPXF, EMI, and LS -- '
+        'MOS_RR':      dict(stage='RR',      depends_on=None),
+        'MOS_RVS':     dict(stage='RVS',     depends_on='RR'),
+        'MOS_FR':      dict(stage='FR',      depends_on='RVS'),
+        'MOS_PPXF':    dict(stage='PPXF',    depends_on='RR'),
+        'MOS_EMI':     dict(stage='EMI',     depends_on='PPXF'),
+        'MOS_LS':      dict(stage='LS',      depends_on='PPXF and EMI'),
+        'MOS_L2merge': dict(stage='L2merge', depends_on='RR, RVS, FR, PPXF, EMI, and LS -- '
                                         'submitted afterany, so it runs even '
                                         'if RVS/FR failed, producing a '
                                         'STAR_TABLE/STAR_SPEC-degraded but '
@@ -965,9 +1037,10 @@ def mos_scriptGEN(infiles, config_file, cat_list=None, aps_ids=None, wlranges=No
         if cmd_keys == 'MOS_L2merge':
             post_cmd = (str(python_interp)+' '+str(Path(conf['PyAPS_DIR']).joinpath('aps_job_report.py'))
                         +' --tag '+str(JOB_ID_HEADNAME)+' --logs-path '+str(logs_path))
+        stage_res = slurm_res.get(meta.get('stage'))
         write_bash(headname, script_name , command_dict[cmd_keys], JOB_ID_HEADNAME,conf, l1_info = l1_info, log=log,logs_path=logs_path, log_prefix=cmd_keys,
-                   sbatch_ntasks=meta.get('ntasks'), sbatch_mem=meta.get('mem'), sbatch_depends_on=meta.get('depends_on'),
-                   post_command=post_cmd)
+                   sbatch_ntasks=stage_res.cpus if stage_res else None, sbatch_mem=(stage_res.mem_arg() or None) if stage_res else None,
+                   sbatch_depends_on=meta.get('depends_on'), post_command=post_cmd, resources=stage_res)
 
     #########################################################################################
     ## Generate the slurm script
@@ -997,25 +1070,29 @@ def mos_scriptGEN(infiles, config_file, cat_list=None, aps_ids=None, wlranges=No
         out_script.write("# \n")
 
         out_script.write("# first job - no dependencies \n ")
-        out_script.write("jid_RR=$(sbatch --parsable --output=%s --error=%s  --nodes=1 --ntasks=%d%s --job-name=%s  %s) \n " %(slurm_out, slurm_err, mp[0], slurm_time_arg(conf, 'RR'), 'RR_L2_'+str(JOB_ID_HEADNAME), scripts_path.joinpath(f"{JOB_ID_HEADNAME}_MOS_RR.sh")))
-        out_script.write(sbatch_guard('jid_RR', 'RR_L2_'+str(JOB_ID_HEADNAME)))
+        _H = str(JOB_ID_HEADNAME)
+        def _mos_script(name):
+            return scripts_path.joinpath(f"{_H}_MOS_{name}.sh")
+        out_script.write(sbatch_driver_line('jid_RR', slurm_res['RR'], 'RR_L2_'+_H, _mos_script('RR'), slurm_out, slurm_err))
+        out_script.write(sbatch_guard('jid_RR', 'RR_L2_'+_H))
         out_script.write("sleep 5  \n ")
-        out_script.write("jid_RVS=$(sbatch --parsable --output=%s --error=%s  --nodes=1 --ntasks=%d%s --dependency=afterany:$jid_RR --job-name=%s  %s) \n " %(slurm_out, slurm_err, mp[1], slurm_time_arg(conf, 'RVS'), 'RVS_L2_'+str(JOB_ID_HEADNAME), scripts_path.joinpath(f"{JOB_ID_HEADNAME}_MOS_RVS.sh")))
-        out_script.write(sbatch_guard('jid_RVS', 'RVS_L2_'+str(JOB_ID_HEADNAME)))
+        out_script.write(sbatch_driver_line('jid_RVS', slurm_res['RVS'], 'RVS_L2_'+_H, _mos_script('RVS'), slurm_out, slurm_err, 'afterany:$jid_RR'))
+        out_script.write(sbatch_guard('jid_RVS', 'RVS_L2_'+_H))
         out_script.write("sleep 5  \n ")
-        out_script.write("jid_FR=$(sbatch --parsable --output=%s --error=%s  --nodes=1 --ntasks=%d%s --dependency=afterany:$jid_RVS %s --job-name=%s  %s) \n " %(slurm_out, slurm_err, mp[2], slurm_time_arg(conf, 'FR'), memory_limit_ferre , 'FR_L2_'+str(JOB_ID_HEADNAME), scripts_path.joinpath(f"{JOB_ID_HEADNAME}_MOS_FR.sh")))
-        out_script.write(sbatch_guard('jid_FR', 'FR_L2_'+str(JOB_ID_HEADNAME)))
+        out_script.write(sbatch_driver_line('jid_FR', slurm_res['FR'], 'FR_L2_'+_H, _mos_script('FR'), slurm_out, slurm_err, 'afterany:$jid_RVS'))
+        out_script.write(sbatch_guard('jid_FR', 'FR_L2_'+_H))
         out_script.write("sleep 5  \n ")
-        out_script.write("jid_PPXF=$(sbatch --parsable --output=%s --error=%s  --nodes=1 --ntasks=%d%s --dependency=afterany:$jid_RR --job-name=%s  %s) \n " %(slurm_out, slurm_err, mp[3], slurm_time_arg(conf, 'PPXF'), 'PPXF_L2_'+str(JOB_ID_HEADNAME), scripts_path.joinpath(f"{JOB_ID_HEADNAME}_MOS_PPXF.sh")))
-        out_script.write(sbatch_guard('jid_PPXF', 'PPXF_L2_'+str(JOB_ID_HEADNAME)))
+        out_script.write(sbatch_driver_line('jid_PPXF', slurm_res['PPXF'], 'PPXF_L2_'+_H, _mos_script('PPXF'), slurm_out, slurm_err, 'afterany:$jid_RR'))
+        out_script.write(sbatch_guard('jid_PPXF', 'PPXF_L2_'+_H))
         out_script.write("sleep 5  \n ")
-        out_script.write("jid_EMI=$(sbatch --parsable --output=%s --error=%s  --nodes=1 --ntasks=%d%s --dependency=afterany:$jid_PPXF --job-name=%s  %s) \n " %(slurm_out, slurm_err, mp[4], slurm_time_arg(conf, 'EMI'), 'EMI_L2_'+str(JOB_ID_HEADNAME), scripts_path.joinpath(f"{JOB_ID_HEADNAME}_MOS_EMI.sh")))
-        out_script.write(sbatch_guard('jid_EMI', 'EMI_L2_'+str(JOB_ID_HEADNAME)))
+        out_script.write(sbatch_driver_line('jid_EMI', slurm_res['EMI'], 'EMI_L2_'+_H, _mos_script('EMI'), slurm_out, slurm_err, 'afterany:$jid_PPXF'))
+        out_script.write(sbatch_guard('jid_EMI', 'EMI_L2_'+_H))
         out_script.write("sleep 5  \n ")
-        out_script.write("jid_LS=$(sbatch --parsable --output=%s --error=%s  --nodes=1 --ntasks=%d%s --dependency=afterany:$jid_PPXF:$jid_EMI --job-name=%s  %s) \n " %(slurm_out, slurm_err, mp[5], slurm_time_arg(conf, 'LS'), 'LS_L2_'+str(JOB_ID_HEADNAME), scripts_path.joinpath(f"{JOB_ID_HEADNAME}_MOS_LS.sh")))
-        out_script.write(sbatch_guard('jid_LS', 'LS_L2_'+str(JOB_ID_HEADNAME)))
+        out_script.write(sbatch_driver_line('jid_LS', slurm_res['LS'], 'LS_L2_'+_H, _mos_script('LS'), slurm_out, slurm_err, 'afterany:$jid_PPXF:$jid_EMI'))
+        out_script.write(sbatch_guard('jid_LS', 'LS_L2_'+_H))
         out_script.write("sleep 5  \n ")
-        out_script.write("jid_l2=$(sbatch --parsable --output=%s --error=%s  --nodes=1 --ntasks=%d%s --dependency=afterany:$jid_RR:$jid_RVS:$jid_FR:$jid_PPXF:$jid_EMI:$jid_LS --job-name=%s  %s) \n " %(slurm_out, slurm_err, mp[6], slurm_time_arg(conf, 'L2merge'), 'L2merge_L2_'+str(JOB_ID_HEADNAME), scripts_path.joinpath(f"{JOB_ID_HEADNAME}_MOS_L2merge.sh")))
+        out_script.write(sbatch_driver_line('jid_l2', slurm_res['L2merge'], 'L2merge_L2_'+_H, _mos_script('L2merge'), slurm_out, slurm_err,
+                                            'afterany:$jid_RR:$jid_RVS:$jid_FR:$jid_PPXF:$jid_EMI:$jid_LS'))
         out_script.write(sbatch_guard('jid_l2', 'L2merge_L2_'+str(JOB_ID_HEADNAME)))
         out_script.write("sleep 2  \n ")
 
@@ -1068,7 +1145,8 @@ def mos_scriptGEN(infiles, config_file, cat_list=None, aps_ids=None, wlranges=No
 ############################################################################################
 def ifu_scriptGEN(infiles, config_file, cat_list=None, aps_ids=None, wlranges=None ,targsrvy=None,
     targclass=None, mask_aps_ids=None, area=None, mask_areas=None, arms_ratio=None, headname = None,
-    hname_suffix=None, log=False, aps_ovr=False, mp_LIFU = None, mp_MIFU = None, hpc=0, UAPSID=None, patch_file=None, seg2d_white_images=None ,CPS_path=True, test_mode=False):
+    hname_suffix=None, log=False, aps_ovr=False, mp_LIFU = None, mp_MIFU = None, hpc=0, UAPSID=None, patch_file=None, seg2d_white_images=None ,CPS_path=True, test_mode=False,
+    slurm_profile=None, slurm_set=None):
 
     print('PyAPS Automatic script Generator for all IFU related configurations [LIFU, MIFU]')
 
@@ -1265,24 +1343,21 @@ def ifu_scriptGEN(infiles, config_file, cat_list=None, aps_ids=None, wlranges=No
         conf['seg2d_exclude_ctarg']='False'
 
 
-    # Set the MP and memory param based on the mode (LIFU or MIFU)
+    # CPUs, memory and time of the IFU jobs come from the resource table (configs/slurm_resources.yaml): the LIFU and MIFU
+    # families have their own rows (mini IFU: fewer CPUs, no memory request), HR doubling is a rule of the family.
+    # The legacy --mp_LIFU / --mp_MIFU list of the caller (if any) replaces the base CPU counts.
     if mode.upper() == 'MIFU':
-        # if mode is MIFU, we use mp_MIFU for multiprocessing
-        mp = mp_MIFU
-        memory_limit_IFU=''
-
+        ifu_family, mp_caller = 'MIFU', mp_MIFU
     elif mode.upper() == 'LIFU':
-        # if mode is MIFU, we use mp_MIFU for multiprocessing
-        mp = mp_LIFU
-        memory_limit_IFU='--mem=240GB'
-
+        ifu_family, mp_caller = 'LIFU', mp_LIFU
     else:
         sys.exit('unknown mode for IFU mode')
 
-
-    # for HR mode we double the allocated resource (input mp are set for LIFU)
-    if res_mode[0].upper() == 'HR':
-        mp = [mp_i * 2  for mp_i in mp]
+    slurm_res = resolve_slurm_resources(
+        ifu_family, conf, {'res': res_mode[0].upper(), 'stack_level': stack_level(infiles[0]), 'grid': conf.get('IFU_Gal_grid_prefix_FR', 'n')},
+        mp_caller, scripts_path, uapsid=JOB_ID_HEADNAME, slurm_profile=slurm_profile, slurm_set=slurm_set)
+    mp = [slurm_res[st].mp for st in slres.FAMILIES[ifu_family]]
+    memory_limit_IFU = slurm_res['IFU_ExGal'].mem_arg()
 
 
     ## Convert lists into one-line comma-separated string
@@ -1543,9 +1618,9 @@ def ifu_scriptGEN(infiles, config_file, cat_list=None, aps_ids=None, wlranges=No
     # and MOS_SBATCH_META above for the full rationale. mp[]/memory_limit_IFU
     # are already resolved above.
     IFU_SBATCH_META = {
-        'IFU_Prepare': dict(ntasks=mp[0], mem=None,             depends_on=None),
-        'IFU_ExGal':   dict(ntasks=mp[1], mem=memory_limit_IFU, depends_on='IFU_Prepare'),
-        'IFU_Gal':     dict(ntasks=mp[2], mem=None,             depends_on='IFU_Prepare'),
+        'IFU_Prepare': dict(stage='IFU_PR',    depends_on=None),
+        'IFU_ExGal':   dict(stage='IFU_ExGal', depends_on='IFU_Prepare'),
+        'IFU_Gal':     dict(stage='IFU_Gal',   depends_on='IFU_Prepare'),
     }
 
     # Write a single script for each module
@@ -1554,12 +1629,13 @@ def ifu_scriptGEN(infiles, config_file, cat_list=None, aps_ids=None, wlranges=No
             f"{JOB_ID_HEADNAME}_{cmd_keys}"
         ).with_suffix('.sh')
         meta = IFU_SBATCH_META.get(cmd_keys, {})
+        stage_res = slurm_res.get(meta.get('stage'))
         write_bash(
             headname, script_name, command_dict[cmd_keys], JOB_ID_HEADNAME,
             conf, l1_info=l1_info, log=log, logs_path=logs_path,
             log_prefix=cmd_keys,
-            sbatch_ntasks=meta.get('ntasks'), sbatch_mem=meta.get('mem'),
-            sbatch_depends_on=meta.get('depends_on'),
+            sbatch_ntasks=stage_res.cpus if stage_res else None, sbatch_mem=(stage_res.mem_arg() or None) if stage_res else None,
+            sbatch_depends_on=meta.get('depends_on'), resources=stage_res,
         )
 
     #########################################################################################
@@ -1594,18 +1670,9 @@ def ifu_scriptGEN(infiles, config_file, cat_list=None, aps_ids=None, wlranges=No
 
         # Stage 1: Prepare  (no dependency)
         out_script.write("# Stage 1: Preparation \n")
-        out_script.write(
-            "jid_PR=$(sbatch --parsable "
-            "--output=%s --error=%s "
-            "--nodes=1 --ntasks=%d%s "
-            "--job-name=%s %s) \n "
-            % (
-                slurm_out, slurm_err,
-                mp[0], slurm_time_arg(conf, 'IFU_PR'),
-                'IFU_PR_L2_' + str(JOB_ID_HEADNAME),
-                scripts_path.joinpath(f"{JOB_ID_HEADNAME}_IFU_Prepare.sh"),
-            )
-        )
+        _H = str(JOB_ID_HEADNAME)
+        out_script.write(sbatch_driver_line('jid_PR', slurm_res['IFU_PR'], 'IFU_PR_L2_' + _H,
+                                            scripts_path.joinpath(f"{_H}_IFU_Prepare.sh"), slurm_out, slurm_err))
         # both ExGal and Gal depend on Prepare - abort here rather than let
         # either branch submit against a broken/empty dependency.
         out_script.write(sbatch_guard('jid_PR', 'IFU_PR_L2_' + str(JOB_ID_HEADNAME)))
@@ -1613,21 +1680,8 @@ def ifu_scriptGEN(infiles, config_file, cat_list=None, aps_ids=None, wlranges=No
 
         # Stage 2a: ExGal  (depends on Prepare)
         out_script.write("# Stage 2a: ExGal analysis (depends on Prepare) \n")
-        out_script.write(
-            "jid_ExGal=$(sbatch --parsable "
-            "--output=%s --error=%s "
-            "--nodes=1 --ntasks=%d%s "
-            "--dependency=afterany:$jid_PR "
-            "%s "
-            "--job-name=%s %s) \n "
-            % (
-                slurm_out, slurm_err,
-                mp[1], slurm_time_arg(conf, 'IFU_ExGal'),
-                memory_limit_IFU,
-                'IFU_ExGal_L2_' + str(JOB_ID_HEADNAME),
-                scripts_path.joinpath(f"{JOB_ID_HEADNAME}_IFU_ExGal.sh"),
-            )
-        )
+        out_script.write(sbatch_driver_line('jid_ExGal', slurm_res['IFU_ExGal'], 'IFU_ExGal_L2_' + _H,
+                                            scripts_path.joinpath(f"{_H}_IFU_ExGal.sh"), slurm_out, slurm_err, 'afterany:$jid_PR'))
         # terminal branch, nothing else in this script depends on it - log
         # and continue so a failed ExGal doesn't stop the independent Gal
         # branch below from being submitted.
@@ -1639,19 +1693,8 @@ def ifu_scriptGEN(infiles, config_file, cat_list=None, aps_ids=None, wlranges=No
             "# Stage 2b: Gal analysis "
             "(depends on Prepare, parallel with ExGal) \n"
         )
-        out_script.write(
-            "jid_Gal=$(sbatch --parsable "
-            "--output=%s --error=%s "
-            "--nodes=1 --ntasks=%d%s "
-            "--dependency=afterany:$jid_PR "
-            "--job-name=%s %s) \n "
-            % (
-                slurm_out, slurm_err,
-                mp[2], slurm_time_arg(conf, 'IFU_Gal'),
-                'IFU_Gal_L2_' + str(JOB_ID_HEADNAME),
-                scripts_path.joinpath(f"{JOB_ID_HEADNAME}_IFU_Gal.sh"),
-            )
-        )
+        out_script.write(sbatch_driver_line('jid_Gal', slurm_res['IFU_Gal'], 'IFU_Gal_L2_' + _H,
+                                            scripts_path.joinpath(f"{_H}_IFU_Gal.sh"), slurm_out, slurm_err, 'afterany:$jid_PR'))
         out_script.write(sbatch_guard('jid_Gal', 'IFU_Gal_L2_' + str(JOB_ID_HEADNAME), abort=False))
         out_script.write("sleep 5  \n ")
 
@@ -1701,7 +1744,8 @@ def ifu_scriptGEN(infiles, config_file, cat_list=None, aps_ids=None, wlranges=No
 ############################################################################################
 
 def cs_scriptGEN(infiles, config_file, cat_list=None, aps_ids=None, wlranges=None, mask_aps_ids=None, area=None, mask_areas=None, arms_ratio=None, headname=None,
-    hname_suffix=None, log=False, CS_ovr=False, mp = None, hpc=0 ,UAPSID=None, CPS_path=True, test_mode=False):
+    hname_suffix=None, log=False, CS_ovr=False, mp = None, hpc=0 ,UAPSID=None, CPS_path=True, test_mode=False,
+    slurm_profile=None, slurm_set=None):
 
     print('PyAPS Automatic script Generator for all CS codes')
 
@@ -1886,9 +1930,12 @@ def cs_scriptGEN(infiles, config_file, cat_list=None, aps_ids=None, wlranges=Non
     arms_ratio_str      = key_to_str(arms_ratio ,sep=',')
 
 
-    # for HR mode we double the allocated resource (input mp are set for CS)
-    if res_mode[0].upper() == 'HR':
-        mp = [mp_i * 2  for mp_i in mp]
+    # CPUs and memory of the CS jobs come from the resource table (configs/slurm_resources.yaml): HR doubling and the FESWI
+    # memory of the fine FERRE grids are rules of the profile. The legacy --mp_CS list of the caller (if any) replaces the base CPUs.
+    slurm_res = resolve_slurm_resources(
+        'CS', conf, {'res': res_mode[0].upper(), 'stack_level': stack_level(infiles[0]), 'grid': conf.get('FESWI_grid_prefix', 'n')},
+        mp, scripts_path, uapsid=JOB_ID_HEADNAME, slurm_profile=slurm_profile, slurm_set=slurm_set)
+    mp = [slurm_res[st].mp for st in slres.FAMILIES['CS']]
 
 
     #########################################################################################
@@ -2046,7 +2093,8 @@ def cs_scriptGEN(infiles, config_file, cat_list=None, aps_ids=None, wlranges=Non
     for cmd_keys in command_dict.keys():
 
         script_name = scripts_path.joinpath(f"{JOB_ID_HEADNAME}_{cmd_keys}").with_suffix('.sh')
-        write_bash(headname, script_name , command_dict[cmd_keys], JOB_ID_HEADNAME, conf, l1_info = l1_info, log=log,logs_path=logs_path, log_prefix=cmd_keys)
+        write_bash(headname, script_name , command_dict[cmd_keys], JOB_ID_HEADNAME, conf, l1_info = l1_info, log=log,logs_path=logs_path, log_prefix=cmd_keys,
+                   resources=slurm_res.get(cmd_keys[3:]))
 
     #########################################################################################
     ## Generate the slurm script
@@ -2080,37 +2128,31 @@ def cs_scriptGEN(infiles, config_file, cat_list=None, aps_ids=None, wlranges=Non
         # guard below just logs and continues (abort=False) rather than
         # stopping the rest of the modules from being submitted.
         if scripts_path.joinpath(f"{JOB_ID_HEADNAME}_CS_SQ.sh").is_file():
-            out_script.write("jid_SQ=$(sbatch --parsable --output=%s --error=%s  --nodes=1 --ntasks=%d --job-name=%s  %s) \n " %(slurm_out, slurm_err, mp[0], 'SQ_CS_'+str(JOB_ID_HEADNAME), scripts_path.joinpath(f"{JOB_ID_HEADNAME}_CS_SQ.sh")))
+            out_script.write(sbatch_driver_line('jid_SQ', slurm_res['SQ'], 'SQ_CS_'+str(JOB_ID_HEADNAME), scripts_path.joinpath(f"{JOB_ID_HEADNAME}_CS_SQ.sh"), slurm_out, slurm_err))
             out_script.write(sbatch_guard('jid_SQ', 'SQ_CS_'+str(JOB_ID_HEADNAME), abort=False))
             out_script.write("sleep 10  \n ")
         if scripts_path.joinpath(f"{JOB_ID_HEADNAME}_CS_FESWI.sh").is_file():
-            # also apply some memory consideration for running ferre with the fine grids(m prefix)
-            if conf['FESWI_grid_prefix'] == 'm':
-                memory_limit_FESWI='--mem=400GB'
-            else:
-                memory_limit_FESWI = ''
-
-            out_script.write("jid_FESWI=$(sbatch --parsable --output=%s --error=%s  --nodes=1 --ntasks=%d %s --job-name=%s  %s) \n " %(slurm_out, slurm_err, mp[1], memory_limit_FESWI, 'FESWI_CS_'+str(JOB_ID_HEADNAME), scripts_path.joinpath(f"{JOB_ID_HEADNAME}_CS_FESWI.sh")))
+            out_script.write(sbatch_driver_line('jid_FESWI', slurm_res['FESWI'], 'FESWI_CS_'+str(JOB_ID_HEADNAME), scripts_path.joinpath(f"{JOB_ID_HEADNAME}_CS_FESWI.sh"), slurm_out, slurm_err))
             out_script.write(sbatch_guard('jid_FESWI', 'FESWI_CS_'+str(JOB_ID_HEADNAME), abort=False))
             out_script.write("sleep 10  \n ")
         if scripts_path.joinpath(f"{JOB_ID_HEADNAME}_CS_SPACE.sh").is_file():
-            out_script.write("jid_SPACE=$(sbatch --parsable --output=%s --error=%s  --nodes=1 --ntasks=%d --job-name=%s  %s) \n " %(slurm_out, slurm_err, mp[2], 'SPACE_CS_'+str(JOB_ID_HEADNAME), scripts_path.joinpath(f"{JOB_ID_HEADNAME}_CS_SPACE.sh")))
+            out_script.write(sbatch_driver_line('jid_SPACE', slurm_res['SPACE'], 'SPACE_CS_'+str(JOB_ID_HEADNAME), scripts_path.joinpath(f"{JOB_ID_HEADNAME}_CS_SPACE.sh"), slurm_out, slurm_err))
             out_script.write(sbatch_guard('jid_SPACE', 'SPACE_CS_'+str(JOB_ID_HEADNAME), abort=False))
             out_script.write("sleep 10  \n ")
         if scripts_path.joinpath(f"{JOB_ID_HEADNAME}_CS_AMY.sh").is_file():
-            out_script.write("jid_AMY=$(sbatch --parsable --output=%s --error=%s  --nodes=1 --ntasks=%d --job-name=%s  %s) \n " %(slurm_out, slurm_err, mp[3], 'AMY_CS_'+str(JOB_ID_HEADNAME), scripts_path.joinpath(f"{JOB_ID_HEADNAME}_CS_AMY.sh")))
+            out_script.write(sbatch_driver_line('jid_AMY', slurm_res['AMY'], 'AMY_CS_'+str(JOB_ID_HEADNAME), scripts_path.joinpath(f"{JOB_ID_HEADNAME}_CS_AMY.sh"), slurm_out, slurm_err))
             out_script.write(sbatch_guard('jid_AMY', 'AMY_CS_'+str(JOB_ID_HEADNAME), abort=False))
             out_script.write("sleep 10  \n ")
         if scripts_path.joinpath(f"{JOB_ID_HEADNAME}_CS_AN.sh").is_file():
-            out_script.write("jid_AN=$(sbatch --parsable --output=%s --error=%s  --nodes=1 --ntasks=%d --job-name=%s  %s) \n " %(slurm_out, slurm_err, mp[4], 'AN_CS_'+str(JOB_ID_HEADNAME), scripts_path.joinpath(f"{JOB_ID_HEADNAME}_CS_AN.sh")))
+            out_script.write(sbatch_driver_line('jid_AN', slurm_res['AN'], 'AN_CS_'+str(JOB_ID_HEADNAME), scripts_path.joinpath(f"{JOB_ID_HEADNAME}_CS_AN.sh"), slurm_out, slurm_err))
             out_script.write(sbatch_guard('jid_AN', 'AN_CS_'+str(JOB_ID_HEADNAME), abort=False))
             out_script.write("sleep 10  \n ")
         if scripts_path.joinpath(f"{JOB_ID_HEADNAME}_CS_RRLGV.sh").is_file():
-            out_script.write("jid_RRLGV=$(sbatch --parsable --output=%s --error=%s  --nodes=1 --ntasks=%d --job-name=%s  %s) \n " %(slurm_out, slurm_err, mp[5], 'RRLGV_CS_'+str(JOB_ID_HEADNAME), scripts_path.joinpath(f"{JOB_ID_HEADNAME}_CS_RRLGV.sh")))
+            out_script.write(sbatch_driver_line('jid_RRLGV', slurm_res['RRLGV'], 'RRLGV_CS_'+str(JOB_ID_HEADNAME), scripts_path.joinpath(f"{JOB_ID_HEADNAME}_CS_RRLGV.sh"), slurm_out, slurm_err))
             out_script.write(sbatch_guard('jid_RRLGV', 'RRLGV_CS_'+str(JOB_ID_HEADNAME), abort=False))
             out_script.write("sleep 10  \n ")
         if scripts_path.joinpath(f"{JOB_ID_HEADNAME}_CS_RRLEW.sh").is_file():
-            out_script.write("jid_RRLEW=$(sbatch --parsable --output=%s --error=%s  --nodes=1 --ntasks=%d --job-name=%s  %s) \n " %(slurm_out, slurm_err, mp[6], 'RRLEW_CS_'+str(JOB_ID_HEADNAME), scripts_path.joinpath(f"{JOB_ID_HEADNAME}_CS_RRLEW.sh")))
+            out_script.write(sbatch_driver_line('jid_RRLEW', slurm_res['RRLEW'], 'RRLEW_CS_'+str(JOB_ID_HEADNAME), scripts_path.joinpath(f"{JOB_ID_HEADNAME}_CS_RRLEW.sh"), slurm_out, slurm_err))
             out_script.write(sbatch_guard('jid_RRLEW', 'RRLEW_CS_'+str(JOB_ID_HEADNAME), abort=False))
             out_script.write("sleep 10  \n ")
 
@@ -2237,8 +2279,25 @@ def scriptGen_runner(options=None):
         "via SLURM (e.g. squeue --name <tag>) without ever being mistaken for, or landing alongside, an "
         "official product.")
 
+    parser.add_argument('--plot_export', choices=['off', 'on', 'worker', 'inprocess'], default=None, required=False,
+         help="Static diagnostic images (Plotly through Kaleido and headless Chrome) of the jobs this run generates: 'off' (the default: no "
+              "images; they were most of the wall time and CPU of the jobs), 'on' (= 'worker': images written by a watched worker process) or "
+              "'inprocess' (plain fig.write_image, debugging). Order: this option > PYAPS_PLOT_EXPORT in the environment > the script_params key "
+              "plot_export > off. The chosen mode is written into every job script and printed at the top of every job log. "
+              "Science products do not depend on it.")
+
+    parser.add_argument('--slurm_profile',
+         help='Profile of the SLURM resource table (configs/slurm_resources.yaml) to use for this run; default: the slurm_profile key of '
+              'script_params, the PYAPS_SLURM_PROFILE variable or the default profile of the table',
+        required=False, type=none_or_str, default=None)
+
+    parser.add_argument('--slurm_set', action='append', default=None, metavar='STAGE.key=value',
+         help='Change one value of one stage for this run (repeatable), e.g. --slurm_set FR.mem_gb=120 --slurm_set RR.cpus=4 '
+              '--slurm_set LS.time=00:30:00 (key: cpus, mem_gb, time). The value is final for that stage (no HR doubling on top).',
+        required=False)
+
     parser.add_argument('--mp_MOS',
-         help='Number of threads (CPUs) to be used. It can be a single value or a list for each module [RR,RVS,FR,PPXF,EMI,LS,L2M]',
+         help='LEGACY: CPUs per stage as a single value or a list [RR,RVS,FR,PPXF,EMI,LS,L2M], replacing the base CPU counts of the resource table (the rules of the profile, e.g. HR doubling, still apply). Leave it out to use the table.',
         required=False, type=none_or_str, default=None)
 
     parser.add_argument('--mp_LIFU',
@@ -2278,6 +2337,9 @@ def scriptGen_runner(options=None):
         print('---------------------------------------------------------------------------------')
 
         args = parser.parse_args(options)
+
+    global _PLOT_EXPORT_CLI
+    _PLOT_EXPORT_CLI = args.plot_export
 
     # test_mode: resolve ONE shared tag up front, so if both --run_L2 and
     # --run_CS are requested for the same call, they end up under the same
@@ -2361,34 +2423,37 @@ def scriptGen_runner(options=None):
 
 
     ## Taking care of MP_MOS param. (a single value to be used for all modules or a list of INTs for each module)
-    if args.mp_MOS is None: args.mp_MOS=1
-    mp_list = [ int(mpn) for mpn in str(args.mp_MOS).split(",") ]
-    # if a single value, then a list will be generated accordingly.
-    if len(mp_list) == 1: mp_list= mp_list * n_modules_MOS
-    # if a list passed, it checks its length.
-    assert len(mp_list) == n_modules_MOS , 'input mp param must be a single value of a list of length %s for MOS mode' %(str(n_modules_MOS))
+    # not given: None (the resource table decides)
+    mp_list = None if args.mp_MOS is None else [ int(mpn) for mpn in str(args.mp_MOS).split(",") ]
+    if mp_list is not None:
+        # if a single value, then a list will be generated accordingly.
+        if len(mp_list) == 1: mp_list= mp_list * n_modules_MOS
+        # if a list passed, it checks its length.
+        assert len(mp_list) == n_modules_MOS , 'input mp param must be a single value of a list of length %s for MOS mode' %(str(n_modules_MOS))
     # update args.mp
     args.mp_MOS = mp_list
 
 
     ## Taking care of MP_LIFU param. (a single value to be used for all modules or a list of INTs for each module)
-    if args.mp_LIFU is None: args.mp_LIFU=1
-    mp_list = [ int(mpn) for mpn in str(args.mp_LIFU).split(",") ]
-    # if a single value, then a list will be generated accordingly.
-    if len(mp_list) == 1: mp_list= mp_list * n_modules_LIFU
-    # if a list passed, it checks its length.
-    assert len(mp_list) == n_modules_LIFU , 'input mp param must be a single value of a list of length %s for IFU mode' %(str(n_modules_LIFU))
+    # not given: None (the resource table decides)
+    mp_list = None if args.mp_LIFU is None else [ int(mpn) for mpn in str(args.mp_LIFU).split(",") ]
+    if mp_list is not None:
+        # if a single value, then a list will be generated accordingly.
+        if len(mp_list) == 1: mp_list= mp_list * n_modules_LIFU
+        # if a list passed, it checks its length.
+        assert len(mp_list) == n_modules_LIFU , 'input mp param must be a single value of a list of length %s for IFU mode' %(str(n_modules_LIFU))
     # update args.mp
     args.mp_LIFU = mp_list
 
 
     ## Taking care of MP_MIFU param. (a single value to be used for all modules or a list of INTs for each module)
-    if args.mp_MIFU is None: args.mp_MIFU=1
-    mp_list = [ int(mpn) for mpn in str(args.mp_MIFU).split(",") ]
-    # if a single value, then a list will be generated accordingly.
-    if len(mp_list) == 1: mp_list= mp_list * n_modules_MIFU
-    # if a list passed, it checks its length.
-    assert len(mp_list) == n_modules_MIFU , 'input mp param must be a single value of a list of length %s for IFU mode' %(str(n_modules_MIFU))
+    # not given: None (the resource table decides)
+    mp_list = None if args.mp_MIFU is None else [ int(mpn) for mpn in str(args.mp_MIFU).split(",") ]
+    if mp_list is not None:
+        # if a single value, then a list will be generated accordingly.
+        if len(mp_list) == 1: mp_list= mp_list * n_modules_MIFU
+        # if a list passed, it checks its length.
+        assert len(mp_list) == n_modules_MIFU , 'input mp param must be a single value of a list of length %s for IFU mode' %(str(n_modules_MIFU))
     # update args.mp
     args.mp_MIFU = mp_list
 
@@ -2397,12 +2462,13 @@ def scriptGen_runner(options=None):
 
 
     ## Taking care of MP_CS param. (a single value to be used for all modules or a list of INTs for each module)
-    if args.mp_CS is None: args.mp_CS=1
-    mp_list = [ int(mpn) for mpn in str(args.mp_CS).split(",") ]
-    # if a single value, then a list will be generated accordingly.
-    if len(mp_list) == 1: mp_list= mp_list * n_modules_CS
-    # if a list passed, it checks its length.
-    assert len(mp_list) == n_modules_CS , 'input mp param must be a single value of a list of length %s for CS mode' %(str(n_modules_CS))
+    # not given: None (the resource table decides)
+    mp_list = None if args.mp_CS is None else [ int(mpn) for mpn in str(args.mp_CS).split(",") ]
+    if mp_list is not None:
+        # if a single value, then a list will be generated accordingly.
+        if len(mp_list) == 1: mp_list= mp_list * n_modules_CS
+        # if a list passed, it checks its length.
+        assert len(mp_list) == n_modules_CS , 'input mp param must be a single value of a list of length %s for CS mode' %(str(n_modules_CS))
     # update args.mp
     args.mp_CS = mp_list
 
@@ -2426,14 +2492,14 @@ def scriptGen_runner(options=None):
     if 'MOS' in l1_info['mode']:
         if args.run_L2:
             script_full_path['MOS'] = mos_scriptGEN(args.infiles, args.config_file, cat_list =cat_list ,aps_ids=aps_ids, wlranges=wlranges ,targsrvy=targsrvy,  targclass=targclass,
-                mask_aps_ids=mask_aps_ids, area=area, mask_areas=mask_areas, arms_ratio=arms_ratio, headname = args.headname, hname_suffix=args.hname_suffix, log = args.log, aps_ovr =args.aps_ovr, mp=args.mp_MOS, UAPSID= args.uapsid, hpc=args.hpc, CPS_path=args.CPS_path, test_mode=args.test_mode)
+                mask_aps_ids=mask_aps_ids, area=area, mask_areas=mask_areas, arms_ratio=arms_ratio, headname = args.headname, hname_suffix=args.hname_suffix, log = args.log, aps_ovr =args.aps_ovr, mp=args.mp_MOS, UAPSID= args.uapsid, hpc=args.hpc, CPS_path=args.CPS_path, test_mode=args.test_mode, slurm_profile=args.slurm_profile, slurm_set=args.slurm_set)
         if args.run_CS:
             script_full_path['CS'] = cs_scriptGEN(args.infiles, args.config_file, cat_list =cat_list, aps_ids=aps_ids, wlranges=wlranges, mask_aps_ids=mask_aps_ids, area=area, mask_areas=mask_areas, arms_ratio=arms_ratio,
-                headname = args.headname, hname_suffix=args.hname_suffix, log=args.log, CS_ovr=args.CS_ovr, mp = args.mp_CS, hpc=args.hpc ,UAPSID= args.uapsid ,CPS_path=args.CPS_path, test_mode=args.test_mode)
+                headname = args.headname, hname_suffix=args.hname_suffix, log=args.log, CS_ovr=args.CS_ovr, mp = args.mp_CS, hpc=args.hpc ,UAPSID= args.uapsid ,CPS_path=args.CPS_path, test_mode=args.test_mode, slurm_profile=args.slurm_profile, slurm_set=args.slurm_set)
     else:
         if args.run_L2:
             script_full_path['IFU']= ifu_scriptGEN(args.infiles, args.config_file, cat_list =cat_list, aps_ids=aps_ids, wlranges=wlranges ,targsrvy=targsrvy,  targclass=targclass,
-                mask_aps_ids=mask_aps_ids, area=area, mask_areas=mask_areas, arms_ratio=arms_ratio, headname = args.headname, hname_suffix=args.hname_suffix, log = args.log, aps_ovr =args.aps_ovr, mp_LIFU=args.mp_LIFU, mp_MIFU=args.mp_MIFU, hpc=args.hpc, UAPSID= args.uapsid, patch_file=args.patch_file, seg2d_white_images=seg2d_white_images, CPS_path=args.CPS_path, test_mode=args.test_mode)
+                mask_aps_ids=mask_aps_ids, area=area, mask_areas=mask_areas, arms_ratio=arms_ratio, headname = args.headname, hname_suffix=args.hname_suffix, log = args.log, aps_ovr =args.aps_ovr, mp_LIFU=args.mp_LIFU, mp_MIFU=args.mp_MIFU, hpc=args.hpc, UAPSID= args.uapsid, patch_file=args.patch_file, seg2d_white_images=seg2d_white_images, CPS_path=args.CPS_path, test_mode=args.test_mode, slurm_profile=args.slurm_profile, slurm_set=args.slurm_set)
         # TBD
         # if args.run_CS:
         #     script_full_path = ifucs_scriptGEN()
