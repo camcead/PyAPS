@@ -111,8 +111,37 @@ retried for memory (a TIMEOUT is retried whatever the cluster enforces).
 
 ## 7. Measured allocation (`v2`)
 
-See the table file: every row of `v2` carries `status` and, where measured, the numbers behind it in `note`. Rows still marked
-`unmeasured` hold the old value.
+`v2` is the allocation set from two measurements: the accounting of two sites (5 546 L2 jobs since 2026-09-23: busy cores, run times) and a
+rehearsal on the ARCUS dev pod (2026-11-05: the same pairs run with `default` and with `v2`, plot images off, true memory sampled as PSS every
+10 s). Every row of `configs/slurm_resources.yaml` carries its `status` and the numbers behind it in `note`.
+
+| stage | CPUs LR / HR | memory LR / HR | time limit | what it rests on |
+|---|---|---|---|---|
+| RR | 8 / 16 | 24 / 36 GB | 6 h | LR: 6.5-6.8 busy cores of 8, 14-23 min without plot images; HR: 16 CPUs gave 19 min and 11.8 busy cores, 8 CPUs 38 min at the same core-hours, so HR keeps 16 (a HR OB with few fibres does not use them); PSS peak 7-10 GB LR, 17 GB HR |
+| RVS | 12 / 24 | 72 / 144 GB | 3 h | pool of `--mp` workers (4-12 min LR, 2-4 min HR); PSS peak 21-45 GB LR (57 GB with 16 workers), 54-97 GB HR |
+| FR | 9 / 9 (`m` grids: same) | 8 GB; `m` grids 64 / 128 GB | 30 h; `m` grids 48 h | one `ferre.x` per grid and 9 grids: at most 9 cores on a single-thread build (6.3-6.8 busy measured); PSS 0.6-3 GB (the fine grids see the stack rows below) |
+| PPXF | 10 / 10 | 16 GB | 6 h | 7-8.4 busy cores of 10 (HR with 20 CPUs: 13.7 busy, the same 3 min as with 10); PSS peak 4-7 GB |
+| EMI | 6 / 6 | 28 / 40 GB | 4 h | 2.4-4.1 busy cores; 1-3 min with 6 CPUs as with 20 or 40; PSS peak 11 GB with 20 workers, 3-5 GB with 6 |
+| LS | 2 / 2 | 6 GB | 30 min | 0.5-1.0 core, 1-3 min; PSS 1-2.4 GB (3.5 GB at most in the audit) |
+| L2merge | 1 / 1 | 4 GB | 15 min | 0.3-0.5 core, under 1 min |
+| IFU_PR | 3 / 3 | 24 / 36 GB | 6 h | 1.1-1.2 busy cores in 3 OBs (6 or 12 CPUs gave the same times); PSS peak 13-17 GB, 27 GB for a heavy HR cube |
+| IFU_ExGal | 40 / 40 | 80 / 128 GB | 10 h | up to 40 busy cores, 13 on a small cube (run 10 min); PSS 18 GB (the sum of the workers' RSS is 212 GB: shared pages counted per process) |
+| IFU_Gal | 4 / 4 | 72 / 144 GB | 16 h / 24 h | serial on the single-thread `ferre.x` of the production pod (1.0-1.3 busy cores, 4.3 at most); on an OpenMP `ferre.x` a small cube used 7 cores for 4 min against 1.8 cores for 12 min with 2 CPUs |
+| mini IFU, CS | as `default` | LIFU memory; FESWI 128 GB | | no mini IFU job exists on either site and no CS job has run on SLURM: unmeasured |
+
+Rules that were dropped: "HR doubles every CPU count" (only RR and RVS have an HR row, the others use the same cores in HR), "single exposure
+halves FERRE" (FERRE is 9 CPUs in every class), and the 190 / 380 / 240 / 400 GB requests (they were scheduling tokens larger than any node
+could hold: a 380 GB request never runs on a 351 GB node).
+
+**Memory is the true footprint, not `sacct`'s MaxRSS.** `jobacct_gather/linux` adds the RSS of every forked worker, so shared pages are counted
+once per process (RR: 28-65 GB for 7-17 GB held; IFU_ExGal: 212 GB for 18 GB). The memory column is the PSS peak (shared pages divided between
+the processes that map them) plus a margin of 25-100 %. Until the cluster enforces memory (`task/cgroup`) it is only a scheduling token:
+a request that is too large costs queue time, one that is too small costs nothing; once it is enforced it is the kill limit, and a stage above it
+is killed and retried once with 1.5 x (section 6).
+
+Profiles: `default` (the old values, the reference of the golden test), `v2` (this table), `v2_openmp` (`v2` with FR at 18 CPUs for a site whose
+`ferre.x` is built with OpenMP: two threads for each of the 9 grids). The rehearsal values and what was not measured are in the operator
+document of the private repository (`doc/ops/SLURM_RESOURCES_REHEARSAL_20261105.md`).
 
 ## 8. Static plot images are off by default (since 2026-11-04)
 

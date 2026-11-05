@@ -356,12 +356,14 @@ def test_v2_asks_for_memory_in_every_l2_stage_so_enforcement_can_be_switched_on(
 
 
 def test_v2_has_no_hr_doubling_except_where_it_was_measured(table):
+    """RR keeps 16 in HR (19 min with 16 CPUs against 38 min with 8 at the same core-hours, dev rehearsal 2026-11-05) and RVS 24 (its pool is --mp);
+    every other stage uses the same cores in HR."""
     lr = R("MOS", table, {"res": "LR", "stack_level": 1, "grid": "n"}, profile="v2")
     hr = R("MOS", table, {"res": "HR", "stack_level": 1, "grid": "n"}, profile="v2")
-    assert {s: lr[s].cpus for s in lr} == {"RR": 8, "RVS": 16, "FR": 9, "PPXF": 10, "EMI": 6, "LS": 2, "L2merge": 1}
-    assert {s: hr[s].cpus for s in hr} == {**{s: lr[s].cpus for s in lr}, "RVS": 24}
+    assert {s: lr[s].cpus for s in lr} == {"RR": 8, "RVS": 12, "FR": 9, "PPXF": 10, "EMI": 6, "LS": 2, "L2merge": 1}
+    assert {s: hr[s].cpus for s in hr} == {**{s: lr[s].cpus for s in lr}, "RR": 16, "RVS": 24}
     lifu = R("LIFU", table, {"res": "HR", "stack_level": 1, "grid": "n"}, profile="v2")
-    assert [lifu[s].cpus for s in ("IFU_PR", "IFU_ExGal", "IFU_Gal")] == [3, 40, 2]
+    assert [lifu[s].cpus for s in ("IFU_PR", "IFU_ExGal", "IFU_Gal")] == [3, 40, 4]
 
 
 def test_v2_fr_asks_less_than_the_old_190_and_380_gb_but_enough_for_the_fine_grids(table):
@@ -385,12 +387,19 @@ def test_v2_openmp_profile_gives_fr_two_threads_per_grid(table):
     assert r["FR"].cpus == 18 and r["RR"].cpus == 8 and r["FR"].profile == "v2_openmp"
 
 
-def test_v2_pss_only_lowers_memory_of_measured_stages_and_keeps_cpus_and_time(table):
-    for fam, ctx in (("MOS", {"res": "LR", "stack_level": 0, "grid": "n"}), ("MOS", {"res": "HR", "stack_level": 1, "grid": "n"}),
-                     ("LIFU", {"res": "LR", "stack_level": 1, "grid": "n"})):
-        a, b = R(fam, table, ctx, profile="v2"), R(fam, table, ctx, profile="v2_pss")
-        for s in a:
-            assert (a[s].cpus, a[s].time) == (b[s].cpus, b[s].time), (fam, s)
-            assert b[s].mem_gb <= a[s].mem_gb, (fam, s)
-    pss = R("MOS", table, {"res": "LR", "stack_level": 0, "grid": "n"}, profile="v2_pss")
-    assert pss["RR"].mem_gb == 16 and pss["FR"].mem_gb == 4 and pss["EMI"].mem_gb == 80      # EMI: no measurement, v2 bound kept
+def test_v2_memory_is_the_true_footprint_with_a_margin_not_the_rss_sum(table):
+    """The memory column was set from the PSS peaks of the dev rehearsal (RR 7-10 GB LR, 17 GB HR; RVS 21-57 GB LR, 97 GB HR; ...), not from the RSS sum
+    of sacct (RR 28-65 GB, IFU_ExGal 212 GB). It must stay above the largest peak seen: with cgroup enforcement it is the kill limit."""
+    lr = R("MOS", table, {"res": "LR", "stack_level": 0, "grid": "n"}, profile="v2")
+    hr = R("MOS", table, {"res": "HR", "stack_level": 0, "grid": "n"}, profile="v2")
+    peaks_lr = {"RR": 10.4, "RVS": 57.2, "FR": 3.0, "PPXF": 7.0, "EMI": 11.0, "LS": 3.5, "L2merge": 1.5}
+    peaks_hr = {"RR": 17.5, "RVS": 97.3, "FR": 3.0, "PPXF": 7.0, "EMI": 6.0, "LS": 3.5, "L2merge": 1.5}
+    for s, peak in peaks_lr.items():
+        assert lr[s].mem_gb >= 1.25 * peak, (s, lr[s].mem_gb, peak)
+    for s, peak in peaks_hr.items():
+        assert hr[s].mem_gb >= 1.25 * peak, (s, hr[s].mem_gb, peak)
+    assert lr["RR"].mem_gb == 24 and hr["RR"].mem_gb == 36 and lr["RVS"].mem_gb == 72 and hr["RVS"].mem_gb == 144
+
+
+def test_the_old_v2_pss_profile_is_gone(table):
+    assert "v2_pss" not in table["profiles"]

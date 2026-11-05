@@ -123,9 +123,9 @@ profiles:
           mem_gb: 24
           time: "0-06:00:00"
           status: measured
-          note: "busy cores 6.5-8 (LR) / 7.7-12 with Chrome (HR: not faster than LR); PSS peak 7-13 GB; longest run 226 min with plots, 15-19 min without"
+          note: "LR: 6.5-6.8 busy cores of 8, 14-23 min without plot images. HR: with 16 CPUs 11.75 cores busy and 19 min, with 8 CPUs 5.5 cores and 38 min (same core-hours, half the wall time), so HR keeps its 16; a HR OB with few fibres does not use them (5 vs 4 min). PSS peak 7-10 GB LR, 17 GB HR; longest run 226 min with plot images"
           cases:
-            - {when: {res: HR}, mem_gb: 36}
+            - {when: {res: HR}, cpus: {set: 16}, mem_gb: 36}
         RVS:
           cpus: 12
           mem_gb: 72
@@ -159,10 +159,10 @@ profiles:
             - {when: {res: HR}, mem_gb: 40}
         LS:
           cpus: 2
-          mem_gb: 4
+          mem_gb: 6
           time: "0-00:30:00"
           status: measured
-          note: "uses 0.9 core, 1-3 minutes; PSS peak 3.5 GB"
+          note: "uses 0.5-1 core, 1-3 minutes; PSS peak 1-2.4 GB here, 3.5 GB at most on the audit's runs"
         L2merge:
           cpus: 1
           mem_gb: 4
@@ -190,11 +190,11 @@ profiles:
           cases:
             - {when: {res: HR}, mem_gb: 128}
         IFU_Gal:
-          cpus: 2
+          cpus: 4
           mem_gb: 72
           time: "0-16:00:00"
           status: measured
-          note: "serial on the single-thread ferre.x (1.0 core in 100 % of the production jobs); run 518 min LR / 696 min HR; PSS peak 36 GB LR"
+          note: "serial on the single-thread ferre.x of the production pod (1.0-1.3 busy cores p50/p90, 4.3 at most, 91 jobs); on the OpenMP ferre.x of the dev pod a small OB used 7 cores for 4 min against 1.8 cores for 12 min with 2 CPUs; run 518 min LR / 696 min HR; PSS peak 36 GB LR"
           cases:
             - {when: {res: HR}, mem_gb: 144, time: {set: "1-00:00:00"}}
 
@@ -236,69 +236,3 @@ profiles:
           cases:
             - {when: {grid: m, res: LR}, mem_gb: 64, time: {set: "2-00:00:00"}}
             - {when: {grid: m, res: HR}, mem_gb: 128, time: {set: "2-00:00:00"}}
-
-  v2_pss:
-    description: >
-      v2 with the memory of the stages measured on the dev site by true footprint (PSS: shared pages divided between the processes that map
-      them), 1.25 x the largest peak seen: RR 12.6 GB (HR), RVS 72.7 GB (HR) / 36.0 (LR), FR 3.0, PPXF 5.8, IFU_PR 26.6, IFU_ExGal 20.0,
-      IFU_Gal 35.7 (a handful of runs each; EMI, LS and L2merge have no measurement and keep the v2 bound). ONLY for a cluster that enforces
-      memory through cgroups (task/cgroup): the accounting-plugin enforcement compares the RSS SUM, which is several times larger, and would
-      kill these jobs. Without enforcement it just reserves less.
-    extends: v2
-    MOS:
-      stages:
-        RR:
-          cpus: 8
-          mem_gb: 16
-          time: "0-06:00:00"
-          status: measured
-          note: "PSS peak 6.9 GB (LR single, 6 runs), 12.6 GB (HR and the larger OBs); RSS-sum 29-70 GB"
-          cases:
-            - {when: {res: HR}, mem_gb: 16}
-        RVS:
-          cpus: 16
-          mem_gb: 46
-          time: "0-03:00:00"
-          status: measured
-          note: "PSS peak 36.0 GB LR (13 runs), 72.7 GB HR (1 run); RSS-sum 43 / 87 GB"
-          cases:
-            - {when: {res: HR}, cpus: {set: 24}, mem_gb: 92}
-        FR:
-          cpus: 9
-          mem_gb: 4
-          time: "1-06:00:00"
-          status: measured
-          note: "PSS peak 3.0 GB (13 runs, grid n); the fine grids (stack products) were not measured: they keep the v2 values"
-          cases:
-            - {when: {grid: m, res: LR}, mem_gb: 64, time: {set: "2-00:00:00"}}
-            - {when: {grid: m, res: HR}, mem_gb: 128, time: {set: "2-00:00:00"}}
-        PPXF:
-          cpus: 10
-          mem_gb: 8
-          time: "0-06:00:00"
-          status: measured
-          note: "PSS peak 5.8 GB (LR, 13 runs), 5.1 GB (HR, 1 run)"
-          cases:
-            - {when: {res: HR}, mem_gb: 8}
-    LIFU:
-      stages:
-        IFU_PR:
-          cpus: 3
-          mem_gb: 34
-          time: "0-10:00:00"
-          status: measured
-          note: "PSS peak 16.7 GB LR (2 runs), 26.6 GB HR (3 runs)"
-        IFU_ExGal:
-          cpus: 40
-          mem_gb: 25
-          time: "0-10:00:00"
-          status: measured
-          note: "PSS peak 17.6-20.0 GB (3 runs) against a MaxRSS-sum of 183-237 GB; CPUs and time as in v2"
-        IFU_Gal:
-          cpus: 2
-          mem_gb: 45
-          time: "0-16:00:00"
-          status: measured
-          note: "PSS peak 35.7 GB LR (2 runs), 20.0 GB HR (1 run)"
-          cases:
-            - {when: {res: HR}, time: {set: "1-00:00:00"}}
