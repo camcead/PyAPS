@@ -9,6 +9,7 @@ code decides a CPU count, a `--mem` or a `--time`.
 * Change one value for one run: `--slurm_set`, script_params keys or environment variables (section 4)
 * See what a job got: section 5
 * A job killed for memory or time is retried once with more: section 6
+* The static plot images (headless Chrome) are OFF by default and are a large part of what a job costs: section 8
 
 ## 1. The model
 
@@ -112,3 +113,26 @@ retried for memory (a TIMEOUT is retried whatever the cluster enforces).
 
 See the table file: every row of `v2` carries `status` and, where measured, the numbers behind it in `note`. Rows still marked
 `unmeasured` hold the old value.
+
+## 8. Static plot images are off by default (since 2026-11-04)
+
+The diagnostic pictures (PNG/PDF) of the stages are rendered by Plotly through Kaleido, which drives a headless Chrome. In the SLURM audit of
+2026-11-04 this was most of the wall time and CPU of the jobs: the same RR job took 81 min and 520 CPU-minutes with pictures and 18 min and
+117 CPU-minutes without; Chrome used 17-18 threads on an 8-CPU job and 13-22 GB in RVS and IFU_ExGal. No data product depends on a picture
+(`PyAPS.apsPlot.export.write_image` never raises and no caller reads its result), so **the default is now `off`**.
+
+| how | effect |
+|---|---|
+| nothing | `off`: the figures are built, no image is rendered, no Chrome is started |
+| `aps_runner.py --plot_export on` | the pictures of the jobs this run generates |
+| `plot_export: 'on'` in script_params | the pictures for a site or a run directory |
+| `PYAPS_PLOT_EXPORT=worker` in the environment of the runner | the same (`on`, `worker`; `inprocess` is the plain call for debugging; `off`) |
+
+Order: option, environment, script_params, `off`. The runner writes `export PYAPS_PLOT_EXPORT=<mode>` into every job script (so the job
+does not depend on the environment of `sbatch`), prints `PyAPS plot export: mode=off source=default ...` at the top of every job log, prints it
+with the resource table and records it as `plot_export` in `slurm_resources_effective.json`. The DMS passes the option only when its own config
+has `plot_export`; `aps-offline --plots on|off` does the same for a standalone run.
+
+With the pictures on, the Chrome load is part of the memory and CPU of the stage: the resource profiles were measured with the pictures **off**
+(section 7), and with them on the memory of RVS and IFU_ExGal is 13-22 GB larger and RR needs about twice the time. Switch them on only
+for a stage you want to look at.
