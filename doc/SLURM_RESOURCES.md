@@ -270,7 +270,9 @@ nice = class base  +  stage_step x (stages still to come after this one)  +  pai
 comment = pyaps:<uapsid>:p<pair index>:<class>:<STAGE>          (squeue -o "%i %j %k %Q" shows the chain of every job)
 ```
 
-The first pair and the last stages get the smallest values; the largest sum is 8500, below the 10000 of the age cap, so **nothing starves**: nice only
+The first pair and the last stages get the smallest values. Why this orders the jobs depth-first: the queue floors a priority at 1 (priority = max(1, 10000 x hours
+waited / 24 - nice)) and breaks ties by job id, which is submission order, i.e. chain order. The early stages of later pairs carry the largest nice, so they stay at 1
+for hours (up to 18 h of waiting at nice 7700) instead of passing the late stages of the first pair with their age; the late stages tie at 1 and go in chain order. The largest sum is 8500, below the 10000 of the age cap, so **nothing starves**: nice only
 delays a job against jobs that became eligible less than nice/417 hours earlier, the age of every job keeps growing, and SLURM stays work-conserving (a
 job with a large nice still runs when cores are idle). Nice orders; it does not reserve. The job names are unchanged (the operations layer finds jobs
 by `<STAGE>_L2_<uapsid>`).
@@ -279,11 +281,15 @@ by `<STAGE>_L2_<uapsid>`).
   submit pass plus the chains already in flight when it has `max_inflight_obs`). **A retry keeps the index of the first generation of the chain**: the
   escalation (section 6) regenerates the chain, the runner reads the index from `slurm_resources_effective.json` and does not give the retry the worst
   priority.
-* **Classes**: `scheduled` (the daemon, default) and `offline` (a run somebody waits for: `aps-offline`, `--priority_class offline`, `PYAPS_PRIORITY_CLASS`).
-  Offline jobs get class base 0, so their largest nice (4000) is below the smallest of a scheduled job (4500): at equal age an offline job always
-  goes first, and depth-first order applies inside each class. Nice cannot make a new job pass jobs that have already waited longer than
-  (class difference) / 417 hours (about 10 hours); for a stronger guarantee `aps-offline --boost scontrol|sudo` sets an explicit `Priority` on the queued
-  jobs of the run (needs SLURM operator rights, or passwordless sudo), off by default; it never cancels, holds or suspends another job.
+* **Classes**: `scheduled` (the daemon, default; the nice above) and `offline` (a run somebody waits for: `aps-offline`, `--priority_class offline`,
+  `PYAPS_PRIORITY_CLASS`). **An offline job gets no nice at all** (`classes.offline` has no base and no steps). The queue floors a priority at 1, so a job
+  whose nice is above its age sits at 1 and ties are broken by job id; scheduled jobs (nice 4500 and more, i.e. at least 10.8 hours of age) therefore
+  stay at the floor, while an offline job rises above 1 with its age at the first priority calculation (5 minutes on the production clusters) and passes
+  all of them. A stage or pair step on an offline job would put it at the floor too, so the offline class has none (several offline pairs run in age
+  order). Nice cannot pass jobs that have already waited longer than about 10 hours; for a stronger guarantee `aps-offline --boost scontrol|sudo` sets an
+  explicit `Priority` on the queued jobs of the run (needs SLURM operator rights, or passwordless sudo), off by default; it never cancels, holds or
+  suspends another job. A dependent stage of an offline chain becomes eligible with age 0, so it waits one priority calculation behind the floor
+  before it passes the scheduled jobs; `--boost` removes that wait.
 * **Cap**: `max_inflight_obs` in the DMS config (existing) holds new pairs until chains in flight have finished; off by default.
 * **Switches**: `--slurm_priority off|depth_first`, `PYAPS_SLURM_PRIORITY`, script_params `slurm_priority`, then the profile's `priority.policy`. In a
   bash run (`--hpc 1`) nothing is queued and no nice is given.

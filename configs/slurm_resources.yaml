@@ -82,12 +82,18 @@ footprint:
 # With policy depth_first every job gets `--nice` = class base + stage_step x (stages still to come after it) + pair_step x min(pair index,
 # pair_cap): the first pair and the last stages get the smallest value, nothing gets a negative one (a normal user cannot). Nice only delays a job
 # against jobs that became eligible less than nice/417 h earlier (the age term is 417 points an hour, capped at 10000): nothing starves.
-# classes: `offline` (aps-offline, an answer wanted now) is always ahead of `scheduled` (the daemon): the largest nice of an offline job (3200 +
-# 800 = 4000) is below the smallest of a scheduled one (4500). The largest sum (8500) stays below the age cap of 10000.
+# The queue floors a priority at 1: priority = max(1, 10000 x hours waiting / 24 - nice). A job whose nice is above its age sits at 1 and the ties at 1
+# are broken by job id = submission order, which is chain order: that is what makes the order depth-first (the early stages of later pairs stay at 1 for
+# hours instead of passing the late stages of the first pair with their age). It also means a nice only matters against the AGE of the other jobs.
+# classes: `scheduled` (the daemon) carries the nice above; `offline` (aps-offline, an answer wanted now) carries NONE: its jobs rise above 1 with their age
+# at the first priority calculation and pass every scheduled job that is still at the floor (nice 4500 = 10.8 h of age; the largest scheduled sum is 8500,
+# below the age cap of 10000). Stage and pair steps would put an offline job at the floor too, so the offline class has none.
 priority:
   policy: "off"                # off | depth_first (a profile may say otherwise; --slurm_priority / PYAPS_SLURM_PRIORITY / slurm_priority win)
   default_class: scheduled
-  classes: {offline: 0, scheduled: 4500}
+  classes:
+    offline: {nice: 0, stage_step: 0, pair_step: 0}     # nothing is added: a nice above the age of a job keeps it at priority 1 (see above)
+    scheduled: {nice: 4500}
   stage_step: 800
   pair_step: 100
   pair_cap: 8

@@ -350,16 +350,17 @@ def test_offline_class_is_always_ahead_of_scheduled(tmp_path, table):
     off = R(table, "MOS", CTX_LR_SINGLE_N, machine, profile="v2", hpc=3, priority_class="offline", pair_index=8)
     sch = R(table, "MOS", CTX_LR_SINGLE_N, machine, profile="v2", hpc=3, priority_class="scheduled", pair_index=0)
     assert max(r.nice for r in off.values()) < min(r.nice for r in sch.values())
-    assert off["L2merge"].nice == 800 and off["RR"].nice == 3200 + 800 and off["RR"].comment.endswith(":offline:RR")
+    assert all(r.nice == 0 for r in off.values())                       # no nice at all: a nice above the age of a job keeps it at the queue's floor of 1
+    assert off["RR"].comment.endswith(":offline:RR") and off.priority["class_base"] == 0 and off.priority["pair_nice"] == 0
 
 
 def test_priority_operator_order_and_off(tmp_path, table):
     machine = probe_of(tmp_path, F.CLUSTER_BIG)
     a = R(table, "MOS", CTX_LR_SINGLE_N, machine, profile="v2", hpc=3, priority_policy="off")
     b = R(table, "MOS", CTX_LR_SINGLE_N, machine, profile="v2", hpc=3, env={"PYAPS_SLURM_PRIORITY": "off"})
-    c = R(table, "MOS", CTX_LR_SINGLE_N, machine, profile="default", hpc=3, priority_policy="depth_first", env={"PYAPS_PRIORITY_CLASS": "offline", "PYAPS_PAIR_INDEX": "3"})
+    c = R(table, "MOS", CTX_LR_SINGLE_N, machine, profile="default", hpc=3, priority_policy="depth_first", env={"PYAPS_PRIORITY_CLASS": "scheduled", "PYAPS_PAIR_INDEX": "3"})
     assert all(r.nice is None for r in a.values()) and all(r.nice is None for r in b.values())
-    assert c["RR"].nice == 3200 + 300 and c.priority["class_source"] == "PYAPS_PRIORITY_CLASS"
+    assert c["RR"].nice == 4500 + 3200 + 300 and c.priority["class_source"] == "PYAPS_PRIORITY_CLASS"
 
 
 def test_escalation_retry_keeps_the_pair_index_of_the_first_generation(tmp_path, table):

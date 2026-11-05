@@ -296,7 +296,13 @@ def _check_priority(block, where, top=False):
             if not isinstance(val, dict) or any(c not in PRIORITY_CLASSES for c in val):
                 raise ResourceTableError("%s.classes: keys among %s" % (where, ", ".join(PRIORITY_CLASSES)))
             for c, n in val.items():
-                _num(n, "%s.classes.%s" % (where, c), minimum=-1)
+                if isinstance(n, dict):
+                    if set(n) - {"nice", "stage_step", "pair_step"}:
+                        raise ResourceTableError("%s.classes.%s: keys nice, stage_step, pair_step" % (where, c))
+                    for k2, v2 in n.items():
+                        _num(v2, "%s.classes.%s.%s" % (where, c, k2), minimum=-1 if k2 == "nice" else -1)
+                else:
+                    _num(n, "%s.classes.%s" % (where, c), minimum=-1)
         if key in ("stage_step", "pair_step"):
             _num(val, "%s.%s" % (where, key), minimum=-1)
         if key == "pair_cap":
@@ -1116,9 +1122,12 @@ def _priority_settings(table, pname, conf, env, policy_arg=None, class_arg=None,
     pair_src = pair_src or "default 0"
     if escalated and previous and previous.get("pair_index") is not None:
         pair, pair_src = int(previous["pair_index"]), "kept from the first generation of this chain (escalation retry)"
-    base = (flat.get("classes") or {}).get(cls, 0)
+    spec = (flat.get("classes") or {}).get(cls, 0)
+    spec = dict(spec) if isinstance(spec, dict) else {"nice": spec}      # a class may set its own steps (offline: none, see the table)
+    base = spec.get("nice", 0)
     out = {"policy": pol, "policy_source": pol_src, "class": cls, "class_source": cls_src, "pair_index": max(0, pair), "pair_source": pair_src,
-           "class_base": base, "stage_step": flat.get("stage_step", 0), "pair_step": flat.get("pair_step", 0), "pair_cap": int(flat.get("pair_cap", 8)),
+           "class_base": base, "stage_step": spec.get("stage_step", flat.get("stage_step", 0)), "pair_step": spec.get("pair_step", flat.get("pair_step", 0)),
+           "pair_cap": int(flat.get("pair_cap", 8)),
            "stage_remaining": dict(flat.get("stage_remaining") or {})}
     out["pair_nice"] = out["pair_step"] * min(out["pair_index"], out["pair_cap"])
     return out if pol == "depth_first" else dict(out, off=True)
