@@ -368,7 +368,7 @@ def test_v2_has_no_hr_doubling_except_where_it_was_measured(table):
 
 def test_v2_fr_asks_less_than_the_old_190_and_380_gb_but_enough_for_the_fine_grids(table):
     fr = R("MOS", table, {"res": "LR", "stack_level": 1, "grid": "m"}, profile="v2")["FR"]
-    assert fr.mem_gb == 64 and fr.time == "2-00:00:00" and fr.cpus == 9
+    assert fr.mem_gb == 80 and fr.time == "2-00:00:00" and fr.cpus == 9
     single = R("MOS", table, {"res": "LR", "stack_level": 0, "grid": "n"}, profile="v2")["FR"]
     assert single.mem_gb == 8 and single.time == "1-06:00:00"
 

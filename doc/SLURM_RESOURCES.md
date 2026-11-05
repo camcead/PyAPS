@@ -119,7 +119,7 @@ rehearsal on a development site (2026-11-05: the same pairs run with `default` a
 |---|---|---|---|---|
 | RR | 8 / 16 | 24 / 36 GB | 6 h | LR: 6.5-6.8 busy cores of 8, 14-23 min without plot images; HR: 16 CPUs gave 19 min and 11.8 busy cores, 8 CPUs 38 min at the same core-hours, so HR keeps 16 (a HR OB with few fibres does not use them); PSS peak 7-10 GB LR, 17 GB HR |
 | RVS | 12 / 24 | 72 / 144 GB | 3 h | pool of `--mp` workers (4-12 min LR, 2-4 min HR); PSS peak 21-45 GB LR (57 GB with 16 workers), 54-97 GB HR |
-| FR | 9 / 9 (`m` grids: same) | 8 GB; `m` grids 64 / 128 GB | 30 h; `m` grids 48 h | one `ferre.x` per grid and 9 grids: at most 9 cores on a single-thread build (6.3-6.8 busy measured); PSS 0.6-3 GB (the fine grids see the stack rows below) |
+| FR | 9 / 9 (`m` grids: same) | 8 GB; `m` grids 80 / 160 GB | 30 h; `m` grids 48 h | one `ferre.x` per grid and 9 grids: at most 9 cores on a single-thread build (6.3-6.8 busy measured); PSS 0.6-3 GB; with the fine grids (stack products) 51.5 GB LR, 82 GB HR so far (file-backed grid pages) |
 | PPXF | 10 / 10 | 16 GB | 6 h | 7-8.4 busy cores of 10 (HR with 20 CPUs: 13.7 busy, the same 3 min as with 10); PSS peak 4-7 GB |
 | EMI | 6 / 6 | 28 / 40 GB | 4 h | 2.4-4.1 busy cores; 1-3 min with 6 CPUs as with 20 or 40; PSS peak 11 GB with 20 workers, 3-5 GB with 6 |
 | LS | 2 / 2 | 6 GB | 30 min | 0.5-1.0 core, 1-3 min; PSS 1-2.4 GB (3.5 GB at most in the audit) |

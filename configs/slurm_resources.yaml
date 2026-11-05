@@ -141,8 +141,8 @@ profiles:
           status: measured
           note: "one ferre.x per grid, 9 grids: at most 9 cores can be busy on a single-thread build (6.3 measured); PSS 0.6-3 GB; run 1121 min longest completed on the single-thread build. An OpenMP ferre.x can use more: profile v2_openmp"
           cases:
-            - {when: {grid: m, res: LR}, mem_gb: 64, time: {set: "2-00:00:00"}, note: "fine grids (stack products): run up to 1988 min on the single-thread build"}
-            - {when: {grid: m, res: HR}, mem_gb: 128, time: {set: "2-00:00:00"}, note: "fine grids, HR: one job only (TIMEOUT), twice the LR value"}
+            - {when: {grid: m, res: LR}, mem_gb: 80, time: {set: "2-00:00:00"}, note: "fine grids (stack products): PSS peak 51.5 GB (OB 25771, dev rehearsal; the grids are file-backed pages), run up to 1988 min on the single-thread build"}
+            - {when: {grid: m, res: HR}, mem_gb: 160, time: {set: "2-00:00:00"}, note: "fine grids, HR: PSS 82 GB so far in the one dev job that was still running at the cut-off (OB 19569); the one production job timed out at 8 h"}
         PPXF:
           cpus: 10
           mem_gb: 16
@@ -236,5 +236,5 @@ profiles:
           time: "1-06:00:00"
           status: unmeasured
           cases:
-            - {when: {grid: m, res: LR}, mem_gb: 64, time: {set: "2-00:00:00"}}
-            - {when: {grid: m, res: HR}, mem_gb: 128, time: {set: "2-00:00:00"}}
+            - {when: {grid: m, res: LR}, mem_gb: 80, time: {set: "2-00:00:00"}}
+            - {when: {grid: m, res: HR}, mem_gb: 160, time: {set: "2-00:00:00"}}
