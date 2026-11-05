@@ -1,4 +1,4 @@
-"""The machine probe: SLURM clusters (scontrol / sinfo), this machine (affinity, cgroups, /proc/meminfo), failure modes.
+"""The machine probe: SLURM clusters (scontrol / sinfo), this machine (affinity, cgroups, procfs meminfo), failure modes.
 
 Standard library only; every machine is a fake (tests/resource_fakes.py). Run: ``cd <PYAPS_DIR> && pytest tests/test_resource_probe.py -v``
 """

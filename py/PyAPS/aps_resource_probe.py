@@ -9,7 +9,7 @@ can give, so that a request is checked before it is made.  Two kinds of place ar
   (CPUs, ``RealMemory``, what is allocated now, state, features), from ``scontrol show config|nodes|partition`` with ``sinfo`` as the
   fallback; every command has a timeout, a hung ``scontrol`` is given up after one try;
 * **this machine** (a laptop, a workstation, a shared host, a pod or a container without SLURM, or the node itself): the CPUs it may use
-  (``os.sched_getaffinity`` and the cgroup CPU quota, v1 and v2), the RAM it may use (``/proc/meminfo`` and the cgroup memory limit),
+  (``os.sched_getaffinity`` and the cgroup CPU quota, v1 and v2), the RAM it may use (the procfs meminfo file and the cgroup memory limit),
   swap, load, the operating system (Linux, macOS, WSL) and whether it looks like a container.
 
 Plus one feature that decides how to ask for CPUs: whether ``ferre.x`` is built with OpenMP (it is, when it links ``libgomp``).
