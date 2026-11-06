@@ -65,13 +65,13 @@ def sum_counts(ll, c, b1, b2):
     pixb = ((ll_clean < b1+dw/2.) & (ll_clean > b1-dw/2.))
     if numpy.any(pixb):
         fracb = ((ll_clean[pixb]+dw/2.)-b1)/dw
-        s      = s+c_clean[pixb]*fracb
+        s      = s+numpy.sum(c_clean[pixb]*fracb)   # scalar: a 1-element array makes the index an array (NumPy 2 error)
 
     # Last fractional pixel
     pixr = ((ll_clean < b2+dw/2.) & (ll_clean > b2-dw/2.))
     if numpy.any(pixr):
         fracr = (b2-(ll_clean[pixr]-dw/2.))/dw
-        s      = s+c_clean[pixr]*fracr
+        s      = s+numpy.sum(c_clean[pixr]*fracr)
 
     return s
 
