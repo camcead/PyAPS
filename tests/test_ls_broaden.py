@@ -12,7 +12,7 @@ import pathlib
 import numpy as np
 import pytest
 
-from PyAPS.aps_ls_broaden import broaden_variable_sigma
+from PyAPS.aps_ls_broaden import broaden_variable_sigma, fwhm_to_sigma_pixels
 
 PKG = pathlib.Path(inspect.getfile(broaden_variable_sigma)).parent
 FWHM = 2.0 * np.sqrt(2.0 * np.log(2.0))
@@ -122,3 +122,41 @@ def test_the_ppxf_function_really_has_no_truncate():
         pytest.skip("this pPXF accepts truncate")
     with pytest.raises(TypeError, match="truncate"):
         util.gaussian_filter1d(np.ones(10), np.ones(10), truncate=4.0, mode='nearest')
+
+
+def _line_after_broadening(wave, centre, fwhm_in, target, sigma_fn):
+    """A narrow line (FWHM fwhm_in) broadened to FWHM target; returns the measured output FWHM in A."""
+    s_in = fwhm_in / FWHM
+    spec = 1.0 + np.exp(-0.5 * ((wave - centre) / s_in) ** 2)
+    extra = np.full(wave.size, np.sqrt(target ** 2 - fwhm_in ** 2))
+    out = broaden_variable_sigma(spec, sigma_fn(extra, wave))
+    sel = np.abs(wave - centre) < 40
+    return _fwhm(wave[sel], out[sel])
+
+
+@pytest.mark.parametrize("centre", [3800.0, 4500.0, 5200.0, 6000.0])
+def test_extra_width_is_in_pixels_of_the_linear_grid(centre):
+    """IFU / MOS LS spectra are on a LINEAR grid (log_unbinning): a line of 3 A FWHM broadened by the
+    extra width for 8.4 A must come out at 8.4 A at every wavelength."""
+    wave = np.arange(2591.6, 6155.8, 0.3356)                       # the OB 26133 IFU grid
+    got = _line_after_broadening(wave, centre, 3.0, 8.4, fwhm_to_sigma_pixels)
+    assert got == pytest.approx(8.4, rel=0.015)
+
+
+def test_the_old_log_grid_formula_was_wrong_on_the_linear_grid():
+    wave = np.arange(2591.6, 6155.8, 0.3356)
+    velscale = 24.42376691507416
+    c = 299792.458
+    old = lambda extra, w: (extra / w) * c / 2.355 / velscale      # noqa: E731
+    got = _line_after_broadening(wave, 6000.0, 3.0, 8.4, old)
+    assert got < 7.0                                              # 6.6 A instead of 8.4 A at 6000 A
+    got_blue = _line_after_broadening(wave, 3300.0, 3.0, 8.4, old)
+    assert got_blue > 9.0                                         # and too wide in the blue
+
+
+def test_sigma_pixels_on_a_log_grid_uses_velscale():
+    loglam = np.arange(np.log(3500.0), np.log(7000.0), 50.0 / 299792.458)
+    wave = np.exp(loglam)
+    sig = fwhm_to_sigma_pixels(np.full(wave.size, 5.0), wave)
+    expected = (5.0 / wave) * 299792.458 / 2.355 / 50.0
+    assert np.allclose(sig[1:-1], expected[1:-1], rtol=2e-3)
