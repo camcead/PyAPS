@@ -82,3 +82,18 @@ def broaden_variable_sigma(spec, sigma, truncate=4.0, mode='nearest'):
         # a zero-weight pixel must not let a NaN in: only the kernel support counts
         out[lo:hi][use] = np.einsum('ij,ij->i', w, np.where(w > 0, win, 0.0))
     return out
+
+
+def fwhm_to_sigma_pixels(fwhm_angstrom, wave):
+    """Gaussian dispersion in PIXELS of ``wave`` for an extra broadening of ``fwhm_angstrom`` (FWHM, A).
+
+    The line-strength modules broaden the spectrum after it has been rebinned from log to LINEAR
+    wavelength (``log_unbinning``), so the pixel is a constant number of Angstrom wide. The old
+    expression ``FWHM / wave * c / 2.355 / velscale`` is the width in pixels of the LOG grid and is
+    wrong on a linear grid by the factor ``wave / wave_ref`` (``wave_ref`` = dlambda * c / velscale,
+    about 4100 A for the WEAVE LIFU range): 18 % too small at 5000 A and 31 % too small at 6000 A.
+    Using the local pixel step ``np.gradient(wave)`` is right for a linear grid and for a log grid.
+    """
+    wave = np.asarray(wave, dtype=float)
+    step = np.abs(np.gradient(wave))
+    return np.asarray(fwhm_angstrom, dtype=float) / 2.355 / step
