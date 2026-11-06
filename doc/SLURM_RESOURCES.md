@@ -13,6 +13,7 @@ code decides a CPU count, a `--mem` or a `--time`.
 * The request is checked against the machine or cluster it will run on (CPUs, RAM, node sizes), with a policy `warn | clamp | error | off`: section 9
 * Depth-first order of the jobs (the first pair of a night completes first; a run someone waits for passes the daemon's jobs): section 10
 * Which profile, limits policy, site and plot-export mode a tool or a job really uses on a pod, and which source set each (the DMS config of the pod): section 11
+* The re-measurement of 2026-11-06 (statistics per stage from the accounting of both pods, what was tightened and what was left, how to repeat it): section 12
 
 ## 1. The model
 
@@ -130,8 +131,8 @@ rehearsal on a development site (2026-11-05: the same pairs run with `default` a
 | LS | 2 / 2 | 6 GB | 30 min | 0.5-1.0 core, 1-3 min; PSS 1-2.4 GB (3.5 GB at most in the audit) |
 | L2merge | 1 / 1 | 8 / 12 GB | 15 min | 0.3-0.5 core, under 1 min; **a 41 s peak that the 10 s samples missed**: killed at 4 GB and 6 GB (HR, cgroup enforcement on a private SLURM), passed at 8 GB with 5.6 GB MaxRSS |
 | IFU_PR | 3 / 3 | 24 / 36 GB | 6 h | 1.1-1.2 busy cores in 3 OBs (6 or 12 CPUs gave the same times); PSS peak 13-17 GB, 27 GB for a heavy HR cube |
-| IFU_ExGal | 40 / 40 | 80 / 128 GB | 10 h | up to 40 busy cores, 13 on a small cube (run 10 min); PSS 18 GB (the sum of the workers' RSS is 212 GB: shared pages counted per process) |
-| IFU_Gal | 4 / 4 | 48 / 96 GB | 16 h / 24 h | serial on the single-thread `ferre.x` of the production pod (1.0-1.3 busy cores, 4.3 at most); on an OpenMP `ferre.x` a small cube used 7 cores for 4 min against 1.8 cores for 12 min with 2 CPUs |
+| IFU_ExGal | 40 / 40 | 48 / 80 GB (80 / 128 GB until 2026-11-06) | 10 h | up to 40 busy cores, 13 on a small cube (run 10 min); PSS 18 GB (the sum of the workers' RSS is 212 GB: shared pages counted per process) |
+| IFU_Gal | 2 / 2 (`v2_openmp`: 4 / 4) | 32 / 64 GB (48 / 96 GB until 2026-11-06) | 16 h / 24 h | serial on the single-thread `ferre.x` of the production pod (1.0-1.3 busy cores, 4.3 at most); on an OpenMP `ferre.x` a small cube used 7 cores for 4 min against 1.8 cores for 12 min with 2 CPUs |
 | mini IFU, CS | as `default` | LIFU memory; FESWI 128 GB | | no mini IFU job exists on either site and no CS job has run on SLURM: unmeasured |
 
 Rules that were dropped: "HR doubles every CPU count" (only RR and RVS have an HR row, the others use the same cores in HR), "single exposure
@@ -360,3 +361,77 @@ replaces the file whenever the text differs (the old one is kept as `script_para
 running or the runner holds its lock, so a hand edit survives until the first idle pass and then disappears; the public template carries `slurm_profile`,
 `slurm_limits`, `slurm_site` and `plot_export` only as commented lines, so none of them survives a render. Put the pod's values in the DMS config (host-local,
 git-ignored, never rendered, not mirrored between the sites by `pyaps_sync.sh`) or in the environment of the service.
+
+## 12. Re-measurement of 2026-11-06 (after the seg2d fix): statistics, what changed, how to repeat it
+
+**Source.** `sacct -u aps -S 2026-10-01` on the production pod (3 nodes of 50 / 90 / 90 CPUs; 3 800 L2 jobs, 3 430 COMPLETED) and, read only, on the development pod (2 nodes; 2 059 jobs since 2026-09-01, 1 890 COMPLETED).
+`TotalCPU / Elapsed` is the number of busy cores, MaxRSS the largest of the steps of the job. Two cautions decide how to read the numbers:
+
+* **Almost all the history was run with the old allocation and with the static plot images on** (the images became off by default on 2026-11-04, `v2` went live on the production pod on 2026-11-05). Elapsed times, busy cores and MaxRSS before that date are upper bounds for today's code. Only 13 MOS pairs and 8 IFU observations (night 20261104) ran with `v2` and the images off.
+* **MaxRSS is not the footprint.** `jobacct_gather/linux` sums the RSS of every worker, so shared pages are counted once per process (IFU_ExGal 107-513 GB for a job whose PSS is 14-20 GB). It is an upper bound of the true memory, never a number to size from; the memory column stays the PSS peak of the rehearsal with a margin (section 7). Neither pod enforces memory (`TaskPlugin` empty, no `OverMemoryKill`) and neither confines CPUs, so today a request is a scheduling token: a request too large costs queue time, one too small costs nothing until the cluster is changed.
+
+All completed jobs; the flood run of OB 26133 (uapsid aadb576526dd, 226 noise patches, 8.4 h) is excluded here and listed below.
+
+| stage | n | elapsed min p50 / p95 / max | busy cores p50 / p95 / max | MaxRSS GB p95 / max | dev pod: n, elapsed p95 / max | requested in `v2` (cpus / mem / time) | p95 x 2 |
+|---|---|---|---|---|---|---|---|
+| RR | 492 | 96 / 201 / 226 | 6.7 / 8.5 / 12 | 79 / 151 | 260, 129 / 163 | 8 / 24 GB / 6 h (HR 16 / 36) | 6.7 h |
+| RVS | 449 | 5.3 / 19 / 46 | 19 / 30 / 43 | 84 / 136 | 246, 16 / 89 | 12 / 72 GB / 3 h | 0.6 h |
+| FR | 420 | 96 / 986 / 1988 | 6.3 / 6.8 / 7.1 | 4.8 / 49 | 246, 186 / 254 | 9 / 8 GB / 30 h | 32.9 h |
+| PPXF | 446 | 27 / 85 / 205 | 7.1 / 9.9 / 11 | 43 / 46 | 245, 72 / 131 | 10 / 16 GB / 6 h | 2.8 h |
+| EMI | 439 | 29 / 83 / 111 | 3.6 / 5.3 / 5.9 | 91 / 98 | 232, 76 / 94 | 6 / 28 GB / 4 h | 2.8 h |
+| LS | 442 | 1.4 / 2.5 / 2.9 | 0.9 / 1.0 / 1.3 | 3.1 / 10 | 232, 3.2 / 4.4 | 2 / 6 GB / 30 min | 5 min |
+| L2merge | 441 | 0.8 / 1.1 / 1.3 | 0.3 / 0.5 / 0.6 | 3.4 / 3.4 | 221, 1.3 / 4.3 | 1 / 8 GB / 15 min | 2 min |
+| IFU_PR | 106 | 22 / 97 / 131 | 1.3 / 2.0 / 2.1 | 19 / 24 | 78, 131 / 415 | 3 / 24 GB / 6 h | 3.2 h |
+| IFU_ExGal | 94 | 55 / 215 / 263 | 4.0 / 35 / 42 | 926 / 1154 | 58, 218 / 374 | 40 / 80 GB / 10 h | 7.2 h |
+| IFU_Gal | 98 | 83 / 517 / 696 | 1.0 / 1.3 / 4.3 | 73 / 134 | 72, 384 / 453 | 4 / 48 GB / 16 h | 17.2 h |
+
+(The last column is the rule "time = p95 x 2" applied to the production numbers. The "requested" column is the allocation in force before this change; the new IFU values are below.)
+
+The non-completed jobs are not in the table: 285 FAILED (46 chains on 2026-10-07/08, an incident, not a size problem), 53 CANCELLED and 31 TIMEOUT on the production pod (20 FR at a limit of 8 h that was in force then, 1 FR / 3 RR / 3 PPXF / 3 EMI at the 48 h of the old allocation, 1 IFU_Gal at 18 h); on the dev pod 2 PPXF at 48 h. No job ended OUT_OF_MEMORY.
+
+**With `v2` and the images off (2026-11-05/06, production pod).** RR 13 jobs: 10.0 min, 6.5 busy cores; RVS 13: 3.2 min, 8.7-9.5 busy; FR 12: 51 min (p95 67), 6.9 busy; PPXF 13: 2.9 min, 7.1-7.5 busy; EMI 13: 1.9 min, 3.1-3.5 busy; LS 13: 1.5 min, 0.8 busy; L2merge 12: 0.8 min, 0.3 busy. The MOS allocations of section 7 are confirmed and **nothing was changed in MOS**: every stage uses 65-90 % of its CPUs except EMI (55 %), LS (40 %) and L2merge, where a smaller request would save one or two cores for one to three minutes. Queue waiting time on both pods is zero (the cluster is nearly idle), so a smaller request has no effect to measure.
+
+**The IFU stages, the eight observations of night 20261104** (products = patch products of ExGal / of Gal; all rows but the one in bold ran with the code before the seg2d fix):
+
+| OB | patches (products) | IFU_PR | IFU_ExGal (40 CPUs asked) | IFU_Gal (4 CPUs asked) | note |
+|---|---|---|---|---|---|
+| 24266 | 1 / 0 | 5.7 min | 4.3 min, 1.0 busy | 0.6 min | |
+| 24282 | 13 / 1 | 26 | 29 min, 2.1 busy | 6.5 min | |
+| 24316 | 18 / 15 | 27 | 49 min, 3.9 busy | 347 min, 1.03 busy | MaxRSS 10.9 GB, the largest Gal figure |
+| 25931 | 43 / 25 | 44 | 70 min, 2.6 busy | 46 min | |
+| 24311 | 128 / 10 | 123 | 222 min, 2.5 busy | 38 min | the real field with the most patches |
+| 26133, before the fix (flood, aadb576526dd) | 180 / 46 | 187 | 319 min, 2.4 busy | 121 min | pathological, excluded above |
+| **26133, after the fix (22e3363bdccf)** | **4 / 7** | **13.4 min** | **8.6 min, 2.8 busy** | **39 min, 1.05 busy** | 11 patches instead of 226 |
+| 25921 (night 20261030) | 4 / 5 | 11.9 | 11.1 min, 1.6 busy | 10.7 min | |
+
+Findings: IFU_Gal is serial (1.00-1.23 busy cores in all 8 jobs, 1.0-1.3 in 98 production jobs; 1.8-23 min per patch product, so the longest production run, 696 min, and a field with many real patches justify the 16 h limit), its MaxRSS is 4.9-10.9 GB with 4 CPUs; IFU_ExGal processes the patches one after the other and parallelises the bins inside a patch, so it used 1-4 busy cores on these observations although 40 were asked (before 2026-11-04 it used up to 42 on the production pod, with the plot images on and on other fields), MaxRSS-sum 107-513 GB (PSS 14-20 GB); IFU_PR 1.2-1.3 busy cores, MaxRSS 11-15 GB. Only OB 26133 has run since the seg2d fix (n = 1), so the effect of the fix on run times rests on that observation and on the per-patch costs above.
+
+**What changed in `v2`** (the `default` profile is untouched, the golden tests are unchanged):
+
+| stage | before (cpus / mem LR / mem HR) | now | why |
+|---|---|---|---|
+| IFU_Gal | 4 / 48 / 96 GB | **2 / 32 / 64 GB**, time unchanged (16 h, HR 24 h) | serial on the single-thread `ferre.x`: 1.0-1.3 busy cores (p95 1.3); MaxRSS at most 10.9 GB at 4 CPUs (an upper bound of the PSS), 32 GB is 2.9 x that and 1.6 x the footprint estimate at 2 CPUs |
+| IFU_ExGal | 40 / 80 / 128 GB | 40 / **48 / 80 GB**, CPUs and time unchanged | PSS peak 14-20 GB with up to 40 workers (rehearsal, images off): 48 GB is 2.4 x |
+| `v2_openmp` IFU_Gal | (inherited 4 / 48 / 96) | **4 / 32 / 64 GB**, status `unmeasured` | an OpenMP `ferre.x` uses the CPUs as threads (one rehearsal: 7 cores for 4 min against 1.8 cores for 12 min with 2 CPUs); nothing has run with `v2_openmp` yet, so the CPUs are kept, memory as `v2` |
+
+Expected effect: per large-IFU observation the IFU_Gal job holds 2 fewer cores and 16 GB less, the IFU_ExGal job 32 GB less. For the eight observations of 2026-11-05/06 that is 20 core-hours (16 without the flood run), 162 + 381 GB-hours of reserved memory; for OB 26133 after the fix 1.3 core-hours. These are scheduling reservations, not measured savings of work: nothing queued behind them on either pod, and neither pod enforces memory or CPU confinement.
+
+**What was left unchanged, and why.**
+
+* All MOS rows (confirmed by the 13 pairs; the only candidates were LS 2 -> 1 CPU and EMI 6 -> 4, one or two cores for one to three minutes).
+* All **time limits**. The rule "p95 x 2" agrees with the present IFU limits (IFU_ExGal 7.2 h against 10 h, IFU_Gal 17 h against 16 h), and for RVS / LS / L2merge it would give 0.6 h / 5 min / 2 min, but those p95 contain the images-on runs and a time limit only has to catch a hung job (nothing waits behind it, a job killed by it is retried once with 1.5 x and costs a whole stage). IFU_PR keeps 6 h although the production p95 x 2 is 3.2 h: **the dev pod once ran an IFU_PR for 415 min** (2026-10-09, before the seg2d fix; the cause was not looked at), longer than 6 h; if the fix is as complete as OB 26133 suggests the limit can be tightened after a few weeks of data.
+* IFU_ExGal CPUs (40): the parallelism is per bin inside a patch and depends on the field; the production pod showed up to 42 busy cores before the images were switched off and the dev rehearsal 40 on one field. Only eight observations of small or medium fields ran since, so there is no evidence to lower it.
+* IFU_PR (3 CPUs, 24 / 36 GB): 1.2-2.1 busy cores, MaxRSS 11-24 GB, PSS up to 27 GB for a heavy HR cube.
+* The `footprint` table (IFU_Gal 4 + 8 GB per CPU) is used for machines without SLURM and was not changed: the 8 jobs at 4 CPUs had MaxRSS far below it, but those fields were small.
+* Everything for `v2_openmp` other than IFU_Gal memory: there are no jobs with that profile in the accounting of the dev pod (only 2 RR and 1 IFU_PR since 2026-11-05); its FR history comes from the default allocation (10-20 CPUs asked, 18.8 busy cores p50, 39 p95), which does not tell how 18 CPUs behave.
+
+**How to repeat the measurement.**
+
+```
+sacct -u aps -S 2026-11-05 -n -P --units=G -o JobID,JobName%40,State,ElapsedRaw,TotalCPU,MaxRSS,ReqCPUS,ReqMem,AllocCPUS,Submit,Start,End,Timelimit,NodeList > acct.psv
+```
+
+Job rows give Elapsed and TotalCPU; the `.batch` step carries MaxRSS (take the largest over the steps of a job). Job name `<STAGE>_L2_<uapsid>`; busy cores = TotalCPU / Elapsed; skip a run you know is pathological (the flood run), jobs that did not end COMPLETED and runs older than the profile you want to judge. Per stage report n, p50, p95, max; propose time = max(p95 x 2, longest run x 1.25), memory from the PSS rehearsal (not from MaxRSS) with a margin of at least 1.5, CPUs from the p95 of the busy cores plus one. The PSS of a stage is measured by sampling `/proc/<pid>/smaps_rollup` of the job's processes every 10 s (the rehearsal of section 7). After an IFU change count the patch products (`<OB>/*_P####_ppxf.fits`, `ferre_<headname>_P####.fits`) next to the run times to separate cost per patch from cost per observation. The `IFU_PATCH_SUMMARY` line of the stage log (`doc/aps_ifu_seg2d_robust.md`) states the number of patches directly for runs made after 2026-11-06.
+
+**The machine check names its profile.** The first lines of every stage log now read `PyAPS machine check: policy=clamp site=imperial target=slurm profile=v2 asked ...`, so the profile the check was made under is visible next to the policy. `aps_runner.slurm_time_arg` (compatibility wrapper for old callers) took the profile `default` whatever the pod's DMS config said; it now uses the same resolution as every other consumer (section 11).
+
