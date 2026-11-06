@@ -474,7 +474,8 @@ def apply_redshift_to_fwhm_corrected(fwhm_funcs, z_input):
 
                 # Return scalar if input was scalar
                 if len(input_wavelengths) == 1:
-                    return float(corrected_fwhm)
+                    # func returns a 1-element array here; float() of it is an error on NumPy 2.5
+                    return float(np.ravel(corrected_fwhm)[0])
                 else:
                     return corrected_fwhm
 
