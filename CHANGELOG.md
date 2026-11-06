@@ -4,6 +4,11 @@ All notable changes to PyAPS are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow
 [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR`, patch releases as `MAJOR.MINOR.PATCH`).
 
+## Unreleased
+
+### Fixed (Explorer: the DSS background did not show, 2026-11-06)
+- `aps_explorer.py`: Aladin Lite was given the bare CDS id `P/DSS2/color`, which it resolves and loads from CDS (`alasky.cds.unistra.fr`) only. CDS resets HTTPS connections from the IoA servers and from other networks, so the map stayed grey on "DSS colored loading..." for ever (reproduced with the vendored aladin.js 3.8.2 in headless Chromium). The browser now probes **ESA Sky's mirror of the same HiPS** (`https://skies.esac.esa.int/DSSColor`) first, then CDS (`https://alasky.cds.unistra.fr/DSS/DSSColor`), and gives Aladin the first source whose `properties` file answers within 4 s; if none answers it uses the old id (the previous behaviour). The chosen source is logged once (`PyAPS: DSS background source: ...`). Tested in headless Chromium (ESA reachable: DSS tiles load; nothing reachable: previous behaviour, no new errors). `doc/aps_explorer.md`, `assets/vendor/README.md`, test `test_dss_background_source_is_chosen_in_the_browser_with_a_fallback`.
+
 ## [2.0] publication snapshot - 2026-10-09 (tag `v2.0-rasti`)
 
 The version label stays 2.0 (the version cited in the paper). The earlier public release, tag `v2.0` (commit 1684edf, 2026-09-29, Zenodo 10.5281/zenodo.23042511), is kept unchanged; this snapshot supersedes it and additionally contains everything listed below, in particular the corrected Redrock per-arm implementation with its tests, the aperture-convention clarification and `gal_aperture_factor`.

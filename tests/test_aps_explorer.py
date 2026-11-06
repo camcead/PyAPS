@@ -4045,3 +4045,22 @@ def test_banner_shows_the_template_set_and_templatesz_reports_it(tmp_path, monke
     body = client.get("/templatesz").get_json()
     assert body["templates"]["set"] == "mini" and body["templates"]["version"] == "2026.10.0"
     assert json.dumps(body).count(str(tmp_path)) == 0          # no path in the answer
+
+
+def test_dss_background_source_is_chosen_in_the_browser_with_a_fallback():
+    """The DSS background (2026-11-06): the survey is no longer the bare CDS id 'P/DSS2/color'
+    (Aladin Lite resolves that through CDS only; where CDS cannot be reached the map stays grey on
+    "DSS colored loading..." for ever). The browser probes ESA Sky's mirror of the same HiPS first,
+    then CDS, and falls back to the old id when neither answers. Static check of the clientside callback."""
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[1] / "py" / "PyAPS" / "aps_explorer.py").read_text(encoding="utf-8")
+    assert "survey: window._dssSurvey," in src
+    assert "survey: 'P/DSS2/color'," not in src, "the survey must come from the probe, not a fixed CDS id"
+    esa = src.index("https://skies.esac.esa.int/DSSColor")
+    cds = src.index("https://alasky.cds.unistra.fr/DSS/DSSColor")
+    assert esa < cds, "ESA Sky mirror is asked first, CDS second"
+    assert "url: 'P/DSS2/color'" in src, "last resort = the previous behaviour"
+    assert "'/properties'" in src and "mode: 'cors'" in src
+    # aladin.js must not be created before the source is chosen, and the probe must be able to start it
+    assert "if (!window._dssSurvey)" in src and "window._dssOnReady" in src
+
