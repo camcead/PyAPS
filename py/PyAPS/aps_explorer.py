@@ -4189,6 +4189,54 @@ app.clientside_callback(
         // changed again before that retry fired.
         window._aladinDesiredDssVisible = showDssValue && showDssValue.indexOf("show") !== -1;
 
+        // WHICH DSS server to use (2026-11-06). The survey used to be the
+        // bare id 'P/DSS2/color', which Aladin Lite resolves and then
+        // loads from CDS (alasky.cds.unistra.fr) only. When CDS cannot be
+        // reached (it resets the connection from IoA servers and from other
+        // networks; reproduced with this very aladin.js in headless Chromium:
+        // the map stays grey on "DSS colored loading...", for ever) the
+        // background never appears and nothing says why. The same survey
+        // (CDS/P/DSS2/color, byte for byte the same HiPS, ESA calls it a
+        // public mirror) is also served by ESA Sky with CORS open, so the
+        // browser asks the candidates below in turn (the HiPS `properties`
+        // file, 4 s each) and gives Aladin the first one that answers. If
+        // none answers it falls back to the old id, which is what happened
+        // before. Probed once per page load; the answer is kept in
+        // window._dssSurvey and the name of the source is logged.
+        // (the probe can finish before aladin.js has loaded or before there is
+        // a target; then the script's own onload/poll path calls createAndGo)
+        window._dssOnReady = function() {
+            if (window._aladinReady && window._aladinPendingTarget) { createAndGo(30); }
+        };
+        if (!window._dssProbeStarted) {
+            window._dssProbeStarted = true;
+            var DSS_SOURCES = [
+                {name: 'ESA Sky mirror', url: 'https://skies.esac.esa.int/DSSColor'},
+                {name: 'CDS', url: 'https://alasky.cds.unistra.fr/DSS/DSSColor'}
+            ];
+            var DSS_LAST_RESORT = {name: 'CDS id (no source answered)', url: 'P/DSS2/color'};
+            var dssDone = function(src) {
+                window._dssSurvey = src.url;
+                window._dssSurveyName = src.name;
+                console.info('PyAPS: DSS background source: ' + src.name + ' (' + src.url + ')');
+                if (window._dssOnReady) { window._dssOnReady(); }
+            };
+            var dssTry = function(i) {
+                if (i >= DSS_SOURCES.length || typeof fetch !== 'function') { dssDone(DSS_LAST_RESORT); return; }
+                var src = DSS_SOURCES[i], settled = false;
+                var next = function() { if (!settled) { settled = true; dssTry(i + 1); } };
+                var ctl = (typeof AbortController === 'function') ? new AbortController() : null;
+                var timer = setTimeout(function() { if (ctl) { ctl.abort(); } next(); }, 4000);
+                fetch(src.url + '/properties', {mode: 'cors', signal: ctl ? ctl.signal : undefined})
+                    .then(function(r) {
+                        clearTimeout(timer);
+                        if (r.ok && !settled) { settled = true; dssDone(src); } else { next(); }
+                    })
+                    .catch(function() { clearTimeout(timer); next(); });
+            };
+            dssTry(0);
+        }
+
         function applyDssVisibility(attemptsLeft) {
             if (attemptsLeft === undefined) { attemptsLeft = 20; }
             if (!window._aladinInstance || !window._aladinInstance.getBaseImageLayer) { return; }
@@ -4279,6 +4327,11 @@ app.clientside_callback(
                 goToPending();
                 return;
             }
+            if (!window._dssSurvey) {
+                // the DSS source is still being chosen (see above); the
+                // probe calls createAndGo again as soon as it has chosen
+                return;
+            }
             var rect = div.getBoundingClientRect();
             if (rect.width < 5 || rect.height < 5) {
                 if (attemptsLeft > 0) {
@@ -4297,7 +4350,7 @@ app.clientside_callback(
             window._aladinInstance = A.aladin('#aladin-div', {
                 target: t.ra + ' ' + t.dec,
                 fov: t.fov || 0.1,
-                survey: 'P/DSS2/color',
+                survey: window._dssSurvey,
                 cooFrame: 'ICRS',
                 projection: 'SIN',
                 showCooGridControl: true,
