@@ -18,7 +18,13 @@ catalog cross-match lookups Aladin Lite performs *at runtime* (e.g.
 `alaskybis.cds.unistra.fr`) are still separate live requests to CDS's
 own infrastructure — self-hosting the *library* only fixes the
 "library itself won't even load" failure, not a VPN/firewall that
-blocks CDS's imagery servers specifically. A handful of small hardcoded
+blocks CDS's imagery servers specifically.
+
+**Update 2026-11-06 (DSS background):** the imagery itself is no longer tied to CDS. `aps_explorer.py`
+probes ESA Sky's mirror of the same HiPS (`https://skies.esac.esa.int/DSSColor`) first, then CDS, and
+passes the first source that answers to `A.aladin({survey: ...})`; the old id `P/DSS2/color` is only the
+last resort. Reason: CDS (130.79.128.x) resets HTTPS from the IoA servers and from other networks, and
+with a bare CDS id Aladin Lite 3.8.2 never leaves "DSS colored loading...". See doc/aps_explorer.md. A handful of small hardcoded
 CDS-hosted logo/credit images (e.g. the SIMBAD watermark) are similarly
 unaffected.
 

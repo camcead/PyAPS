@@ -106,6 +106,19 @@ All three dataset kinds share one spatial "click-to-select" view: an embedded
 - **DSS background imagery** — real Digitized Sky Survey (`P/DSS2/color`) tiles
   behind the catalog points, giving real sky context instead of a blank field.
   **On by default**; its own checkbox toggles it off per session if not wanted.
+  *Where the tiles come from (changed 2026-11-06).* The survey is the CDS HiPS
+  `CDS/P/DSS2/color`. Aladin Lite used to be given only that id, which it resolves and loads from
+  CDS (`alasky.cds.unistra.fr`) alone; when CDS cannot be reached the map stays grey on "DSS
+  colored loading..." and nothing says why (this was the fault on the WEAVE explorers: CDS resets
+  the connection from the IoA servers and from other networks). The browser now asks, in this order,
+  **ESA Sky's mirror** (`https://skies.esac.esa.int/DSSColor`, the same HiPS, CORS open),
+  **CDS** (`https://alasky.cds.unistra.fr/DSS/DSSColor`), and for each reads the HiPS `properties`
+  file (4 s limit); the first that answers is given to Aladin as the survey. If none answers it
+  falls back to the old id (the previous behaviour). The chosen source is logged once per page load
+  (`PyAPS: DSS background source: ...`, visible in the page's Log panel and the browser console). It is
+  decided by the browser, so it follows what the *user's* network can reach, not the server's. To add or
+  reorder sources edit `DSS_SOURCES` in the Aladin clientside callback of `aps_explorer.py`
+  (the sources must send `Access-Control-Allow-Origin`).
 - **"True fibre/spaxel size"** — off by default (a fixed-pixel marker stays
   comfortably clickable at any zoom); when checked, each catalog point is drawn at
   its real angular footprint instead (WEAVE fibre core diameter for MOS/L1
