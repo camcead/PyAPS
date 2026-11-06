@@ -633,13 +633,15 @@ DEFAULT_SLURM_TIME = _default_slurm_times()
 
 def slurm_time_arg(conf, stage):
     """The ``--time=...`` option of the sbatch line of ``stage`` (with a leading space), or '' when the stage has no limit.
-    Compatibility wrapper: the runner itself reads the whole row from the resource table (see ``resolve_slurm_resources``)."""
+    Compatibility wrapper: the runner itself reads the whole row from the resource table (see ``resolve_slurm_resources``).
+    The profile is the one every other consumer uses (``aps_slurm_resources.resolve``: environment, the pod's DMS config, script_params, the table
+    default); it used to be pinned to ``default`` whatever the pod ran. No machine is probed (``limits={}``)."""
     fam = next((f for f in ("MOS", "LIFU", "CS") if stage in slres.FAMILIES[f]), None)
     if fam is None:
         return ''
     ctx = {'res': 'LR', 'stack_level': 1, 'grid': 'n'}
-    res = slres.resolve(fam, ctx, table=_load_slurm_table(conf), conf=conf or {}, profile='default' if not (conf or {}).get('slurm_profile') else None,
-                        limits={}, env={}, quiet=False)[stage]
+    res = slres.resolve(fam, ctx, table=_load_slurm_table(conf), conf=conf or {}, profile=None,
+                        limits={}, quiet=False)[stage]
     return res.time_arg()
 
 

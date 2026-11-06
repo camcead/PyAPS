@@ -363,7 +363,7 @@ def test_v2_has_no_hr_doubling_except_where_it_was_measured(table):
     assert {s: lr[s].cpus for s in lr} == {"RR": 8, "RVS": 12, "FR": 9, "PPXF": 10, "EMI": 6, "LS": 2, "L2merge": 1}
     assert {s: hr[s].cpus for s in hr} == {**{s: lr[s].cpus for s in lr}, "RR": 16, "RVS": 24}
     lifu = R("LIFU", table, {"res": "HR", "stack_level": 1, "grid": "n"}, profile="v2")
-    assert [lifu[s].cpus for s in ("IFU_PR", "IFU_ExGal", "IFU_Gal")] == [3, 40, 4]
+    assert [lifu[s].cpus for s in ("IFU_PR", "IFU_ExGal", "IFU_Gal")] == [3, 40, 2]       # IFU_Gal 4 -> 2 on 2026-11-06 (1.0-1.3 busy cores)
 
 
 def test_v2_fr_asks_less_than_the_old_190_and_380_gb_but_enough_for_the_fine_grids(table):
@@ -401,7 +401,21 @@ def test_v2_memory_is_the_true_footprint_with_a_margin_not_the_rss_sum(table):
     assert lr["RR"].mem_gb == 24 and hr["RR"].mem_gb == 36 and lr["RVS"].mem_gb == 72 and hr["RVS"].mem_gb == 144
     assert lr["L2merge"].mem_gb == 8 and hr["L2merge"].mem_gb == 12
     lifu = R("LIFU", table, {"res": "LR", "stack_level": 1, "grid": "n"}, profile="v2")
-    assert lifu["IFU_Gal"].mem_gb == 48 and lifu["IFU_Gal"].mem_gb >= 1.25 * 36.4       # 36.4 GB: 20 workers; 4 CPUs start fewer
+    # 2026-11-06 re-measurement (doc section 12): the footprint of the large IFU stages with the CPUs they now ask for, and the largest MaxRSS seen
+    # at the new allocation (an upper bound of the PSS: 10.9 GB for IFU_Gal at 4 CPUs, 14-20 GB PSS for IFU_ExGal with 40 workers)
+    assert lifu["IFU_Gal"].mem_gb == 32 and lifu["IFU_Gal"].cpus == 2
+    assert lifu["IFU_Gal"].mem_gb >= 1.25 * slres.footprint_gb(table, "IFU_Gal", {"res": "LR", "stack_level": 1, "grid": "n"}, lifu["IFU_Gal"].cpus)
+    assert lifu["IFU_Gal"].mem_gb >= 2.5 * 10.9
+    assert lifu["IFU_ExGal"].mem_gb == 48 and lifu["IFU_ExGal"].mem_gb >= 1.25 * 20
+    lifu_hr = R("LIFU", table, {"res": "HR", "stack_level": 1, "grid": "n"}, profile="v2")
+    assert (lifu_hr["IFU_Gal"].mem_gb, lifu_hr["IFU_ExGal"].mem_gb) == (64, 80) and lifu_hr["IFU_Gal"].time == "1-00:00:00"
+
+
+def test_v2_openmp_keeps_four_cpus_for_ifu_gal_because_they_are_ferre_threads(table):
+    """v2 asks 2 CPUs for IFU_Gal (serial ferre.x); on an OpenMP ferre.x the CPUs are threads and nothing has been measured with a profile for it."""
+    r = R("LIFU", table, {"res": "LR", "stack_level": 1, "grid": "n"}, profile="v2_openmp")
+    assert r["IFU_Gal"].cpus == 4 and r["IFU_Gal"].mem_gb == 32 and r["IFU_Gal"].time == "0-16:00:00" and r["IFU_Gal"].status == "unmeasured"
+    assert r["IFU_ExGal"].mem_gb == 48 and r["IFU_PR"].cpus == 3
 
 
 def test_the_old_v2_pss_profile_is_gone(table):

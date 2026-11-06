@@ -185,3 +185,29 @@ def test_the_runner_prints_and_records_the_pod_profile(tmp_path, monkeypatch, ca
     monkeypatch.setattr(runner, "_ENV_CACHE", {})
     res = runner.resolve_slurm_resources("MOS", {"slurm_limits": "off"}, CTX, None, scripts, uapsid="abc", slurm_profile="v2_openmp")
     assert all(r.profile == "v2_openmp" for r in res.values()) and res.profile_source == "--slurm_profile"
+
+
+def test_machine_check_line_names_the_profile_and_it_is_the_pods(tmp_path, monkeypatch):
+    """The 'PyAPS machine check:' line at the top of a stage log names the profile it was made under; on a pod whose DMS config says v2 that is
+    v2, never the table default (a hand-started runner, no --slurm_profile)."""
+    path = dms_file(tmp_path, slurm_profile="v2")
+    monkeypatch.setenv("PYAPS_DMS_CONFIG", str(path))
+    monkeypatch.delenv("PYAPS_SLURM_PROFILE", raising=False)
+    res = slres.resolve("MOS", CTX, table=slres.load_table(), conf={}, limits={}, quiet=True)
+    text = "\n".join(slres.job_header_lines(res["FR"], res.environment))
+    assert "PyAPS machine check: policy=" in text and " profile=v2 " in text and "profile=default" not in text and FAKE_VALUE not in text
+    monkeypatch.setenv("PYAPS_DMS_CONFIG", "none")
+    res = slres.resolve("MOS", CTX, table=slres.load_table(), conf={}, limits={}, quiet=True)
+    assert " profile=default " in "\n".join(slres.job_header_lines(res["FR"], res.environment))
+
+
+def test_slurm_time_arg_follows_the_pods_profile_not_a_pinned_default(tmp_path, monkeypatch):
+    """aps_runner.slurm_time_arg (the compatibility wrapper) used to pin the profile 'default' (48 h) whatever the pod ran."""
+    runner = pytest.importorskip("PyAPS.aps_runner")
+    path = dms_file(tmp_path, slurm_profile="v2")
+    monkeypatch.delenv("PYAPS_SLURM_PROFILE", raising=False)
+    monkeypatch.setenv("PYAPS_DMS_CONFIG", str(path))
+    assert runner.slurm_time_arg({}, "RR") == " --time=0-06:00:00"                     # v2
+    assert runner.slurm_time_arg({"slurm_time_RR": "12:00:00"}, "RR") == " --time=12:00:00"
+    monkeypatch.setenv("PYAPS_DMS_CONFIG", "none")
+    assert runner.slurm_time_arg({}, "RR") == " --time=2-00:00:00"                     # no pod config: the table default, as before

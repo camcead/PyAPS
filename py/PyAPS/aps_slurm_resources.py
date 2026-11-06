@@ -1401,6 +1401,7 @@ def job_header_lines(res: Resources, environment=None) -> list:
         if environment is not None:
             site = (environment.site or {}).get("name") or "unnamed"
             env_txt = " site=%s target=%s" % (site, environment.target)
+        env_txt += " profile=%s" % res.profile              # the profile the check was made under (the pod's, not the table default)
         lines.append("echo 'PyAPS machine check: policy=%s%s asked %s -> granted cpus=%d mem=%s%s%s'" % (
             q(res.policy or "n/a"), q(env_txt), q(asked), res.cpus, q(mem),
             " (%d value(s) lowered)" % len(changed) if changed else (" (does not fit, kept as asked)" if res.fits is False else " (fits or unchecked)"),
