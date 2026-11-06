@@ -853,6 +853,14 @@ ls <PYAPS_DIR>/externals/ferre/bin/ferre.x
 # If missing, compile FERRE (see externals/README.md)
 ```
 
+#### Problem: MOS line-strength file (`*_ls_ADAPTED.fits`) is all NaN, `FWHM_FLAG` 3
+
+Read the logs of the stages before LS: `FLUX_CLEAN_EMI` of `*_emippxf_spec_BIN.fits` is what LS measures.
+
+- `ERROR in batch template creation: only 0-dimensional arrays can be converted to Python scalars` followed by `emi kinematics analysis failed for N targets` in the EMI log: the redshifted LSF function (`aps_utils.apply_redshift_to_fwhm_corrected`) called `float()` on a 1-element array, an error on NumPy 2.5. Fixed 2026-11-06 (`tests/test_lsf_scalar_call.py`); the EMI fits of every fibre failed, so `FLUX_CLEAN_EMI`, `MODEL_EMI` and `EMISSION_EMI` were NaN for all fibres and the LS stage printed `Convolution produced invalid values` (FWHM_FLAG 3) for all of them.
+- A fibre whose pPXF failed (`preparePPXF failed ... null spectrum after LMIN/LMAX masking`, then `VELSCALE_RATIO must be an integer`) has NaN velocity and dispersion and no emission-subtracted spectrum: its LS row is NaN and `FWHM_FLAG` 3. That is expected for a fibre without valid data in the fit window.
+- An index is NaN when its bands are not inside the (rest-frame) spectrum, or its blue or red continuum is not positive. Fibres that only cover the UV have no optical index; `D4000` is not implemented (its bands have no red continuum) and is always NaN.
+
 #### Problem: Different results for same target
 
 **Cause:** Using different wavelength ranges or calibrations

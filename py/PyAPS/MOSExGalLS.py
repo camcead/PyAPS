@@ -833,12 +833,11 @@ def run_ls(wave, spec, espec, redshift, configs, lickfile, names, index_names,\
         total_indices = len(data)
 
         if valid_indices == 0:
-            ExGalutil.prettyOutput_Warning(f"Bin {i}: No valid index measurements obtained")
-            if MCMC:
-                return(np.full(len(names_out), np.nan), np.full(len(names_out), np.nan),
-                       np.full(len(labels)*3+2, np.nan), np.full((101, len(labels)), np.nan))
-            else:
-                return(np.full(len(names_out), np.nan), np.full(len(names_out), np.nan), np.nan, np.nan)
+            # `data` only holds the SSP-conversion indices (spp == 1). When none of them lies inside the
+            # spectrum (a bin that covers only the UV), the other indices measured above are still valid:
+            # keep them, like IFUExGalLS does (before, the whole bin was returned as NaN). The MCMC branch
+            # below returns NaN SSP values for fewer than 5 valid indices.
+            ExGalutil.prettyOutput_Warning(f"Bin {i}: No valid SSP-conversion index measurements obtained (other indices kept)")
 
         elif valid_indices < total_indices * 0.5:  # Less than 50% of indices measured
             ExGalutil.prettyOutput_Warning(f"Bin {i}: Only {valid_indices}/{total_indices} indices measured successfully")
