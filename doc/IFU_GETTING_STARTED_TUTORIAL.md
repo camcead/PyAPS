@@ -487,8 +487,8 @@ seg2d: 'True'                    # Enable 2D source detection
 seg2d_white_src: 'weave'         # Use WEAVE white-light image
 seg2d_extract: 'True'            # Extract sources
 seg2d_exclude_ctarg: 'True'      # Exclude central target from segmentation
-seg2d_ext_thresh: '2.5'          # Detection threshold (sigma)
-seg2d_minarea: '300'             # Minimum source area (pixels)
+seg2d_ext_thresh: 'None'         # Detection threshold (sigma of the robust noise); None = auto-calibrated (the shipped default)
+seg2d_minarea: 'None'            # Minimum source area (pixels); None = auto (PSF, at least half a fibre footprint)
 seg2d_radii_factor: '8.0'        # Aperture expansion factor
 class_patch: 'True'              # Run Redrock classification
 IFU_RUN_PPXF: 'True'            # Run stellar kinematics
@@ -1346,6 +1346,8 @@ Similar structure but optimized for stellar targets:
 
 ### Customizing Segmentation Parameters
 
+> The shipped defaults are `None` (auto-calibrated per field, see `aps_ifu_prepare.md` and `aps_ifu_seg2d_robust.md`); the older `2.5` / `300` shown in earlier versions of this tutorial are not the defaults. Explicit values are in units of the robust noise of the white-light image.
+
 Edit these in your config file or IFU JSON config:
 
 ```yaml
@@ -1867,8 +1869,8 @@ firefox figs_ExGal/*_snr_stages.png
   "LS_RES": "ADAPTED",       // Adapt to data resolution
 
   // === Segmentation (from IFU_Prepare) ===
-  "seg2d_ext_thresh": "2.5",
-  "seg2d_minarea": "300",
+  "seg2d_ext_thresh": "None",
+  "seg2d_minarea": "None",
   "seg2d_radii_factor": "8.0"
 }
 ```

@@ -853,6 +853,133 @@ def post_veto_purity_scan(snr_pos, snr_neg, fwhms, residual, wave, thresholds,
 # footprint, and was simply too large a guess, not a principled choice.
 # ----------------------------------------------------------------------
 
+# ---- robust sky for the white-light image (2026-11-06, OB 26133) ------------------------------
+# `sep.Background` estimates the sky of each mesh tile with a mode estimator (2.5*median - 1.5*mean
+# after clipping). A white-light image with a few extremely bright sources (OB 26133: two sources of
+# 4500 and 2500 sigma in a 179x174 px image, mesh 64 px) has a heavy positive tail, so sep returned
+# back=3111, rms=7428 for pixels whose clipped median is 8527 and std 9530: the detection threshold
+# `ext_thresh * globalrms` lay only 0.37 sigma above the true sky, every fibre footprint above it
+# became a "source", and the sign-flip purity test (which assumes noise symmetric about the
+# subtracted background) reported 0.93 and chose the lowest threshold: 226 noise patches, 8.4 h.
+# The fix: take the outliers out FIRST (iterative 3-sigma clipping, dilated by one pixel), give the
+# remaining pixels to sep.Background (so the spatially varying sky is kept) and use the clipped
+# standard deviation as the noise. The same helper serves the PSF estimate, the purity calibration,
+# the final extraction (aps_ifu_prepare.object_extract) and sep_catalog, so calibration and
+# extraction always see the same sky.
+
+#: grid of trial thresholds of the purity calibration (the upper end was 4.0; 5-8 are needed when a
+#: field has very few real sources, otherwise the calibration "falls off the grid")
+SEG2D_THRESH_GRID = (1.0, 1.2, 1.5, 1.8, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0, 8.0)
+#: a threshold is only accepted when it leaves at least this many more positive than negative detections
+SEG2D_MIN_EXCESS = 3
+#: a detection must span at least this fraction of one fibre footprint (a white-light image made of
+#: single-fibre footprints: noise peaks are 3-9 px, a real fibre-sized source is ~22 px)
+SEG2D_FIBRE_MIN_FRAC = 0.5
+
+
+def prepare_white(image: np.ndarray):
+    """(data, mask) of a white-light image as every seg2d step reads it: zeros are blanks, `mask` is
+    True on blanks and NaN, `data` is float64 with the blanks set to 0."""
+    data = np.array(image, dtype=float, copy=True)
+    data[data == 0] = np.nan
+    mask = np.isnan(data)
+    return np.ascontiguousarray(np.nan_to_num(data), dtype="<f8"), mask
+
+
+def robust_background(data: np.ndarray, mask: np.ndarray, bw: int = 64, bh: int = 64,
+                      sigma: float = 3.0, maxiters: int = 10):
+    """Sky of a white-light image that a few very bright sources cannot bias.
+
+    Returns (bkg, rms, info): `bkg` is a sep.Background object (so `data - bkg` still works; its
+    spatial mesh is built from the pixels that survive the outlier rejection), `rms` the clipped
+    standard deviation of those pixels (use it as `err=` of sep.extract), `info` a dict with
+    level / rms (the clipped sky), sep_back / sep_rms (what plain sep.Background would have given
+    on the same image, for the log) and the fraction of rejected pixels.
+    Falls back to a constant sky (level, rms) when sep.Background cannot be built."""
+    from astropy.stats import sigma_clip
+    finite = ~mask
+    vals = data[finite]
+    info = {"n_pixels": int(vals.size)}
+    plain = None
+    try:
+        plain = sep.Background(data, mask=mask, bw=bw, bh=bh)
+        info["sep_back"] = float(plain.globalback)
+        info["sep_rms"] = float(plain.globalrms)
+    except Exception:
+        info["sep_back"] = info["sep_rms"] = None
+    if vals.size < 16:
+        info.update(level=0.0, rms=1.0, rejected_fraction=0.0, constant=True)
+        return plain, 1.0, info
+    clipped = sigma_clip(vals, sigma=sigma, maxiters=maxiters, masked=True)
+    keep = ~np.asarray(clipped.mask)
+    level = float(np.median(vals[keep]))
+    rms = float(np.std(vals[keep]))
+    if not np.isfinite(rms) or rms <= 0:
+        rms = float(info["sep_rms"] or 1.0)
+    outlier = np.zeros(data.shape, dtype=bool)
+    outlier[finite] = ~keep
+    outlier = ndimage.binary_dilation(outlier, iterations=1)
+    info.update(level=level, rms=rms, rejected_fraction=float(outlier[finite].mean()), constant=True,
+                finite_fraction=float(finite.mean()))
+    # A WEAVE white-light image is a mosaic of fibre footprints with gaps (finite fraction 0.4-0.75).
+    # sep.Background cannot build a mesh from such sparse tiles: even the plain call returns ONE constant for
+    # the whole image (OB 26133: min = max = 3111 over all pixels), and on the masked data it returned 0 or
+    # values that change wildly with the mesh size. So for those images the sky IS the clipped level
+    # (what the shipped code effectively used, but unbiased). Only a well populated image (>= 90% finite,
+    # e.g. a PS1 white-light image) gets a spatially varying mesh, built from the pixels that survive the
+    # outlier rejection, and it is used only if it agrees with the clipped level.
+    bkg = None
+    if finite.mean() >= 0.9:
+        try:
+            cand = sep.Background(data, mask=(mask | outlier), bw=bw, bh=bh)
+            mesh = cand.back()[finite]
+            if np.isfinite(cand.globalback) and abs(cand.globalback - level) <= 3.0 * rms \
+                    and np.isfinite(mesh).all() and abs(float(np.median(mesh)) - level) <= 3.0 * rms:
+                bkg = cand
+                info["constant"] = False
+        except Exception:
+            bkg = None
+    if bkg is None:
+        bkg = _ConstantSky(level, data.shape)
+    info["back"] = float(level if info["constant"] else bkg.globalback)
+    return bkg, rms, info
+
+
+class _ConstantSky(object):
+    """Stand-in for sep.Background with a constant sky: supports `data - bkg`, back(), rms(), globalback."""
+    def __init__(self, level, shape):
+        self.globalback = float(level)
+        self.globalrms = 0.0
+        self._shape = shape
+
+    def back(self):
+        return np.full(self._shape, self.globalback)
+
+    def rms(self):
+        return np.full(self._shape, self.globalrms)
+
+    def __array__(self, dtype=None, copy=None):
+        arr = self.back()
+        return arr.astype(dtype) if dtype is not None else arr
+
+    def __rsub__(self, other):
+        return np.asarray(other) - self.back()
+
+
+def fibre_footprint_px(mask: np.ndarray):
+    """Area (px) of one fibre footprint of a white-light image made of single-fibre footprints with gaps
+    between them (WEAVE LIFU collapse: ~544 blobs of ~22 px at 0.5"/px), or None when the image is not
+    such a mosaic (footprints merged into a few large blobs, or a smooth image from another source)."""
+    lab, n = ndimage.label(~mask)
+    if n < 100:
+        return None
+    areas = np.bincount(lab.ravel())[1:]
+    med = float(np.median(areas))
+    if med > 200:
+        return None
+    return med
+
+
 def estimate_psf_fwhm_pix(image: np.ndarray, ext_thresh: float = 1.5, minarea: int = 5,
                            bw: int = 64, bh: int = 64, roundness_min: float = 0.6,
                            n_use: int = 20):
@@ -869,18 +996,19 @@ def estimate_psf_fwhm_pix(image: np.ndarray, ext_thresh: float = 1.5, minarea: i
     the median of 2.3548*sqrt(a*b) (the standard SExtractor second-moment
     FWHM convention) over that subset.
 
+    Uses robust_background (see above). NOTE: on a white-light image made of single-fibre
+    footprints the most compact round detections are fibre footprints, so this is the size of a
+    footprint rather than a seeing PSF; estimate_seg2d_params applies a fibre-footprint floor.
+
     Returns (fwhm_pix, n_sources_used, raw_objects). fwhm_pix is None if
     fewer than 3 suitable sources were found (falls back to a caller-
     supplied default in that case).
     """
-    data = image.copy()
-    data[data == 0] = np.nan
-    mask = np.isnan(data)
-    d = np.ascontiguousarray(np.nan_to_num(data), dtype="<f8")
+    d, mask = prepare_white(image)
     bw_eff, bh_eff = max(4, min(bw, d.shape[1] // 2)), max(4, min(bh, d.shape[0] // 2))
-    bkg = sep.Background(d, mask=mask, bw=bw_eff, bh=bh_eff)
+    bkg, rms, _info = robust_background(d, mask, bw=bw_eff, bh=bh_eff)
     d_sub = d - bkg
-    objects = sep.extract(d_sub, ext_thresh, minarea=minarea, err=bkg.globalrms, mask=mask)
+    objects = sep.extract(d_sub, ext_thresh, minarea=minarea, err=rms, mask=mask)
 
     if len(objects) == 0:
         return None, 0, objects
@@ -898,41 +1026,50 @@ def estimate_psf_fwhm_pix(image: np.ndarray, ext_thresh: float = 1.5, minarea: i
     return float(np.median(fwhm_per_source)), len(compact), objects
 
 
-def calibrate_sep_purity(image: np.ndarray, minarea: int, ext_thresh_grid=None,
-                          bw: int = 64, bh: int = 64, purity_target: float = 0.9):
+def calibrate_sep_purity_ex(image: np.ndarray, minarea: int, ext_thresh_grid=None,
+                             bw: int = 64, bh: int = 64, purity_target: float = 0.9,
+                             min_excess: int = SEG2D_MIN_EXCESS):
     """Empirical ext_thresh calibration via the sign-flipped image, at a
     grid of trial thresholds, holding minarea fixed at a given (already
     PSF-derived) value: exactly the same sign-flip purity philosophy
     post_veto_purity_scan uses for the 3D matched filter, applied here to
-    plain 2D sep extraction. Returns (recommended_ext_thresh, curve),
-    where curve is a list of (ext_thresh, n_pos, n_neg, purity) and
-    recommended_ext_thresh is the SMALLEST (most complete/permissive)
-    threshold in the grid whose purity still clears purity_target -- i.e.
-    the most sources you can keep without giving up on the purity bar,
-    rather than an arbitrary fixed sigma cut.
-    """
-    if ext_thresh_grid is None:
-        ext_thresh_grid = [1.0, 1.2, 1.5, 1.8, 2.0, 2.5, 3.0, 4.0]
+    plain 2D sep extraction.
 
-    data = image.copy()
-    data[data == 0] = np.nan
-    mask = np.isnan(data)
-    d = np.ascontiguousarray(np.nan_to_num(data), dtype="<f8")
+    A threshold is accepted when its purity (1 - n_neg/n_pos) reaches `purity_target` AND it leaves
+    at least `min_excess` more positive than negative detections (a handful of detections with no
+    negative ones is not evidence). The recommended threshold is the SMALLEST accepted one. When none
+    is accepted the calibration FAILED: the largest grid value is recommended and `ok` is False
+    (before 2026-11-06 this fell back silently).
+
+    Returns a dict: ext_thresh, curve [(thresh, n_pos, n_neg, purity)], ok, sky (the robust_background
+    info of the image)."""
+    if ext_thresh_grid is None:
+        ext_thresh_grid = list(SEG2D_THRESH_GRID)
+    d, mask = prepare_white(image)
     bw_eff, bh_eff = max(4, min(bw, d.shape[1] // 2)), max(4, min(bh, d.shape[0] // 2))
-    bkg = sep.Background(d, mask=mask, bw=bw_eff, bh=bh_eff)
+    bkg, rms, info = robust_background(d, mask, bw=bw_eff, bh=bh_eff)
     d_sub = d - bkg
 
     curve = []
     for t in ext_thresh_grid:
-        pos = sep.extract(d_sub, t, minarea=minarea, err=bkg.globalrms, mask=mask)
-        neg = sep.extract(-d_sub, t, minarea=minarea, err=bkg.globalrms, mask=mask)
+        pos = sep.extract(d_sub, t, minarea=minarea, err=rms, mask=mask)
+        neg = sep.extract(-d_sub, t, minarea=minarea, err=rms, mask=mask)
         n_pos, n_neg = len(pos), len(neg)
         purity = 1 - n_neg / max(n_pos, 1)
         curve.append((float(t), n_pos, n_neg, purity))
 
-    passing = [t for t, _, _, p in curve if p >= purity_target]
+    passing = [t for t, n_pos, n_neg, p in curve if p >= purity_target and (n_pos - n_neg) >= min_excess]
+    ok = bool(passing)
     recommended = min(passing) if passing else max(ext_thresh_grid)
-    return recommended, curve
+    return dict(ext_thresh=recommended, curve=curve, ok=ok, sky=info)
+
+
+def calibrate_sep_purity(image: np.ndarray, minarea: int, ext_thresh_grid=None,
+                          bw: int = 64, bh: int = 64, purity_target: float = 0.9):
+    """Compatibility wrapper of calibrate_sep_purity_ex: (recommended_ext_thresh, curve)."""
+    r = calibrate_sep_purity_ex(image, minarea, ext_thresh_grid=ext_thresh_grid, bw=bw, bh=bh,
+                                purity_target=purity_target)
+    return r["ext_thresh"], r["curve"]
 
 
 def estimate_seg2d_params(image: np.ndarray, minarea_factor: float = 1.0,
@@ -941,20 +1078,18 @@ def estimate_seg2d_params(image: np.ndarray, minarea_factor: float = 1.0,
     """Top-level data-driven seg2d parameter estimate: measure the PSF from
     the image, derive minarea from it, then calibrate ext_thresh by
     empirical purity at that minarea. See estimate_psf_fwhm_pix and
-    calibrate_sep_purity for the two measurements this combines.
+    calibrate_sep_purity_ex for the two measurements this combines.
 
     minarea = minarea_factor * pi * (fwhm_pix/2)^2 -- the pixel area of a
-    circle the width of one measured PSF FWHM; minarea_factor=1.0 requires
-    a detection to span at least a full PSF disk to count (a standard,
-    principled SExtractor convention, not a guess). Raise minarea_factor
-    for a more conservative (fewer, more certain) catalog, lower it for a
-    more complete/permissive one.
+    circle the width of one measured PSF FWHM -- but never below SEG2D_FIBRE_MIN_FRAC of one fibre
+    footprint when the image is a mosaic of fibre footprints (see fibre_footprint_px): the "PSF"
+    measured on such an image is a single footprint, and 3 px noise peaks are not sources.
 
     Falls back to default_fwhm_pix if too few compact sources were found
     to measure the PSF (e.g. a very sparse or very crowded field).
 
-    Returns a dict: fwhm_pix, fwhm_source, minarea, ext_thresh,
-    purity_curve, n_psf_sources_used.
+    Returns a dict: fwhm_pix, fwhm_source, minarea, minarea_psf, fibre_px, ext_thresh,
+    purity_curve, n_psf_sources_used, calibration_ok, sky (robust sky / plain sep sky).
     """
     fwhm_pix, n_used, _ = estimate_psf_fwhm_pix(image)
     fwhm_source = "measured"
@@ -962,21 +1097,41 @@ def estimate_seg2d_params(image: np.ndarray, minarea_factor: float = 1.0,
         fwhm_pix = default_fwhm_pix
         fwhm_source = "default (too few compact sources to measure)"
 
-    minarea = max(3, int(round(minarea_factor * np.pi * (fwhm_pix / 2.0) ** 2)))
-    ext_thresh, curve = calibrate_sep_purity(image, minarea, ext_thresh_grid=ext_thresh_grid,
-                                              purity_target=purity_target)
+    minarea_psf = max(3, int(round(minarea_factor * np.pi * (fwhm_pix / 2.0) ** 2)))
+    _d, _mask = prepare_white(image)
+    fibre_px = fibre_footprint_px(_mask)
+    minarea = minarea_psf
+    if fibre_px:
+        minarea = max(minarea_psf, int(round(SEG2D_FIBRE_MIN_FRAC * fibre_px)))
+    cal = calibrate_sep_purity_ex(image, minarea, ext_thresh_grid=ext_thresh_grid,
+                                  purity_target=purity_target)
+    ext_thresh, curve = cal["ext_thresh"], cal["curve"]
 
     if verbose:
+        sky = cal["sky"]
         print(f"estimate_seg2d_params: PSF FWHM={fwhm_pix:.2f}px ({fwhm_source}, "
-              f"from {n_used} compact sources) -> minarea={minarea}")
-        print(f"  ext_thresh purity calibration (target purity>={purity_target}):")
+              f"from {n_used} compact sources) -> minarea={minarea_psf}")
+        if fibre_px:
+            print(f"  fibre-footprint image (footprint {fibre_px:.0f} px): minarea floor "
+                  f"{SEG2D_FIBRE_MIN_FRAC:g} x footprint -> minarea={minarea}")
+        print(f"  robust sky: level={sky.get('level', float('nan')):.0f} rms={sky.get('rms', float('nan')):.0f} "
+              f"(plain sep.Background would give back={sky.get('sep_back')} rms={sky.get('sep_rms')}; "
+              f"{100 * sky.get('rejected_fraction', 0):.1f}% of the pixels rejected as outliers)")
+        print(f"  ext_thresh purity calibration (target purity>={purity_target}, "
+              f"min excess {SEG2D_MIN_EXCESS}):")
         for t, n_pos, n_neg, p in curve:
-            flag = " <- recommended" if t == ext_thresh else ""
+            flag = " <- recommended" if (t == ext_thresh and cal["ok"]) else ""
             print(f"    ext_thresh={t:4.1f}: n_pos={n_pos:4d} n_neg={n_neg:4d} "
                   f"purity={p:.3f}{flag}")
+        if not cal["ok"]:
+            print(f"  WARNING: no threshold of the grid reached purity {purity_target} with an excess of "
+                  f"{SEG2D_MIN_EXCESS} detections over the sign-flipped image: the field has no reliable faint "
+                  f"detections; using the largest threshold ({ext_thresh}), so only sources brighter than that "
+                  f"(and the central target) are kept")
 
-    return dict(fwhm_pix=fwhm_pix, fwhm_source=fwhm_source, minarea=minarea,
-                ext_thresh=ext_thresh, purity_curve=curve, n_psf_sources_used=n_used)
+    return dict(fwhm_pix=fwhm_pix, fwhm_source=fwhm_source, minarea=minarea, minarea_psf=minarea_psf,
+                fibre_px=fibre_px, ext_thresh=ext_thresh, purity_curve=curve,
+                n_psf_sources_used=n_used, calibration_ok=cal["ok"], sky=cal["sky"])
 
 
 # ----------------------------------------------------------------------
@@ -992,15 +1147,12 @@ def sep_catalog(collapse: np.ndarray, ext_thresh: float = 2.5, minarea: int = 20
     pixels than a real, now much smaller, point source spans -- silently
     under-detecting continuum sources, which matters because
     bright_source_mask depends on this catalog being complete."""
-    data = collapse.copy()
-    data[data == 0] = np.nan
-    mask = np.isnan(data)
-    data = np.ascontiguousarray(np.nan_to_num(data), dtype="<f8")
+    data, mask = prepare_white(collapse)
     bw = max(4, min(bw, data.shape[1] // 2))
     bh = max(4, min(bh, data.shape[0] // 2))
-    bkg = sep.Background(data, mask=mask, bw=bw, bh=bh)
+    bkg, rms, _info = robust_background(data, mask, bw=bw, bh=bh)     # robust sky, see robust_background
     data_sub = data - bkg
-    return sep.extract(data_sub, ext_thresh, minarea=minarea, err=bkg.globalrms, mask=mask)
+    return sep.extract(data_sub, ext_thresh, minarea=minarea, err=rms, mask=mask)
 
 
 def bright_source_mask(shape_yx: tuple[int, int], objects, radius_factor: float = 3.0,

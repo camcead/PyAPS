@@ -678,6 +678,8 @@ def ifu_Gal(
     print(f"INFO: Gal aperture factor = {enhanced_rad_factor}")
     proper_targets      = len(wp_table)
     fault_counter       = 0
+    from PyAPS.aps_ifu_patch_report import PatchTally
+    tally = PatchTally('Gal', outpath, headname)
 
     for trgs in wp_table:
 
@@ -730,6 +732,7 @@ def ifu_Gal(
               % (trgs["id"], z, class_value))
         print("=" * 70)
 
+        tally.attempt()
         try:
             prep = ifu_Gal_prepare(
                 infiles, patch_headname, IFU_params, outpath,
@@ -754,6 +757,7 @@ def ifu_Gal(
             if prep is None:
                 print(f"  Skipped (no valid spaxels in aperture)")
                 proper_targets -= 1
+                tally.no_valid_spaxels()
                 continue
 
             configs_gal = prep["configs_gal"]
@@ -838,16 +842,24 @@ def ifu_Gal(
                 wlranges=wlranges, outfile_suffix="_APS",
                 patch_area=patch_area, patch_id=int(trgs["id"]),
                 UAPSID=UAPSID, no_spec_ext=no_spec_ext)
+            tally.written()
 
-        except Exception:
+        except Exception as _exc:
+            if "No valid spaxels remaining after filters!" in str(_exc):
+                tally.no_valid_spaxels()
+            else:
+                tally.failed()
             fault_counter += 1
             import traceback
             print("** GAL FAILED  id=%d" % trgs["id"])
             traceback.print_exc()
             sys.stdout.flush()
 
+    nothing_written = tally.finish()
     if proper_targets > 0 and proper_targets == fault_counter:
         sys.exit("All Gal targets failed")
+    if nothing_written:
+        sys.exit("No Gal product was written for any of the %d attempted patches" % tally.n['attempted'])
 
 
 """
