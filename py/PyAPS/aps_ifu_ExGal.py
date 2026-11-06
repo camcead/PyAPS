@@ -1176,6 +1176,8 @@ def ifu_ExGal(
     # ------------------------------------------------------------------ #
     proper_targets  = len(wp_table)
     fault_counter   = 0
+    from PyAPS.aps_ifu_patch_report import PatchTally
+    tally = PatchTally('ExGal', outpath, headname)
 
     for trgs in wp_table:
 
@@ -1242,6 +1244,7 @@ def ifu_ExGal(
               % (trgs["id"], z, class_value))
         print("=" * 70)
 
+        tally.attempt()
         try:
             prep = ifu_ExGal_prepare(
                 infiles, patch_headname, IFU_params, outpath,
@@ -1262,6 +1265,7 @@ def ifu_ExGal(
             if prep is None:
                 print(f"  Skipped (no valid spaxels in aperture)")
                 proper_targets -= 1
+                tally.no_valid_spaxels()
                 continue
 
             cube          = prep["cube"]
@@ -1307,12 +1311,15 @@ def ifu_ExGal(
                 EMIPPXF_LEVEL="BIN", LS_RES="ADAPTED",
                 patch_area=patch_area, patch_id=int(trgs["id"]),
                 UAPSID=UAPSID, no_spec_ext=no_spec_ext)
+            tally.written()
 
         except ValueError as e:
             if "No valid spaxels remaining after filters!" in str(e):
                 print(f"  No valid spaxels — skipping id={trgs['id']}")
+                tally.no_valid_spaxels()
             else:
                 fault_counter += 1
+                tally.failed()
                 import traceback
                 print(f"** ExGAL FAILED  id={trgs['id']}: {e}")
                 traceback.print_exc()
@@ -1320,13 +1327,17 @@ def ifu_ExGal(
 
         except Exception:
             fault_counter += 1
+            tally.failed()
             import traceback
             print(f"** ExGAL FAILED  id={trgs['id']}")
             traceback.print_exc()
             sys.stdout.flush()
 
+    nothing_written = tally.finish()
     if proper_targets > 0 and proper_targets == fault_counter:
         sys.exit("All ExGal targets failed")
+    if nothing_written:
+        sys.exit("No ExGal product was written for any of the %d attempted patches" % tally.n['attempted'])
 
 
 

@@ -261,6 +261,7 @@ These control how sources are detected in the white-light image.
 | `--seg2d_minarea` | int or `None` | `None` (all shipped `IFU_params` JSON configs) | Minimum source area in pixels. Sources smaller than this are rejected as noise peaks or cosmic rays. **`None` auto-estimates it from the white-light image** -- see below. |
 | `--seg2d_deblend_nthresh` | int or `None` | `4` | Number of deblending sub-thresholds. Higher values separate close pairs more aggressively. `None` is accepted for consistency but simply resolves to the fixed default `4` -- **not** data-driven, deliberately (this parameter is left alone rather than auto-tuned). |
 | `--seg2d_radii_factor` | float | `8.0` | Kron radius scale factor. Multiplied by the fitted Kron radius to define the aperture boundary. Larger values capture more outer flux at the cost of more contamination. |
+| `--seg2d_max_targets` | int | `150` | Safety cap on the number of 2D detections kept (0 = off). Above it the brightest detections (by flux) are kept and a WARNING is printed; see [aps_ifu_seg2d_robust.md](aps_ifu_seg2d_robust.md). Command-line only (the runner does not pass it). |
 
 > **MIFU mode:** For MIFU observations `seg2d_extract` and
 > `seg2d_exclude_ctarg` are automatically forced to `False` since MIFU
@@ -283,24 +284,30 @@ JSON](#per-survey-configuration-via-json)), `ifu_seg2d` calls
 `aps_ifu_seg3d.estimate_seg2d_params()` on the white-light image before
 running sep:
 
+0. **Sky and noise** (since 2026-11-06, [aps_ifu_seg2d_robust.md](aps_ifu_seg2d_robust.md)): every step below, and the final extraction, uses one robust sky: iterative 3-sigma clipping of the finite pixels (level and noise), a constant sky for a sparse fibre-footprint image, a `sep.Background` mesh built from the surviving pixels for a well populated one. Plain `sep.Background` was biased by very bright sources (OB 26133) and put the threshold 0.37 sigma above the true sky.
 1. **minarea** is derived from the image's OWN PSF size: a permissive
    first sep pass finds the most compact, round, well-detected sources in
    the field, measures their FWHM (standard `2.3548*sqrt(a*b)` second-
    moment convention), and sets `minarea` to the pixel area of a disk that
    wide -- a source narrower than one full PSF-width is not a resolved
-   real detection.
+   real detection. On a white-light image made of single-fibre footprints
+   (LIFU: ~544 footprints of ~22 px) that "PSF" is one footprint, so
+   `minarea` is never below **half a footprint** (11 px) there.
 2. **ext_thresh** is calibrated empirically at that minarea: sep is run on
    both the background-subtracted image and its sign-flipped negative at a
-   grid of trial thresholds, and the smallest (most complete/permissive)
-   threshold whose purity (`1 - n_neg/n_pos`) still clears 0.9 is chosen --
-   the same sign-flip philosophy `post_veto_purity_scan` uses for seg3d,
-   applied here to plain 2D extraction.
+   grid of trial thresholds (1.0 ... 8.0), and the smallest (most
+   complete/permissive) threshold whose purity (`1 - n_neg/n_pos`) clears
+   0.9 **and** that leaves at least 3 more positive than negative detections
+   is chosen -- the same sign-flip philosophy `post_veto_purity_scan` uses
+   for seg3d, applied here to plain 2D extraction. If no threshold is
+   accepted the calibration is reported as FAILED (a WARNING, the largest
+   threshold is used, `calibration_ok: false` in the summary).
 
-On the validated test field this recommended `ext_thresh=2.5` right back
-(purity=0.911) -- i.e. the auto-calibration independently confirmed the old
-`ext_thresh` guess was actually fine; only `minarea` was broken. Both
-measurements, and the full ext_thresh purity curve, are printed to stdout
-when auto-estimation runs, so every value used is traceable, not silent.
+On the field this section was first validated on, the calibration
+recommended `ext_thresh=2.5` (purity=0.911). Both
+measurements, the robust sky, the full purity table, a `SEG2D_SUMMARY {...}`
+line and `<headname>_seg2d_summary.json` are produced whenever
+auto-estimation runs, so every value used is traceable, not silent.
 
 To go back to a fixed value for a specific survey, set that key to an
 explicit number (e.g. `"seg2d_minarea": "50"`) in its `IFU_params` JSON
