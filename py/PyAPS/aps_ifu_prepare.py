@@ -542,7 +542,7 @@ def getimages(ra, dec, size=240, filters="giryz"):
 #############################################################
 class ifu_seg2d ():
 
-    def __init__(self, infiles, headname, outpath, white_images = None, white_src = 'PS1', search_gaia=True, extract = True, mask_stars = True, ext_thresh =2.5, minarea =400 , deblend_nthresh=4, radii_factor=7.0, class_ntop=3):
+    def __init__(self, infiles, headname, outpath, white_images = None, white_src = 'PS1', search_gaia=True, extract = True, mask_stars = True, ext_thresh =2.5, minarea =400 , deblend_nthresh=4, radii_factor=7.0, class_ntop=3, max_targets=150):
 
 
         self.gaia_parallax_over_error = 1.0
@@ -554,6 +554,10 @@ class ifu_seg2d ():
         self.minarea = minarea
         self.deblend_nthresh = deblend_nthresh
         self.radii_factor = radii_factor
+        # safety cap on the number of 2D detections kept (0/None = off); see object_extract
+        self.max_targets = max_targets
+        self.seg2d_summary = {}
+        self._seg2d_est = None
 
         # We take the first infile as reference
         assert isinstance(self.infiles, list) , 'infiles must be a list'
@@ -646,6 +650,7 @@ class ifu_seg2d ():
                   'estimating from the white-light image ...')
             white_data = fits.open(self.whiteimage)[0].data.astype(np.float64)
             est = aps_ifu_seg3d.estimate_seg2d_params(white_data)
+            self._seg2d_est = est
             if self.ext_thresh is None:
                 self.ext_thresh = est['ext_thresh']
                 print(f"  auto ext_thresh = {self.ext_thresh} "
@@ -849,24 +854,68 @@ class ifu_seg2d ():
             self.extc_mask = extc_mask
 
 
-        # measure a spatially varying background on the image
-        extc_bkg = sep.Background(extc_data, mask = extc_mask, bw=64,  bh=64)
-        # bkg = sep.Background(data, mask=mask, bw=64, bh=64, fw=3, fh=3)
-
-        # get a "global" mean and noise of the image background:
-        # print(extc_bkg.globalback)
-        # print(extc_bkg.globalrms)
+        # Sky and noise of the white-light image: robust against a few very bright sources and against
+        # the fibre-footprint mosaic that sep.Background cannot build a mesh from (aps_ifu_seg3d.
+        # robust_background; OB 26133, 2026-11-06: plain sep.Background put the threshold 0.37 sigma above
+        # the sky and 226 noise patches came out). Calibration (estimate_seg2d_params) and this extraction
+        # use the same helper, so the calibrated threshold is applied to the image it was calibrated on.
+        blank_mask = np.isnan(extc_data)
+        extc_mask_bool = np.isnan(extc_mask) | (np.nan_to_num(extc_mask) > 0)
+        extc_clean, _blank = aps_ifu_seg3d.prepare_white(extc_data)
+        extc_bkg, extc_rms, sky_info = aps_ifu_seg3d.robust_background(extc_clean, extc_mask_bool, bw=64, bh=64)
+        print("seg2d sky: level=%.0f rms=%.0f (plain sep.Background would give back=%s rms=%s); %.1f%% of the pixels "
+              "rejected as outliers; %s" % (sky_info.get('level', float('nan')), sky_info.get('rms', float('nan')),
+                                            sky_info.get('sep_back'), sky_info.get('sep_rms'),
+                                            100 * sky_info.get('rejected_fraction', 0.0),
+                                            'constant sky' if sky_info.get('constant') else 'spatial mesh'))
 
         extc_bkg_image = extc_bkg.back()
 
         # evaluate the background noise as 2-d array, same size as original image
-        extc_bkg_rms = extc_bkg.rms()
+        extc_bkg_rms = np.full(extc_data.shape, extc_rms)
 
-        # subtract the background
-        extc_data_sub = extc_data - extc_bkg
+        # subtract the background (blanks stay blank for the figure)
+        extc_data_sub = extc_clean - extc_bkg
+        extc_data_sub = np.where(blank_mask, np.nan, extc_data_sub)
+        extc_data_ext = np.where(blank_mask, 0.0, extc_data_sub)
 
-        objects, segmap = sep.extract(extc_data_sub, ext_thresh ,minarea = minarea, deblend_nthresh= deblend_nthresh , err=extc_bkg.globalrms, mask=extc_mask, segmentation_map=True)
+        objects, segmap = sep.extract(extc_data_ext, ext_thresh ,minarea = minarea, deblend_nthresh= deblend_nthresh , err=extc_rms, mask=extc_mask_bool, segmentation_map=True)
 
+        n_detected = len(objects)
+        n_cap_dropped = 0
+        if self.max_targets and n_detected > int(self.max_targets):
+            # safety cap: keep the brightest detections only. A genuine field has far fewer (the largest
+            # real one seen, OB 24311, 121); more than the cap means the calibration did not hold.
+            order = np.argsort(-objects['flux'])
+            keep_idx = np.sort(order[:int(self.max_targets)])
+            drop_labels = np.setdiff1d(np.arange(1, n_detected + 1), keep_idx + 1)
+            segmap = np.where(np.isin(segmap, drop_labels), 0, segmap)
+            objects = objects[keep_idx]
+            n_cap_dropped = n_detected - len(objects)
+            print("WARNING: seg2d found %d detections, more than seg2d_max_targets=%d: kept the %d brightest (by flux), "
+                  "dropped %d. The threshold/minarea calibration probably did not hold for this field; check the "
+                  "SEG2D_SUMMARY line and the figure." % (n_detected, int(self.max_targets), len(objects), n_cap_dropped))
+
+        est = self._seg2d_est or {}
+        summary = dict(
+            ext_thresh=float(ext_thresh), minarea=float(minarea), deblend_nthresh=int(deblend_nthresh),
+            mode=('auto' if self._seg2d_est else 'explicit'),
+            calibration_ok=est.get('calibration_ok'), fibre_footprint_px=est.get('fibre_px'),
+            minarea_from_psf=est.get('minarea_psf'),
+            sky_level=sky_info.get('level'), sky_rms=sky_info.get('rms'),
+            plain_sep_back=sky_info.get('sep_back'), plain_sep_rms=sky_info.get('sep_rms'),
+            sky_constant=bool(sky_info.get('constant')),
+            n_detected=int(n_detected), n_kept=int(len(objects)), n_dropped_by_cap=int(n_cap_dropped),
+            max_targets=int(self.max_targets) if self.max_targets else 0)
+        self.seg2d_summary = summary
+        try:
+            import json as _json
+            print("SEG2D_SUMMARY " + _json.dumps(summary, sort_keys=True))
+            with open(Path(self.outpath).joinpath(self.headname + '_seg2d_summary.json'), 'w') as _fh:
+                _json.dump(summary, _fh, indent=1, sort_keys=True)
+        except Exception as _e:
+            print("WARNING: SEG2D summary not written: %s" % _e)
+        sys.stdout.flush()
 
         self.objects = objects
         self.segmap = segmap
@@ -1364,6 +1413,7 @@ def ifu_worker_prepare(
     seg2d_minarea=400,
     seg2d_deblend_nthresh=4,
     seg2d_radii_factor=8.0,
+    seg2d_max_targets=150,
     # --- seg3d: optional 3D matched-filter emission-line detection ---
     # (see aps_ifu_seg3d.py module docstring). Opt-in, additive: never
     # touches patch_file/patch_table/classification. Runs independently of
@@ -1632,6 +1682,7 @@ def ifu_worker_prepare(
             deblend_nthresh=seg2d_deblend_nthresh,
             radii_factor=seg2d_radii_factor,
             class_ntop=class_ntop,
+            max_targets=seg2d_max_targets,
         )
         patch_file  = ifu_seg2d_out.get_targets_fname()
         class_patch = True   # always classify after segmentation
@@ -1922,6 +1973,7 @@ def ifu_runner(options=None):
             (("--seg2d_minarea",), dict(type=none_or_str, default=400.0)),
             (("--seg2d_deblend_nthresh",), dict(type=none_or_str, default=4)),
             (("--seg2d_radii_factor",), dict(type=float, default=7.0)),
+            (("--seg2d_max_targets",), dict(type=int, default=150)),
             (("--seg3d",), dict(type=str2bool, default=False)),
             (("--seg3d_lmin",), dict(type=float, default=3700.0)),
             (("--seg3d_lmax",), dict(type=float, default=9390.0)),
@@ -2028,6 +2080,7 @@ def ifu_runner(options=None):
         seg2d_minarea=seg2d_minarea_val,
         seg2d_deblend_nthresh=seg2d_deblend_nthresh_val,
         seg2d_radii_factor=args.seg2d_radii_factor,
+        seg2d_max_targets=args.seg2d_max_targets,
         seg3d=args.seg3d,
         seg3d_lmin=args.seg3d_lmin,
         seg3d_lmax=args.seg3d_lmax,
