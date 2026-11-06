@@ -22,7 +22,7 @@ APSVERS = PyAPS.__version__
 import warnings
 import traceback
 
-from PyAPS.aps_ls_broaden import broaden_variable_sigma
+from PyAPS.aps_ls_broaden import broaden_variable_sigma, fwhm_to_sigma_pixels
 
 Clight  = 299792.458
 
@@ -863,7 +863,7 @@ def runModule_LINESTRENGTH(LINE_STRENGTH, RESOLUTION, nthreads, configs, velscal
                 FWHM_dif = np.sqrt(np.maximum(FWHM_dif_squared, 0.0))  # Ensure non-negative
 
                 # Convert resolution difference from Angstrom to pixel
-                sigma = (FWHM_dif / wave) * Clight / 2.355 / velscale
+                sigma = fwhm_to_sigma_pixels(FWHM_dif, wave)   # pixels of the LINEAR grid (log_unbinning), not of the log grid
 
                 # ADDED: Additional validation for extreme broadening
                 max_sigma = sigma.max()

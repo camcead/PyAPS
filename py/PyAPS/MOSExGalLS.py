@@ -23,7 +23,7 @@ from PyAPS import aps_constants
 from astropy import units
 APSVERS = PyAPS.__version__
 
-from PyAPS.aps_ls_broaden import broaden_variable_sigma
+from PyAPS.aps_ls_broaden import broaden_variable_sigma, fwhm_to_sigma_pixels
 
 # PHYSICAL CONSTANTS
 Clight = 299792.458  # km/s
@@ -142,7 +142,7 @@ def prepareLS(outdir, config_dir, templates_dir,  configs, info_tab, veldisp_kin
         FWHM_dif = np.sqrt(np.maximum(FWHM_dif_squared, 0.0))  # Ensure non-negative
 
         # Convert resolution difference from Angstrom to pixel
-        sigma = (FWHM_dif / wave) * Clight / 2.355 / velscale
+        sigma = fwhm_to_sigma_pixels(FWHM_dif, wave)   # pixels of the LINEAR grid (log_unbinning), not of the log grid
 
         # ADDED: Additional validation for extreme broadening
         max_sigma = sigma.max()
