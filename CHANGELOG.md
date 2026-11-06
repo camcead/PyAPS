@@ -6,6 +6,9 @@ All notable changes to PyAPS are documented here. The format follows
 
 ## Unreleased
 
+### Fixed (line strengths: every index was NaN and the broadening to the LIS resolution never ran, OB 26133, 2026-11-06; doc/aps_ifu_ExGal.md section 17)
+- **`lsindex_spec.sum_counts` returned a 1-element array** when a band edge falls inside a pixel (always, for real bands); on NumPy 2.5 `index[k] = index0[0]` then raised `setting an array element with a sequence`, `run_ls` caught it (`lsindex measurement failed`) and wrote NaN. Result on OB 26133 (IFU_ExGal, 4 patches, and the MOS LS product): **0 finite values out of ~59,000 index and error cells**. Fix: the fractional-pixel terms are summed to a scalar. Test: `tests/test_lsindex_scalar.py`.
+
 ### Fixed (IFU seg2d: 226 noise patches on OB 26133, 2026-11-06; doc/aps_ifu_seg2d_robust.md)
 - **Robust sky and noise for all seg2d steps** (`aps_ifu_seg3d.robust_background`, `prepare_white`): the white-light image of a WEAVE LIFU cube is a mosaic of single-fibre footprints; plain `sep.Background` was biased by two very bright sources (back 3111, rms 7428 against a clipped sky of 8527 / 9530), the auto threshold sat 0.37 sigma above the true sky, and the sign-flip purity check, which used the same background, recommended the lowest threshold: 148 detections, 226 patch products, an 8.4 h IFU run, almost all noise. PSF estimate, purity calibration, `object_extract` and `sep_catalog` now share the robust helper.
 - **Calibration guards**: threshold grid extended to 8, a threshold needs purity >= 0.9 and an excess of 3 detections over the sign-flipped image, a failed calibration is reported (`calibration_ok`, WARNING) instead of silent. `calibrate_sep_purity` keeps its return value (wrapper of `calibrate_sep_purity_ex`).

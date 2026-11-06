@@ -793,6 +793,10 @@ Every target in the patch table raised an exception. Check the individual traceb
 
 `TARGET_SNR` is too high for the data depth. Set `"TARGET_SNR": "None"` in the config for automatic derivation, or reduce to `10.0` as a test.
 
+### Line-strength indices are all NaN: `lsindex measurement failed: setting an array element with a sequence`
+
+`LS=True` ran but every index (and its error) in `<headname>_P####_ls_ADAPTED.fits` is NaN, and the log has one `Bin N: lsindex measurement failed: setting an array element with a sequence.` per bin. Cause (fixed 2026-11-06): `lsindex_spec.sum_counts` returned a 1-element array when a band edge falls inside a pixel, which NumPy 2 no longer converts to a scalar. If it comes back, run `pytest tests/test_lsindex_scalar.py` on the pod.
+
 ### Output figures not generated
 
 Diagnostic plots fail silently (the exception is caught and printed as a warning). Check the `Warning: diagnostic plots failed:` message. Common causes: missing `voronoi_data` (Voronoi table not written yet — check that `define_voronoi_bins` completed), matplotlib backend issue on headless systems (set `matplotlib.use('Agg')` at the top of the module).
