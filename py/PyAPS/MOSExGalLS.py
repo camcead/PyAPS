@@ -23,7 +23,7 @@ from PyAPS import aps_constants
 from astropy import units
 APSVERS = PyAPS.__version__
 
-from ppxf.ppxf_util import gaussian_filter1d
+from PyAPS.aps_ls_broaden import broaden_variable_sigma
 
 # PHYSICAL CONSTANTS
 Clight = 299792.458  # km/s
@@ -166,19 +166,15 @@ def prepareLS(outdir, config_dir, templates_dir,  configs, info_tab, veldisp_kin
             max_sigma_value = sigma.max()
 
             if max_sigma_value > 0.1:  # Only convolve if significant broadening needed
-                # ADDED: Adaptive truncate parameter
-                if max_sigma_value < 10:
-                    truncate = 4.0  # Standard truncation
-                elif max_sigma_value < 50:
-                    truncate = 3.0  # Reduce for large kernels
-                else:
-                    truncate = 2.0  # Minimal for very large kernels
+                # Kernel half-width 4 sigma at every size of the kernel (the former 3 / 2 sigma
+                # tiers for wide kernels cut the Gaussian and narrowed it by up to 12 %).
+                truncate = 4.0
 
                 spec_orig = spec.copy()  # Keep original for fallback
                 espec_orig = espec.copy()
 
-                spec = gaussian_filter1d(spec,  sigma, truncate=truncate, mode='nearest')
-                espec = gaussian_filter1d(espec, sigma, truncate=truncate, mode='nearest')
+                spec = broaden_variable_sigma(spec,  sigma, truncate=truncate, mode='nearest')
+                espec = broaden_variable_sigma(espec, sigma, truncate=truncate, mode='nearest')
 
                 # ADDED: Validate convolution results
                 if np.any(np.isnan(spec)) or np.any(np.isinf(spec)):

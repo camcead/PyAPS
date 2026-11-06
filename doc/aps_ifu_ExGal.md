@@ -727,6 +727,19 @@ Diagnostic figures are written to `outpath/figs_ExGal/`:
 
 ---
 
+### Line strengths: broadening to the LIS resolution and `FWHM_FLAG`
+
+With `RESOLUTION = ADAPTED` (the default of the shipped configs) each cleaned spectrum is convolved to the LIS resolution `CONV_COR` (8.4 A FWHM) before the indices are measured. The extra Gaussian at each wavelength has FWHM `sqrt(CONV_COR^2 - LSF(wave)^2 - (sigma_v * wave / c * 2.355)^2)`; where the instrument plus the velocity dispersion are already wider than `CONV_COR` the extra width is set to zero (`LS_RESOLUTION_MODE = SKIP_NEGATIVE`). Because the width changes with wavelength, the convolution is `PyAPS.aps_ls_broaden.broaden_variable_sigma` (NumPy only, kernel +-4 sigma of the local width, spectrum continued with its edge pixel); it does not depend on the pPXF or SciPy version. Columns `FWHM_FLAG` of `*_ls_ADAPTED.fits`:
+
+| FWHM_FLAG | Meaning |
+|---|---|
+| 0 | broadened to `CONV_COR` everywhere |
+| 1 | at some wavelengths the bin is already wider than `CONV_COR` (no extra broadening there); the log has `Total resolution (...) > target` |
+| 2 | extreme broadening needed (kernel sigma > 100 pixels) |
+| 3 | the convolution **failed or produced NaN**: the indices of that bin were measured on the **unbroadened** spectrum and are not on the LIS system; do not use them |
+
+Until 2026-11-06 every bin that needed broadening ended with flag 3 and the warning `Convolution failed: gaussian_filter1d() got an unexpected keyword argument 'truncate'` (the code called pPXF's `gaussian_filter1d(spec, sig)` with scipy-style `truncate=` and `mode=` arguments). Check `FWHM_FLAG` of old products before using their indices.
+
 ## 16. Controlling output file size — `--no_spec_ext`
 
 By default the final `_APS.fits` product includes spectral extensions (`GALAXY_SPEC`

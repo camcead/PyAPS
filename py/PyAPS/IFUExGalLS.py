@@ -22,7 +22,7 @@ APSVERS = PyAPS.__version__
 import warnings
 import traceback
 
-from ppxf.ppxf_util import gaussian_filter1d
+from PyAPS.aps_ls_broaden import broaden_variable_sigma
 
 Clight  = 299792.458
 
@@ -885,19 +885,15 @@ def runModule_LINESTRENGTH(LINE_STRENGTH, RESOLUTION, nthreads, configs, velscal
                     max_sigma_value = sigma.max()
 
                     if max_sigma_value > 0.1:  # Only convolve if significant broadening needed
-                        # Adaptive truncate parameter
-                        if max_sigma_value < 10:
-                            truncate = 4.0  # Standard truncation
-                        elif max_sigma_value < 50:
-                            truncate = 3.0  # Reduce for large kernels
-                        else:
-                            truncate = 2.0  # Minimal for very large kernels
+                        # Kernel half-width 4 sigma at every size of the kernel (the former 3 / 2 sigma
+                        # tiers for wide kernels cut the Gaussian and narrowed it by up to 12 %).
+                        truncate = 4.0
 
                         spec_orig = spec[i,:].copy()  # Keep original for fallback
                         espec_orig = espec[i,:].copy()
 
-                        spec[i,:]  = gaussian_filter1d(spec[i,:],  sigma, truncate=truncate, mode='nearest')
-                        espec[i,:] = gaussian_filter1d(espec[i,:], sigma, truncate=truncate, mode='nearest')
+                        spec[i,:]  = broaden_variable_sigma(spec[i,:],  sigma, truncate=truncate, mode='nearest')
+                        espec[i,:] = broaden_variable_sigma(espec[i,:], sigma, truncate=truncate, mode='nearest')
 
                         # Validate convolution results
                         if np.any(np.isnan(spec[i,:])) or np.any(np.isinf(spec[i,:])):
