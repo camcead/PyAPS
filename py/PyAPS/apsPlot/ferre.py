@@ -21,7 +21,7 @@ def build_figure(outdict, i, setups, flux_unit=None):
     outdict : dict
         FERRE result dict, as produced by aps_ferre (plain dict of lists/
         arrays keyed by e.g. "LAMBDA_FR_<arm>", "FLUX_FR_<arm>",
-        "MODEL_FR_<arm>", plus scalar per-target params FEH/TEFF/LOGG/
+        "MODEL_FR_<arm>", plus scalar per-target params MH/TEFF/LOGG/
         ALPHA/MICRO).
     i : int
         Target row index within outdict.
@@ -52,7 +52,7 @@ def build_figure(outdict, i, setups, flux_unit=None):
             models[arm] = mod[sl]
 
     title = (
-        f"FEH={outdict['FEH'][i]:.3f}  TEFF={outdict['TEFF'][i]:.1f}  "
+        f"MH={outdict['MH'][i]:.3f}  TEFF={outdict['TEFF'][i]:.1f}  "
         f"LOGG={outdict['LOGG'][i]:.2f}  ALPHA={outdict['ALPHA'][i]:.2f}  "
         f"MICRO={outdict['MICRO'][i]:.2f}"
     )

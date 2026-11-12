@@ -36,7 +36,7 @@
 
 `aps_ferre` is the PyAPS wrapper around the FERRE stellar parameter fitting code. It
 determines fundamental stellar atmospheric parameters — effective temperature (T_eff),
-surface gravity (log g), and iron abundance ([Fe/H]), and optionally alpha-element
+surface gravity (log g), and overall metallicity ([M/H]), and optionally alpha-element
 abundance ([α/Fe]) — by fitting observed WEAVE spectra against a library of synthetic
 stellar spectra.
 
@@ -124,9 +124,9 @@ resolution. For LR mode, 9 grids are used; for HR mode, a subset is used.
 
 ### 4.2 Grid dimensionality
 
-**3D grids** fit T_eff, log g, [Fe/H]. Used for white dwarfs and low-resolution data.
+**3D grids** fit T_eff, log g, [M/H]. Used for white dwarfs and low-resolution data.
 
-**5D grids** fit T_eff, log g, [Fe/H], [α/Fe], and microturbulence. Used for
+**5D grids** fit T_eff, log g, [M/H], [α/Fe], and microturbulence. Used for
 giant and main-sequence stars at low resolution.
 
 **PCA-compressed grids** store synthetic spectra in principal component form to
@@ -332,7 +332,7 @@ falls outside the valid range for that grid, the next-best grid is used instead.
 **Output files**
 
 The merged results are written to:
-- `<pixel>.opf` — parameter values (T_eff, log g, [Fe/H], etc.) and χ²
+- `<pixel>.opf` — parameter values (T_eff, log g, [M/H], etc.) and χ²
 - `<pixel>.mdl` — best-fit synthetic spectrum at each pixel
 - `<pixel>.nrd` — normalised observed spectrum
 
@@ -409,7 +409,7 @@ IFU: one pixel = one spatial bin).
 | `<pixel>.frd` | Flux array, one target per row, space-separated |
 | `<pixel>.err` | Error array, matching `.frd` layout |
 | `<pixel>.wav` | Wavelength array (one row, shared across all targets) |
-| `<pixel>.vrd` | Initial parameter guesses (T_eff, log g, [Fe/H], RV, ...) |
+| `<pixel>.vrd` | Initial parameter guesses (T_eff, log g, [M/H], RV, ...) |
 | `input.nml_k` | Fortran namelist for grid k |
 
 ### 10.2 FERRE output files (per grid)
@@ -472,8 +472,8 @@ One row per target. Key columns:
 | `ERR_TEFF` | K | Formal uncertainty on T_eff |
 | `LOGG` | dex | Surface gravity |
 | `ERR_LOGG` | dex | Formal uncertainty on log g |
-| `FEH` | dex | Iron abundance [Fe/H] |
-| `ERR_FEH` | dex | Formal uncertainty on [Fe/H] |
+| `MH` | dex | Overall metallicity [M/H] (FERRE grid dimension METALS); called `FEH` before APS_FR_V 2.1 |
+| `MH_ERR` | dex | Formal uncertainty on [M/H]; called `FEH_ERR` before APS_FR_V 2.1 |
 | `ALPHAFE` | dex | Alpha-element abundance (5D grids only) |
 | `ERR_ALPHAFE` | dex | Formal uncertainty on [α/Fe] (5D grids only) |
 | `MICRO` | km/s | Microturbulence (5D grids only) |
@@ -520,7 +520,7 @@ FERRE parameters are set in the module config JSON file (for IFU) or in
 | Parameter | Default | Description |
 |---|---|---|
 | `CONT_ORDER_FR` | 6 | Order of the running mean normalisation applied to both observed and synthetic spectra |
-| `NDIM_FR` | 3 | Number of fitted parameters (3=T_eff, log g, [Fe/H]; 5=adds α/Fe and micro) |
+| `NDIM_FR` | 3 | Number of fitted parameters (3=T_eff, log g, [M/H]; 5=adds α/Fe and micro) |
 | `GRID_FR` | see configs | List of grid names to use |
 | `MIN_GRIDS_FR` | 5 | Minimum grids required for opfmerge to succeed |
 | `MIN_SNR_FR` | 3.0 | Minimum SNR to attempt FERRE fit |

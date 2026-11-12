@@ -56,6 +56,7 @@ versions:
  4.1 By Thomas Hajnik (CASU, Jul 2026) - Full spectrum and model information is now retained in the ferre_spec* output files when using linemasks
  4.2 (CASU, Aug 2026) - make_fr_plot moved to PyAPS.apsPlot.ferre (Plotly), built on the same spectrum_overlay_figure shared with aps_rr/aps_rvs - part of the new cross-module PyAPS.apsPlot platform. Same output convention and layout (2 arms x 2 halves).
  4.3 By Thomas Hajnik (CASU, Nov 2026) - SNR_FR is now the median S/N over the pixels FERRE actually fits (masked/invalid pixels excluded) instead of FERRE's median over all pixels; CHISQ_TOT is renormalised to the fitted pixels
+ 4.4 By Thomas Hajnik (CASU, Nov 2026) - The metallicity columns FEH/FEH_ERR are renamed MH/MH_ERR (FR_TABLE and, through aps_L2merge, the L2 STAR_TABLE): the FERRE grid dimension METALS is the overall metallicity [M/H], not [Fe/H]. APS_FR_V 2.1
 """
 
 #################################################
@@ -1112,7 +1113,7 @@ def ferre_outdict(pixel, targs_info, targs_setups, grid_prefix='n', path=None,
     ### GENERATE OUTPUT TABLE STRUCTURE
     columns = [
         'APS_ID', 'TARGID', 'CNAME', 'TEFF', 'TEFF_ERR', 'LOGG', 'LOGG_ERR',
-        'FEH', 'FEH_ERR', 'ALPHA', 'ALPHA_ERR', 'MICRO', 'MICRO_ERR',
+        'MH', 'MH_ERR', 'ALPHA', 'ALPHA_ERR', 'MICRO', 'MICRO_ERR',
         'COVAR', 'ELEM', 'ELEM_ERR', 'SNR_FR', 'CHISQ_TOT', 'FLAG_FR'
     ]
 
@@ -1332,13 +1333,13 @@ def ferre_outdict(pixel, targs_info, targs_setups, grid_prefix='n', path=None,
         #Kurucz grids with 3 dimensions
         if m_cells == 19:
 
-            outdict['FEH'].append(np.float64(cells[1]))
+            outdict['MH'].append(np.float64(cells[1]))
             outdict['TEFF'].append(np.float64(cells[2]))
             outdict['LOGG'].append(np.float64(cells[3]))
             outdict['ALPHA'].append(np.nan)
             outdict['MICRO'].append(np.nan)
 
-            outdict['FEH_ERR'].append(np.float64(cells[4]))
+            outdict['MH_ERR'].append(np.float64(cells[4]))
             outdict['TEFF_ERR'].append(np.float64(cells[5]))
             outdict['LOGG_ERR'].append(np.float64(cells[6]))
             outdict['ALPHA_ERR'].append(np.nan)
@@ -1364,13 +1365,13 @@ def ferre_outdict(pixel, targs_info, targs_setups, grid_prefix='n', path=None,
             #Kurucz grids with 5 dimensions
         elif m_cells == 39:
 
-            outdict['FEH'].append(np.float64(cells[1]))
+            outdict['MH'].append(np.float64(cells[1]))
             outdict['TEFF'].append(np.float64(cells[4]))
             outdict['LOGG'].append(np.float64(cells[5]))
             outdict['ALPHA'].append(np.float64(cells[2]))
             outdict['MICRO'].append(np.float64(cells[3]))
 
-            outdict['FEH_ERR'].append(np.float64(cells[6]))
+            outdict['MH_ERR'].append(np.float64(cells[6]))
             outdict['TEFF_ERR'].append(np.float64(cells[9]))
             outdict['LOGG_ERR'].append(np.float64(cells[10]))
             outdict['ALPHA_ERR'].append(np.float64(cells[7]))
@@ -1396,13 +1397,13 @@ def ferre_outdict(pixel, targs_info, targs_setups, grid_prefix='n', path=None,
             #white dwarfs 2 dimensions
         elif m_cells == 12:
 
-            outdict['FEH'].append(-10.)
+            outdict['MH'].append(-10.)
             outdict['TEFF'].append(np.float64(cells[1]))
             outdict['LOGG'].append(np.float64(cells[2]))
             outdict['ALPHA'].append(np.nan)
             outdict['MICRO'].append(np.nan)
 
-            outdict['FEH_ERR'].append(np.nan)
+            outdict['MH_ERR'].append(np.nan)
             outdict['TEFF_ERR'].append(np.float64(cells[3]))
             outdict['LOGG_ERR'].append(np.float64(cells[4]))
             outdict['ALPHA_ERR'].append(np.nan)
@@ -1458,13 +1459,13 @@ def ferre_outdict(pixel, targs_info, targs_setups, grid_prefix='n', path=None,
     # Now start with do some housekeeping on this dictionary
     outdict = Table(outdict)
 
-    outdict['FEH'].unit = 'dex'
+    outdict['MH'].unit = 'dex'
     outdict['TEFF'].unit = 'K'
     outdict['LOGG'].unit = 'dex'
     outdict['ALPHA'].unit = 'dex'
     outdict['MICRO'].unit = 'dex'
     outdict['ELEM'].unit = 'dex'
-    outdict['FEH_ERR'].unit = 'dex'
+    outdict['MH_ERR'].unit = 'dex'
     outdict['TEFF_ERR'].unit = 'K'
     outdict['LOGG_ERR'].unit = 'dex'
     outdict['ALPHA_ERR'].unit = 'dex'
@@ -1486,7 +1487,7 @@ def ferre_write_fits(outdict, infiles, setups, join_arms, units_str, param_file,
     outdict.sort('APS_ID')
 
     FR_param = Table(outdict['APS_ID', 'TARGID', 'CNAME', 'TEFF', 'TEFF_ERR', 'LOGG',
-                             'LOGG_ERR', 'FEH', 'FEH_ERR', 'ALPHA', 'ALPHA_ERR', 'MICRO',
+                             'LOGG_ERR', 'MH', 'MH_ERR', 'ALPHA', 'ALPHA_ERR', 'MICRO',
                              'MICRO_ERR', 'COVAR', 'ELEM', 'ELEM_ERR', 'SNR_FR', 'CHISQ_TOT',
                              'FLAG_FR'])
 
@@ -1535,8 +1536,8 @@ def ferre_write_fits(outdict, infiles, setups, join_arms, units_str, param_file,
     if spec_file is not None:
 
         # Remove parameter columns for spec file
-        outdict.remove_columns(['TEFF','TEFF_ERR','LOGG','LOGG_ERR','FEH',
-                              'FEH_ERR','ALPHA','ALPHA_ERR','MICRO','MICRO_ERR',
+        outdict.remove_columns(['TEFF','TEFF_ERR','LOGG','LOGG_ERR','MH',
+                              'MH_ERR','ALPHA','ALPHA_ERR','MICRO','MICRO_ERR',
                               'COVAR','ELEM','ELEM_ERR','SNR_FR','CHISQ_TOT','FLAG_FR'])
 
         # Add any extra columns if necessary
