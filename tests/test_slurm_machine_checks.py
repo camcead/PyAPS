@@ -197,6 +197,20 @@ def test_laptop_profile_asks_little_to_begin_with(tmp_path, table):
     assert [r.cpus for r in res.values()] == [4, 4, 4, 4, 2, 1, 1] and all(r.adjustments == [] for r in res.values())
 
 
+def test_laptop_ifu_gal_is_clamped_to_the_machine_by_cpus_and_by_ram(tmp_path, table):
+    """IFU_Gal runs `mp` worker processes (patches side by side x bins): mp must never exceed the machine, and with little RAM the workers go down
+    (footprint 4 + 2 GB per worker). With mp = 1 the stage is the old serial loop."""
+    ctx = {"res": "LR", "stack_level": 1, "grid": "n"}
+    small = R(table, "LIFU", ctx, laptop(tmp_path / "a", cpus=8, total=16, avail=10), profile="laptop", hpc=1)       # 6 CPUs, 8 GB usable
+    assert small["IFU_Gal"].requested["cpus"] == 4 and small["IFU_Gal"].cpus == 2 and "workers fit" in small["IFU_Gal"].adjustments[-1]["reason"]
+    big = R(table, "LIFU", ctx, laptop(tmp_path / "b", cpus=8, total=64, avail=48), profile="laptop", hpc=1)
+    assert big["IFU_Gal"].cpus == 4 and big["IFU_Gal"].adjustments == []
+    old = R(table, "LIFU", ctx, laptop(tmp_path / "c", cpus=8, total=64, avail=48), profile="default", hpc=1)       # the legacy 20 CPUs: 6 usable
+    assert old["IFU_Gal"].requested["cpus"] == 20 and old["IFU_Gal"].cpus == 6
+    one = R(table, "LIFU", ctx, laptop(tmp_path / "d", cpus=2, total=16, avail=10), profile="laptop", hpc=1)        # 1 usable CPU: mp = 1
+    assert one["IFU_Gal"].cpus == 1 and one["IFU_ExGal"].cpus == 1
+
+
 def test_profile_word_site_takes_the_profile_of_the_site(tmp_path, table):
     res = R(table, "MOS", CTX_LR_SINGLE_N, laptop(tmp_path), profile="site", hpc=1)
     assert next(iter(res.values())).profile == "laptop" and "= site" in res.profile_source

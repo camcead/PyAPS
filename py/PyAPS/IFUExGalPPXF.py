@@ -531,14 +531,17 @@ def runModule_PPXF(nthreads, configs, velscale, LSF_Data, LSF_Templates, outdir,
         ExGalutil.prettyOutput_Running("Running PPXF in serial mode")
         logging.info("Running PPXF in serial mode")
         for i in range(0, nbins):
+            # the good pixels of THIS bin go to ppxf_goodpixels; the input list stays the one of the whole spectrum (the pool path below hands every bin
+            # the same input). Before 2026-11-13 the returned list replaced the input, so every bin started from the pixels the previous bin had kept
+            # and a bin with a noisy edge removed pixels from all the bins after it (the serial path gave other results than the pool path).
             ppxf_result[i,:configs['MOM']], ppxf_bestfit[i,:], optimal_template[i,:],\
-              mc_results[i,:configs['MOM']], formal_error[i,:configs['MOM']],goodpixels_ppxf = run_ppxf\
+              mc_results[i,:configs['MOM']], formal_error[i,:configs['MOM']],goodpixels_bin = run_ppxf\
                 (templates_lookup[i], bin_data[:,i], noise[:,i], velscale, start[i,:], goodpixels_ppxf,\
                 error_limit, configs['MOM'], configs['ADEG'], configs['MDEG'], offset, velscale_ratio,\
                 nsims, nbins,np.exp(logLam), np.exp(logLam_template), i)
 
             # given that size of ppxf_goodpixels could be different than other arrays here
-            ppxf_goodpixels[i,0:len(goodpixels_ppxf)] = goodpixels_ppxf
+            ppxf_goodpixels[i,0:len(goodpixels_bin)] = goodpixels_bin
         ExGalutil.prettyOutput_Done("Running PPXF in serial mode", progressbar=True)
 
     print("             Running PPXF on %s spectra took %.2fs using %i cores" % (nbins, time.time() - start_time, nthreads))

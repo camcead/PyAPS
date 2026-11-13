@@ -131,8 +131,8 @@ rehearsal on a development site (2026-11-05: the same pairs run with `default` a
 | LS | 2 / 2 | 6 GB | 30 min | 0.5-1.0 core, 1-3 min; PSS 1-2.4 GB (3.5 GB at most in the audit) |
 | L2merge | 1 / 1 | 8 / 12 GB | 15 min | 0.3-0.5 core, under 1 min; **a 41 s peak that the 10 s samples missed**: killed at 4 GB and 6 GB (HR, cgroup enforcement on a private SLURM), passed at 8 GB with 5.6 GB MaxRSS |
 | IFU_PR | 3 / 3 | 24 / 36 GB | 6 h | 1.1-1.2 busy cores in 3 OBs (6 or 12 CPUs gave the same times); PSS peak 13-17 GB, 27 GB for a heavy HR cube |
-| IFU_ExGal | 40 / 40 | 48 / 80 GB (80 / 128 GB until 2026-11-06) | 10 h | up to 40 busy cores, 13 on a small cube (run 10 min); PSS 18 GB (the sum of the workers' RSS is 212 GB: shared pages counted per process) |
-| IFU_Gal | 4 / 4 (`v2_openmp`: 4 / 4) | 48 / 96 GB (32 / 64 GB from 2026-11-06 to 2026-11-13) | 16 h / 24 h | since 2026-11-13 `mp` spatial bins run side by side (`aps_ifu_ferre.run_bins`), each with its own single-thread `ferre.x`; before that the stage was serial (1.0-1.3 busy cores, 4.3 at most): OB 14699 of 2026-03-15, 44 patches, ~1300 bins, needed ~64 h at 3 min per bin on the -O0 `ferre.x` and timed out. The `ferre.x` is the -O2 build of upstream f50a006 (2.9 times faster per run, identical output). Re-measure after the first nights |
+| IFU_ExGal | 24 / 24 | 96 / 160 GB (48 / 80 GB until 2026-11-13) | 10 h | `mp` is shared by patches that run side by side and the pool inside each patch (section 13); one patch lane peaks at 12-13 GB PSS, so 96 GB = 7 lanes; before 2026-11-13 up to 40 busy cores for a patch with very many bins, 2-4 on most OBs |
+| IFU_Gal | 10 / 10 (`v2_openmp`: the same) | 48 / 48 GB (32 / 64 GB from 2026-11-06 to 2026-11-13) | 16 h / 24 h | **one `ferre.x` process per grid: 9 grids + 1 = 10 CPUs**; `mp` is shared by patches that run side by side and the bins inside each patch (section 13). Measured on OB 14699 (HR, -O2 `ferre.x`): 65 s per bin and worker, 30-40 s per patch; PSS 13 GB with 4 patches side by side, 20 GB with 10. The reduction to 2 CPUs of 2026-11-06 was a misreading of the serial code |
 | mini IFU, CS | as `default` | LIFU memory; FESWI 128 GB | | no mini IFU job exists on either site and no CS job has run on SLURM: unmeasured |
 
 Rules that were dropped: "HR doubles every CPU count" (only RR and RVS have an HR row, the others use the same cores in HR), "single exposure
@@ -146,7 +146,7 @@ a request that is too large costs queue time, one that is too small costs nothin
 is killed and retried once with 1.5 x (section 6).
 
 Profiles: `default` (the old values, the reference of the golden test), `v2` (this table), `v2_openmp` (`v2` with FR at 18 CPUs for a site whose
-`ferre.x` is built with OpenMP: two threads for each of the 9 grids). The rehearsal values and what was not measured are in the operator
+`ferre.x` is built with OpenMP: two threads for each of the 9 grids; IFU_Gal is the same as in `v2`, section 13). The rehearsal values and what was not measured are in the operator
 document of the private repository (`doc/ops/SLURM_RESOURCES_REHEARSAL_20261105.md`).
 
 ## 8. Static plot images are off by default (since 2026-11-04)
@@ -227,11 +227,11 @@ A bash run (`--hpc 1`, `aps-offline --no-slurm`) executes the stages one after t
 machine's: `cpu_fraction` (site `local`: 75 %) of the CPUs it may use, divided by `--parallel_jobs` (several runs on one machine must not each
 start 16 CPUs), and `mem_fraction` (80 %) of the RAM that is available now, divided the same way. A stage asking for more CPUs gets the share (with
 `clamp`); a stage whose workers do not fit in the RAM gets **fewer workers** until they do, from the measured footprints of the table section
-`footprint` (`base_gb + per_cpu_gb x CPUs`, worst measured PSS: RVS 1 + 4 GB per worker, IFU_Gal 4 + 8 GB per worker, RR 2 + 1 GB per worker; the
+`footprint` (`base_gb + per_cpu_gb x CPUs`, worst measured PSS: RVS 1 + 4 GB per worker, IFU_Gal 4 + 2 GB per worker, IFU_ExGal 14 + 0.4 GB per worker (a patch lane peaks at 12-13 GB and more lanes only start while the memory allows), RR 2 + 1 GB per worker; the
 fine FERRE grids 55 / 85 GB). The `mem_gb` of a row is a SLURM scheduling token that nothing enforces in a bash run, so it is not compared; a stage
 without a footprint estimate is compared with its `mem_gb`. A stage that cannot fit even with one worker is reported (`error`: refused only if the
 machine does not have that RAM at all). Not measured on a laptop: the footprints are those of the cluster runs, the `laptop` profile
-(4 CPUs for RR/RVS/FR/PPXF, 2 for EMI, 1 for LS and L2merge, IFU_ExGal 6) is a starting point.
+(4 CPUs for RR/RVS/FR/PPXF, 2 for EMI, 1 for LS and L2merge, IFU_Gal 4, IFU_ExGal 6) is a starting point.
 
 ### 9.5 Operator commands (read only)
 
@@ -404,7 +404,7 @@ The non-completed jobs are not in the table: 285 FAILED (46 chains on 2026-10-07
 | **26133, after the fix (22e3363bdccf)** | **4 / 7** | **13.4 min** | **8.6 min, 2.8 busy** | **39 min, 1.05 busy** | 11 patches instead of 226 |
 | 25921 (night 20261030) | 4 / 5 | 11.9 | 11.1 min, 1.6 busy | 10.7 min | |
 
-Findings: IFU_Gal is serial (1.00-1.23 busy cores in all 8 jobs, 1.0-1.3 in 98 production jobs; 1.8-23 min per patch product, so the longest production run, 696 min, and a field with many real patches justify the 16 h limit), its MaxRSS is 4.9-10.9 GB with 4 CPUs; IFU_ExGal processes the patches one after the other and parallelises the bins inside a patch, so it used 1-4 busy cores on these observations although 40 were asked (before 2026-11-04 it used up to 42 on the production pod, with the plot images on and on other fields), MaxRSS-sum 107-513 GB (PSS 14-20 GB); IFU_PR 1.2-1.3 busy cores, MaxRSS 11-15 GB. Only OB 26133 has run since the seg2d fix (n = 1), so the effect of the fix on run times rests on that observation and on the per-patch costs above.
+**Superseded for IFU_Gal and IFU_ExGal by section 13 (2026-11-13).** Findings of 2026-11-06: IFU_Gal is serial (1.00-1.23 busy cores in all 8 jobs, 1.0-1.3 in 98 production jobs; 1.8-23 min per patch product, so the longest production run, 696 min, and a field with many real patches justify the 16 h limit), its MaxRSS is 4.9-10.9 GB with 4 CPUs; IFU_ExGal processes the patches one after the other and parallelises the bins inside a patch, so it used 1-4 busy cores on these observations although 40 were asked (before 2026-11-04 it used up to 42 on the production pod, with the plot images on and on other fields), MaxRSS-sum 107-513 GB (PSS 14-20 GB); IFU_PR 1.2-1.3 busy cores, MaxRSS 11-15 GB. Only OB 26133 has run since the seg2d fix (n = 1), so the effect of the fix on run times rests on that observation and on the per-patch costs above.
 
 **What changed in `v2`** (the `default` profile is untouched, the golden tests are unchanged):
 
@@ -435,3 +435,73 @@ Job rows give Elapsed and TotalCPU; the `.batch` step carries MaxRSS (take the l
 
 **The machine check names its profile.** The first lines of every stage log now read `PyAPS machine check: policy=clamp site=imperial target=slurm profile=v2 asked ...`, so the profile the check was made under is visible next to the policy. `aps_runner.slurm_time_arg` (compatibility wrapper for old callers) took the profile `default` whatever the pod's DMS config said; it now uses the same resolution as every other consumer (section 11).
 
+
+## 13. IFU_Gal and IFU_ExGal: patches side by side (2026-11-13)
+
+### 13.1 What changed in the code
+
+Both stages used to work on one patch after another (IFU_Gal: and inside a patch one bin after another, 9 grids one after another: 1.0-1.3 busy cores; OB 14699 of
+2026-03-15, 44 patches, 582 bins: 15 patches in 24 h on the -O0 `ferre.x`, TIMEOUT). The patches of a table are independent (every patch writes its own
+`<headname>_PNNNN` files and work directory), so both now run several at the same time, with one shared driver (`py/PyAPS/aps_ifu_patch_pool.py`):
+
+* The CPU budget `mp` of the job (`--mp_Gal` / `--mp_ExGal` = the CPUs of the sbatch line) is split into **lanes**. A lane is one process that takes patches from a queue and gives each patch `capacity` inner workers (IFU_Gal: RVS pool and FERRE bins at a time, one single-thread `ferre.x` per bin and grid; IFU_ExGal: the PPXF / EMIPPXF / LS pool). The capacities add up to at most `mp`: **never more worker processes than the job has CPUs**, and the pool of a patch is not counted a second time.
+* `--patch_workers` (script_params `IFU_patch_workers`): `0` / not given = automatic, `1` = one patch after the other in table order with `mp` workers inside (the behaviour before this change), `N` = N lanes (at most `mp`). With `mp = 1` every setting is the old serial loop, run in the same process.
+* Automatic: the stage simulates one lane of `mp` and 2 .. min(patches, `mp`, memory room) lanes from the estimated bins of every patch (area of the aperture: 0.19 bins per arcsec^2, at least 2) and takes the fewest lanes within 5 % of the shortest estimated wall time; many small patches use one lane per CPU, a few big patches use few lanes with several workers each. IFU_ExGal lanes get at least 2 workers each (the PPXF / EMIPPXF / LS modules have a pool path, the one that always ran in production, and a serial path for one worker that is separate code).
+* Patches start **largest first** (longest processing time first): the sizes are very uneven (OB 14699: 91, 58, 54, 52, 32, 37, 32, 27, 21, 22, 19, 16, 14, 11, 9 bins, then 29 single stars of 2-4 bins), so the small ones fill the gaps.
+* **Memory caps the lanes**: a lane holds the aperture of its patch (IFU_Gal about 2.5 GB, IFU_ExGal 12 GB at its peak while it reads and bins), so the number of lanes is at most 90 % of the memory of the job (`SLURM_MEM_PER_NODE`, the cgroup limit or the free RAM, the smallest) divided by that; the CPUs no lane can use go to the workers inside the lanes. An explicit `--patch_workers N` above the room is kept and warned about.
+* The plan is printed (`INFO: IFU_Gal patch plan: 44 patches on 7 lane(s) with 2+2+2+1+1+1+1 inner worker(s) ...`); lines a lane prints start with `[P0014] `; every patch ends with `INFO: GAL patch id=14: written in 412 s`.
+* A patch that fails (an exception, `sys.exit`, a worker killed for memory) is reported failed and the others go on. The parent adds the answers up in table order: `<headname>_<stage>_patches.json`, the `IFU_PATCH_SUMMARY` line and the exit rule (fail when at least 10 patches were attempted and none was written, or when every patch failed) are as before and do not depend on the order of completion.
+* Nothing is shared between patches: every file name carries the patch id (checked on 10 patches in one directory: the only files without it are the stage summary JSON, written by the parent, and the `figs_Gal` directory); the cube is read per patch as before but only the spaxels of the aperture are kept (8 GB of file pages are shared by all lanes); the `fr_wd_*` FERRE work directories are per patch.
+* The Monte-Carlo errors of PPXF and the line-strength MCMC are random; every lane starts from a fresh random state (workers forked from one parent used to share one). `PYAPS_PATCH_SEED=<n>` seeds numpy with n + patch id at the start of each IFU_ExGal patch, for comparing runs (reproducible only with `mp` 1: the workers of a pool all inherit the same state and take bins in the order of their timing).
+* Two latent faults of the serial path of the EMIPPXF stellar re-fit were found by the equivalence run and fixed (they could not show in production because a pool of 40 never takes that path): `ExGalutil.prettyOutput_Error` did not exist (the error handler itself raised `AttributeError` and failed the patch) and the pPXF bounds were not validated as in the pool path.
+
+### 13.2 Sizing rule
+
+**CPUs = the number of worker processes the stage can keep busy; every CPU of the request is one worker.** Not the busy cores of the previous code: the 2026-11-06 re-measurement read 1.0-1.3 busy cores in IFU_Gal and cut the request from 4 to 2 CPUs, but that was the serial code (one patch, one bin, one grid at a time) and not the size of the job. The design of the stage is **one `ferre.x` process per grid**: 9 grids per bin + the python process = **10 CPUs** (the MOS FR stage asks 9 for the same reason: `aps_ferre.py` runs a thread pool over the 9 grids). The 20 CPUs of the legacy values (LIFU; 10 for the mini IFU) and the 30-40 of IFU_ExGal are now spent as lanes and workers, no more than that.
+
+| | IFU_Gal | IFU_ExGal |
+|---|---|---|
+| `v2` CPUs | **10** (4 on 2026-11-13 morning, 2 from 2026-11-06) | **24** (40 before) |
+| memory | 48 GB (HR the same): footprint 4 + 2 GB per worker = 24 GB at 10 CPUs, measured peak 20 GB | 96 GB (HR 160): 7 lanes of 12 GB, footprint at least 14 + 0.4 GB per worker |
+| time | 16 h (HR 24 h), unchanged: the longest known field needs about 3 h at 10 CPUs and the limit only has to catch a hung job | 10 h, unchanged (longest completed run 374 min with 1-4 busy cores) |
+| `v2_openmp` | same as `v2`: `mknml_ifu` starts every `ferre.x` with NTHREADS=1 and wall times with NTHREADS 1, 2 and 4 were identical on single-object bins, so OpenMP threads do not help | same as `v2` |
+| `laptop` | 4 CPUs, 48 GB token (the limits policy `clamp` lowers it to the machine and its RAM) | 6 CPUs |
+| `default` (legacy) | 20 CPUs LIFU / 10 MIFU, HR doubled, no memory request: untouched (golden); the lanes follow the memory SLURM gives (1 GB per CPU) | 30 / 10 CPUs, 240 GB LIFU: untouched |
+| MIFU `v2` | 10 CPUs (20 in HR by the old rule), 72 GB, unmeasured | 10 CPUs, 80 GB, unmeasured |
+
+### 13.3 Measurements (Imperial pod, 2026-11-13, nice 10, the pod busy with other jobs)
+
+IFU_Gal, OB 14699 night 20260315 (LIFU HR, patches of the first 15 and single stars), `ferre.x` -O2 build:
+
+* cost: 62-65 s per bin and worker serial (RVS 1-3 s, 9 grids 6-8 s each), 30-40 s per patch to read and bin the aperture (maximum RSS 8.2 GB, mostly the file pages of the two 4 GB cubes);
+* patches 14, 15, 43, 44 (11 + 9 + 1 + 1 bins): 26 min with `mp` 1; patches 13, 14, 15, 43, 44 on 8 CPUs (4 lanes of 2): 8.2 min (the 14-bin patch 492 s); 10 patches of 1-4 bins on 10 CPUs (10 lanes): 5.1 min;
+* PSS: 13.2 GB with 4 lanes (8 CPUs), 19.6 GB with 10 lanes (10 CPUs): about 2 GB per worker process; the 36 GB of the old audit were 20 RVS workers;
+* the whole OB (582 bins estimated, 44 patches) by the plan: 68 bin-times on 10 CPUs, about 75 min (ideal 58 bin-times); one lane of 10 workers would take 131 bin-times; serial on the -O0 build it was 29 h.
+
+IFU_ExGal, OB 26140 (LIFU LR, patches 3, 11, 14, 15, galaxies of z 0.09-1.2, PPXF + EMIPPXF + LS):
+
+* 4 lanes of 2 workers on 8 CPUs: 8.1 min wall (patches 141, 475, 186, 240 s); peak PSS 48.8 GB in the first minute, while the four lanes read and bin their apertures (14.6 GB RSS in the largest process), 8 GB after 90 s, 1.6 GB at the end; with 4 lanes of 1 worker 51.5 GB. That is 12-13 GB per lane: the number of lanes is capped by the memory (`lane_cap`).
+
+### 13.4 Equivalence of the results
+
+The products of the patches are the same as before. Compared column by column (every table of every FITS product of the patch, the merged `*_APS.fits` included; maximum absolute and relative difference of every numeric column, NaN pattern, strings):
+
+* IFU_Gal: the serial run of the old code (-O0 `ferre.x`, the 24 h run of 2026-11-12/13) against the new code with `mp` 8 (lanes) for patches 13 and 14: **0 differing columns** in `ferre_`, `ferre_spec_`, `rvs_`, `rvsspec_`, `BINSpectra_linear`, `_table` and the three tables of `_APS.fits` (max abs difference 0, rel 0; the files differ only in header keywords such as the work path). New serial (`mp` 1, `--patch_workers 1`) against new lanes (`mp` 8 and `mp` 10) for patches 14, 15, 43 and 44: **0 differing columns**; patch 15 of the old run has RVS only (its FERRE was cut by the timeout) and its RVS table is identical.
+* IFU_ExGal: the production run of 2026-11-07 (old code, pool of 40) against the new code with 4 lanes of 2 workers for patches 11 and 14: every column that is not an error column of a Monte-Carlo fit is identical (bit for bit); the `ERR_*` columns of PPXF, EMIPPXF and LS (Monte-Carlo and MCMC: random) differ, as they do between two runs of the old code.
+
+### 13.5 Standalone: a workstation
+
+```
+python aps_ifu_Gal.py ... --mp_Gal 8                       # up to 8 worker processes: patches side by side x bins inside a patch; the plan is printed
+python aps_ifu_Gal.py ... --mp_Gal 8 --patch_workers 1     # the old behaviour with 8 bins at a time
+python aps_ifu_Gal.py ... --mp_Gal 1                       # the plain serial loop (the default of the stage scripts)
+aps_runner.py ... --slurm_profile laptop                   # CPUs 4 (IFU_Gal) / 6 (IFU_ExGal), clamped to the machine (75 % of the usable CPUs, 80 % of the RAM)
+```
+
+Export `OMP_NUM_THREADS=1` (the generated scripts do). `ferre.x` must be the upstream build f50a006 or later ([externals/README.md](../externals/README.md)): `python tools/check_env.py` warns when it does not link libgomp, the signature of the -O0 build (3 times slower). `mp` is never above the machine: the `local` site clamps CPUs to a share of the machine and the workers to what the RAM holds (footprint 4 + 2 GB per IFU_Gal worker), and the lanes follow the free RAM.
+
+### 13.6 Risks and what to watch
+
+* The memory of IFU_ExGal lanes (12-13 GB at the peak of the first minute, measured on one LR observation; HR 160 GB is a scale-up, not measured). The lane cap protects a run whose job asked for less memory, and the first nights give the numbers: `sacct` MaxRSS of IFU_ExGal and the `INFO: IFU_ExGal patch plan` line of the log.
+* The run time estimates use a bins-per-area ratio taken from one observation; a wrong ratio only costs wall time (the order of the patches), never a result.
+* IFU_Gal at 10 CPUs holds 10 of the pod's 90 cores per observation for about 1-2 hours (24 h before for the big fields); 2 or 3 observations at a time fill a node.

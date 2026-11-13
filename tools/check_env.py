@@ -16,7 +16,9 @@ what ``pip install ".[pipeline]"`` installs):
   * every package those depend on is installed too (what ``pip check`` reports), including the transitive ones;
   * the key modules really import (a wheel can be installed and still be broken);
   * versions that differ from the frozen set ``requirements-lock-*.txt`` are listed as warnings (never an error);
-  * a Chrome for kaleido (plot images) is present; if not, a warning says to run ``plotly_get_chrome -y``.
+  * a Chrome for kaleido (plot images) is present; if not, a warning says to run ``plotly_get_chrome -y``;
+  * the FERRE executable (``FERRE_EXE`` or ``externals/ferre/bin/ferre.x``), when there is one: a warning when it does not link the OpenMP
+    runtime (libgomp), the signature of the slow -O0 build of upstream commits 60be172..0e05a6a (build f50a006 or later, externals/README.md).
 
 Exit status 0 only when nothing is missing or broken. Standard library only (``packaging`` is used when present). Prints package
 names and versions only.
@@ -67,6 +69,38 @@ def chrome_for_kaleido():
         if found:
             return found
     return None
+
+
+def ferre_executable():
+    """Path of the FERRE executable this checkout would use (env FERRE_EXE, else externals/ferre/bin/ferre.x), or None."""
+    import os
+    cand = [os.environ.get("FERRE_EXE"), str(ROOT / "externals" / "ferre" / "bin" / "ferre.x")]
+    for c in cand:
+        if c and Path(os.path.expandvars(c)).is_file():
+            return str(Path(os.path.expandvars(c)))
+    return None
+
+
+def ferre_links_openmp(path: str):
+    """True / False: does the ELF binary list libgomp among its needed libraries (a string of its dynamic section); None when it cannot be read."""
+    try:
+        with open(path, "rb") as fh:
+            data = fh.read()
+    except OSError:
+        return None
+    if not data.startswith(b"\x7fELF"):
+        return None
+    return b"libgomp" in data
+
+
+def ferre_findings() -> list[str]:
+    exe = ferre_executable()
+    if exe is None:
+        return []
+    if ferre_links_openmp(exe) is False:
+        return [f"FERRE     {exe} does not link libgomp: this is the signature of the slow -O0 build (upstream commits 60be172..0e05a6a, about 3 times "
+                "slower per run); IFU_Gal needs FERRE f50a006 or later, see externals/README.md"]
+    return []
 
 
 try:                                         # optional: exact version and marker handling
@@ -263,6 +297,7 @@ def main(argv: list[str]) -> int:
                         "run `plotly_get_chrome -y` in this environment")
 
     if args.profile in ("pipeline", "all"):
+        warnings += ferre_findings()
         tw, tp = templates_findings()
         warnings += tw
         problems += tp
