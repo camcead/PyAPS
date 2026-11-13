@@ -76,3 +76,29 @@ def test_every_bin_and_grid_has_its_own_control_file(tmp_path, monkeypatch):
     assert len(names) == len(set(names)) == 6 * len(grids)
     assert not any(n.startswith('input.nml') for n in names)
     assert sorted(os.listdir(work)) == sorted(set(os.listdir(work)))
+
+
+def _fake_ferre(tmp_path, write_output):
+    exe = tmp_path / 'fake_ferre.sh'
+    out = 'touch "${1%%.nml*}.opf${1##*.nml}"\n' if write_output else ''
+    exe.write_text('#!/bin/sh\n' + out +
+                   'echo "Note: The following floating-point exceptions are signalling: IEEE_UNDERFLOW_FLAG" >&2\nexit 1\n')
+    exe.chmod(0o755)
+    return str(exe)
+
+
+def test_worker_sees_the_output_of_a_per_bin_control_file(tmp_path, capsys):
+    """FERRE ends with exit 1 and the IEEE note on stderr although it fitted the bin: with the
+    per-bin name (<pixel>.nml<grid>) that is a success when <pixel>.opf<grid> is there, and a
+    failure (naming the bin) when it is not."""
+    from PyAPS import aps_ferre
+    work = tmp_path / 'wd'
+    work.mkdir()
+    (work / 'bin0001.nml2').write_text('x')
+    (work / 'bin0002.opf2').write_text('x')          # the file of ANOTHER bin must not count
+    ok = aps_ferre.ferre_exe_worker([str(work / 'bin0001.nml2'), _fake_ferre(tmp_path, True), False])
+    assert ok[0] is True
+    assert 'FERRE failed' not in capsys.readouterr().out
+    os.remove(work / 'bin0001.opf2')
+    bad = aps_ferre.ferre_exe_worker([str(work / 'bin0001.nml2'), _fake_ferre(tmp_path, False), False])
+    assert bad[0] is False and 'bin0001.nml2' in bad[2]
