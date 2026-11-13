@@ -278,13 +278,13 @@ profiles:
           cases:
             - {when: {res: HR}, mem_gb: 80}
         IFU_Gal:
-          cpus: 2
-          mem_gb: 32
+          cpus: 4
+          mem_gb: 48
           time: "0-16:00:00"
           status: measured
-          note: "2026-11-06 re-measurement (doc section 12): cpus 4 -> 2 (1.0-1.3 busy cores in 98 production jobs, 1.03-1.23 in the 8 jobs of 2026-11-05/06), memory 48 -> 32 GB (HR 96 -> 64; MaxRSS, which overstates the footprint, was 4.9-10.9 GB at 4 CPUs), time unchanged (longest production run 696 min; 1.8-23 min per patch). Earlier: serial on the single-thread ferre.x of the production pod (1.0-1.3 busy cores p50/p90, 4.3 at most, 91 jobs); on the OpenMP ferre.x of the dev pod a small OB used 7 cores for 4 min against 1.8 cores for 12 min with 2 CPUs; run 518 min LR / 696 min HR. PSS peak 36 GB (LR, 20 workers; 6 GB with 2 workers in the dev rehearsal, 5-6 GB for three OBs), 20 GB HR with 40 workers (5 GB with 2): the footprint grows with the workers, so 4 CPUs need less than the 20 or 40 the audit measured"
+          note: "2026-11-13: cpus 2 -> 4, memory 32 -> 48 GB (HR 64 -> 96), time unchanged. The 4 CPUs are now used: ifu_Gal runs `mp` spatial bins of a patch at the same time (aps_ifu_ferre.run_bins), each with its own single-thread ferre.x; until now the 9 grids of a bin and the bins ran one after the other (3 minutes per bin on the -O0 ferre.x, 486 bins in 24 h on OB 14699 night 20260315: TIMEOUT with 15 of 44 patches). The production ferre.x is the -O2 build of upstream f50a006 since 2026-11-13 (2.9 times faster per run, identical output). Earlier (2026-11-06): cpus 4 -> 2 because only 1.0-1.3 cores were busy, which was the serial code, not a too large request. 2026-11-06 re-measurement (doc section 12): cpus 4 -> 2 (1.0-1.3 busy cores in 98 production jobs, 1.03-1.23 in the 8 jobs of 2026-11-05/06), memory 48 -> 32 GB (HR 96 -> 64; MaxRSS, which overstates the footprint, was 4.9-10.9 GB at 4 CPUs), time unchanged (longest production run 696 min; 1.8-23 min per patch). Earlier: serial on the single-thread ferre.x of the production pod (1.0-1.3 busy cores p50/p90, 4.3 at most, 91 jobs); on the OpenMP ferre.x of the dev pod a small OB used 7 cores for 4 min against 1.8 cores for 12 min with 2 CPUs; run 518 min LR / 696 min HR. PSS peak 36 GB (LR, 20 workers; 6 GB with 2 workers in the dev rehearsal, 5-6 GB for three OBs), 20 GB HR with 40 workers (5 GB with 2): the footprint grows with the workers, so 4 CPUs need less than the 20 or 40 the audit measured"
           cases:
-            - {when: {res: HR}, mem_gb: 64, time: {set: "1-00:00:00"}}
+            - {when: {res: HR}, mem_gb: 96, time: {set: "1-00:00:00"}}
 
     MIFU:
       common:
@@ -328,12 +328,12 @@ profiles:
       stages:
         IFU_Gal:
           cpus: 4
-          mem_gb: 32
+          mem_gb: 48
           time: "0-16:00:00"
           status: unmeasured
           note: "keeps 4 CPUs (v2 has 2): on an OpenMP ferre.x the CPUs are FERRE threads, and the one rehearsal on such a build used 7 cores for 4 min against 1.8 cores for 12 min with 2 CPUs. The production accounting of the OpenMP site (72 jobs, 20-40 CPUs asked) shows 1.0-1.4 busy cores in 70 of them, but nothing has run with this profile yet. Memory as v2"
           cases:
-            - {when: {res: HR}, mem_gb: 64, time: {set: "1-00:00:00"}}
+            - {when: {res: HR}, mem_gb: 96, time: {set: "1-00:00:00"}}
 
   laptop:
     description: >

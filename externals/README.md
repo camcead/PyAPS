@@ -18,6 +18,10 @@ cd <PYAPS_DIR>/externals/ferre/src
 make
 ```
 
+Use upstream commit f50a006 (2026-10-21) or later. The commits 60be172 .. 0e05a6a (July to October 2026) carry `OPT = -O0` in `src/makefile` (an accident, reverted
+upstream in be05232): a `ferre.x` built from them is about 3 times slower and has no OpenMP. Check that the makefile says `OPT = -O2 -fopenmp -ftree-vectorize` and that the
+binary links the OpenMP runtime: `ldd bin/ferre.x | grep gomp` must print a line.
+
 Check the build:
 
 ```bash
