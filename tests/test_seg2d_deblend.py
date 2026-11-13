@@ -291,6 +291,7 @@ def new_seg2d(tmp_path, white, mode, max_targets=150):
     o.headname, o.outpath = "HEAD", str(tmp_path)
     o.figdir = tmp_path
     o.deblend_mode = mode
+    o.deblend_params = {}
     o.seg2d_summary = {}
     return o
 
@@ -448,3 +449,35 @@ def test_ob14699_globular_cluster_blends_are_split(tmp_path):
     bins = lambda ob: float((np.pi / 4 * (0.5 * ob["a"] * 8 * px) * (0.5 * ob["b"] * 8 * px) / 4).sum())
     assert bins(o.objects) < 0.9 * bins(ref_objects)
     segcheck(o.objects, o.segmap)
+
+
+# ----------------------------------------------------------------------------------------------------------------
+# thresholds of the auto mode can be set from the configuration (seg2d_deblend_params)
+# ----------------------------------------------------------------------------------------------------------------
+def test_parse_params_reads_overrides_and_rejects_typos():
+    from PyAPS import aps_ifu_deblend as D
+    assert D.parse_params(None) == D.parse_params("") == D.parse_params("none") == {}
+    got = D.parse_params("gate_min_compact=8, min_separation=1.2;fine_nthresh=32")
+    assert got == {"gate_min_compact": 8, "min_separation": 1.2, "fine_nthresh": 32}
+    assert isinstance(got["gate_min_compact"], int) and isinstance(got["min_separation"], float)
+    assert D.parse_params({"child_min_flux_frac": 0.1}) == {"child_min_flux_frac": 0.1}
+    for bad in ("gate_min_compct=8", "gate_min_compact", "gate_min_compact=x", "gate_min_compact=nan"):
+        with pytest.raises(ValueError):
+            D.parse_params(bad)
+
+
+def test_a_bad_override_stops_the_stage_before_any_work():
+    from PyAPS import aps_ifu_deblend as D
+    objs = np.zeros(0, dtype=[("x", float)])
+    # an empty detection list returns at once, but the overrides are validated before anything else
+    with pytest.raises(ValueError):
+        D.auto_deblend(np.zeros((4, 4)), objs, np.zeros((4, 4), int), ext_thresh=2.5, minarea=1, err=1.0,
+                       mask=np.zeros((4, 4), bool), pixscale_arcsec=0.5, params="nonsense=1")
+
+
+def test_flag_runner_and_config_carry_the_params():
+    prep = (ROOT / "py/PyAPS/aps_ifu_prepare.py").read_text()
+    assert '"--seg2d_deblend_params"' in prep and "seg2d_deblend_params=args.seg2d_deblend_params" in prep
+    assert "deblend_params=seg2d_deblend_params" in prep
+    runner = (ROOT / "py/PyAPS/aps_runner.py").read_text()
+    assert "'seg2d_deblend_params', 'none'" in runner and "' --seg2d_deblend_params '" in runner

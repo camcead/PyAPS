@@ -169,6 +169,8 @@ seg2d_minarea: '300'
 seg2d_deblend_nthresh: '4'
 # fixed = sep deblending only; auto = also split blends of point sources in a crowded field (doc/aps_ifu_seg2d_robust.md, section 7)
 seg2d_deblend_mode: 'auto'
+# thresholds of the auto mode that differ from the defaults, name=value,name=value (no spaces); 'none' = all defaults (doc section 7.3a)
+seg2d_deblend_params: 'none'
 seg2d_radii_factor: '8.0'
 # seg3d: optional 3D matched-filter emission-line detection, additive to seg2d
 # (see doc/aps_ifu_prepare.md). Both default False -- 2D SExtractor remains the

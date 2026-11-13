@@ -83,6 +83,41 @@ def parse_mode(value, default="auto"):
     return v
 
 
+def parse_params(value):
+    """Overrides of AUTO_PARAMS from 'name=value,name=value' (or a dict). None, '' or 'none' give {}.
+    An unknown name or a value that is not a number is an error, not a silent default (a typo must not
+    leave the old threshold in force without anyone noticing). Values keep the type of the default."""
+    if value is None:
+        return {}
+    if isinstance(value, dict):
+        items = list(value.items())
+    else:
+        text = str(value).strip()
+        if text == "" or text.lower() in ("none", "null"):
+            return {}
+        items = []
+        for part in text.replace(";", ",").split(","):
+            part = part.strip()
+            if not part:
+                continue
+            if "=" not in part:
+                raise ValueError("seg2d_deblend_params: expected name=value, got %r" % part)
+            k, v = part.split("=", 1)
+            items.append((k.strip(), v.strip()))
+    out = {}
+    for k, v in items:
+        if k not in AUTO_PARAMS:
+            raise ValueError("seg2d_deblend_params: unknown parameter %r (known: %s)" % (k, ", ".join(sorted(AUTO_PARAMS))))
+        try:
+            f = float(v)
+        except (TypeError, ValueError):
+            raise ValueError("seg2d_deblend_params: %s must be a number, got %r" % (k, v))
+        if not np.isfinite(f):
+            raise ValueError("seg2d_deblend_params: %s must be finite, got %r" % (k, v))
+        out[k] = int(round(f)) if isinstance(AUTO_PARAMS[k], int) else f
+    return out
+
+
 def filtered(data):
     """The image as sep.extract filters it for detection and moments (default kernel, zero padded)."""
     return ndimage.convolve(np.asarray(data, dtype=float), _KERNEL, mode="constant", cval=0.0)
@@ -304,8 +339,8 @@ def auto_deblend(data, objects, segmap, *, ext_thresh, minarea, err, mask, pixsc
     `info` is JSON-ready: gate, counts and the list of splits. `diag`: an optional list that receives one
     dict per parent with two or more fine children (the numbers behind the decision, for validation)."""
     p = dict(AUTO_PARAMS)
-    p.update(params or {})
-    info = dict(mode="auto", gate_passed=False, n_compact=0, gate_min_compact=int(p["gate_min_compact"]),
+    p.update(parse_params(params))
+    info = dict(mode="auto", params_overridden=parse_params(params), gate_passed=False, n_compact=0, gate_min_compact=int(p["gate_min_compact"]),
                 psf_size_px=None, psf_size_arcsec=None, n_parents=int(len(objects)), n_parents_candidates=0,
                 n_parents_split=0, n_children=0, n_skipped_by_cap=0, n_rejected=dict(), splits=[])
     if len(objects) == 0:
