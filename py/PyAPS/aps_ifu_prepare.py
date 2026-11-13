@@ -544,7 +544,7 @@ def getimages(ra, dec, size=240, filters="giryz"):
 #############################################################
 class ifu_seg2d ():
 
-    def __init__(self, infiles, headname, outpath, white_images = None, white_src = 'PS1', search_gaia=True, extract = True, mask_stars = True, ext_thresh =2.5, minarea =400 , deblend_nthresh=4, radii_factor=7.0, class_ntop=3, max_targets=150, deblend_mode='auto'):
+    def __init__(self, infiles, headname, outpath, white_images = None, white_src = 'PS1', search_gaia=True, extract = True, mask_stars = True, ext_thresh =2.5, minarea =400 , deblend_nthresh=4, radii_factor=7.0, class_ntop=3, max_targets=150, deblend_mode='auto', deblend_params=None):
 
 
         self.gaia_parallax_over_error = 1.0
@@ -558,6 +558,7 @@ class ifu_seg2d ():
         # 'fixed' = sep.extract with deblend_nthresh as before; 'auto' = the same, then crowd-adaptive splitting of
         # blends of point sources (aps_ifu_deblend, doc/aps_ifu_seg2d_robust.md section 7)
         self.deblend_mode = aps_ifu_deblend.parse_mode(deblend_mode)
+        self.deblend_params = aps_ifu_deblend.parse_params(deblend_params)    # overrides of the `auto` thresholds (an error here stops the stage at once)
         self.radii_factor = radii_factor
         # safety cap on the number of 2D detections kept (0/None = off); see object_extract
         self.max_targets = max_targets
@@ -896,7 +897,8 @@ class ifu_seg2d ():
                 objects, segmap, deblend_info = aps_ifu_deblend.auto_deblend(
                     extc_data_ext, objects, segmap, ext_thresh=ext_thresh, minarea=minarea, err=extc_rms,
                     mask=extc_mask_bool, pixscale_arcsec=pxsc_arcsec,
-                    max_total=int(self.max_targets) if self.max_targets else None, radii_factor=self.radii_factor)
+                    max_total=int(self.max_targets) if self.max_targets else None, radii_factor=self.radii_factor,
+                    params=getattr(self, "deblend_params", None))
                 print("seg2d deblend auto: %s; %d parents, %d split into %d children (%d compact detections, gate %d, "
                       "PSF %.1f arcsec)" % ("crowded field" if deblend_info['gate_passed'] else "not a crowded field, nothing split",
                                             n_parents, deblend_info['n_parents_split'], deblend_info['n_children'],
@@ -1443,6 +1445,7 @@ def ifu_worker_prepare(
     seg2d_radii_factor=8.0,
     seg2d_max_targets=150,
     seg2d_deblend_mode="auto",
+    seg2d_deblend_params=None,
     # --- seg3d: optional 3D matched-filter emission-line detection ---
     # (see aps_ifu_seg3d.py module docstring). Opt-in, additive: never
     # touches patch_file/patch_table/classification. Runs independently of
@@ -1717,6 +1720,7 @@ def ifu_worker_prepare(
             class_ntop=class_ntop,
             max_targets=seg2d_max_targets,
             deblend_mode=seg2d_deblend_mode,
+            deblend_params=seg2d_deblend_params,
         )
         patch_file  = ifu_seg2d_out.get_targets_fname()
         class_patch = True   # always classify after segmentation
@@ -2017,6 +2021,9 @@ def ifu_runner(options=None):
             (("--seg2d_deblend_mode",), dict(type=_deblend_mode_arg, default="auto",
                 help="fixed = sep deblending with --seg2d_deblend_nthresh only; auto = also split blends of "
                      "point sources in a crowded field (default)")),
+            (("--seg2d_deblend_params",), dict(type=str, default="none",
+                help="thresholds of the auto mode that differ from the defaults, name=value,name=value without "
+                     "spaces (names: aps_ifu_deblend.AUTO_PARAMS, e.g. gate_min_compact=8,min_separation=1.2)")),
             (("--seg2d_radii_factor",), dict(type=float, default=7.0)),
             (("--seg2d_max_targets",), dict(type=int, default=150)),
             (("--seg3d",), dict(type=str2bool, default=False)),
@@ -2125,6 +2132,7 @@ def ifu_runner(options=None):
         seg2d_minarea=seg2d_minarea_val,
         seg2d_deblend_nthresh=seg2d_deblend_nthresh_val,
         seg2d_deblend_mode=args.seg2d_deblend_mode,
+        seg2d_deblend_params=args.seg2d_deblend_params,
         seg2d_radii_factor=args.seg2d_radii_factor,
         seg2d_max_targets=args.seg2d_max_targets,
         seg3d=args.seg3d,
