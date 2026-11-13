@@ -363,7 +363,7 @@ def test_v2_has_no_hr_doubling_except_where_it_was_measured(table):
     assert {s: lr[s].cpus for s in lr} == {"RR": 8, "RVS": 12, "FR": 9, "PPXF": 10, "EMI": 6, "LS": 2, "L2merge": 1}
     assert {s: hr[s].cpus for s in hr} == {**{s: lr[s].cpus for s in lr}, "RR": 16, "RVS": 24}
     lifu = R("LIFU", table, {"res": "HR", "stack_level": 1, "grid": "n"}, profile="v2")
-    assert [lifu[s].cpus for s in ("IFU_PR", "IFU_ExGal", "IFU_Gal")] == [3, 24, 10]       # IFU_Gal 4 -> 2 on 2026-11-06 (SERIAL code: 1.0-1.3 busy cores), 2 -> 10 on 2026-11-13 (one ferre.x per grid + 1, patches and bins run side by side); IFU_ExGal 40 -> 24 (the pool is shared by patches, 4 GB per CPU)
+    assert [lifu[s].cpus for s in ("IFU_PR", "IFU_ExGal", "IFU_Gal")] == [3, 40, 10]       # IFU_Gal 4 -> 2 on 2026-11-06 (SERIAL code: 1.0-1.3 busy cores), 2 -> 10 on 2026-11-13 (one ferre.x per grid + 1, patches and bins run side by side); IFU_ExGal 40 -> 24 on 2026-11-13, back to 40 on 2026-11-14 after OB 26037 ran 28 % slower on 24 (the pool is shared by patches, 4 GB per CPU)
 
 
 def test_v2_fr_asks_less_than_the_old_190_and_380_gb_but_enough_for_the_fine_grids(table):
@@ -407,12 +407,12 @@ def test_v2_memory_is_the_true_footprint_with_a_margin_not_the_rss_sum(table):
     assert lifu["IFU_Gal"].mem_gb == 48 and lifu["IFU_Gal"].cpus == 10
     assert lifu["IFU_Gal"].mem_gb >= 1.25 * slres.footprint_gb(table, "IFU_Gal", ctx, lifu["IFU_Gal"].cpus)
     assert lifu["IFU_Gal"].mem_gb >= 2.0 * 19.6
-    assert lifu["IFU_ExGal"].mem_gb == 96 and lifu["IFU_ExGal"].cpus == 24
+    assert lifu["IFU_ExGal"].mem_gb == 96 and lifu["IFU_ExGal"].cpus == 40
     assert lifu["IFU_ExGal"].mem_gb >= 1.25 * slres.footprint_gb(table, "IFU_ExGal", ctx, lifu["IFU_ExGal"].cpus)
     assert lifu["IFU_ExGal"].mem_gb >= 7 * 12                                  # room for 7 lanes of 12 GB (aps_ifu_patch_pool.lane_cap)
     lifu_hr = R("LIFU", table, {"res": "HR", "stack_level": 1, "grid": "n"}, profile="v2")
     assert (lifu_hr["IFU_Gal"].mem_gb, lifu_hr["IFU_ExGal"].mem_gb) == (48, 160) and lifu_hr["IFU_Gal"].time == "1-00:00:00"
-    assert lifu_hr["IFU_Gal"].cpus == 10 and lifu_hr["IFU_ExGal"].cpus == 24      # no HR doubling
+    assert lifu_hr["IFU_Gal"].cpus == 10 and lifu_hr["IFU_ExGal"].cpus == 40      # no HR doubling
 
 
 def test_ifu_gal_is_sized_for_one_ferre_process_per_grid(table):
