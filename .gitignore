@@ -147,3 +147,6 @@ configs/explorer.env
 *.env
 !*.env.example
 configs/slurm_sites.yaml
+
+# generated code graph (graphify-kit): never commit
+graphify-out/

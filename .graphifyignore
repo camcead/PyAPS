@@ -1,0 +1,105 @@
+# .graphifyignore - managed by graphify-kit (code-only code graph; gitignore syntax)
+# Scope: source code only. Documentation, data, configuration and binaries are NOT part of the graph.
+
+# documentation and prose
+*.md
+*.rst
+*.txt
+docs/
+doc/
+
+# configuration and data formats
+*.json
+*.yaml
+*.yml
+*.toml
+*.cfg
+*.ini
+*.csv
+*.tsv
+*.xml
+*.html
+*.css
+*.svg
+*.sql
+
+# scientific / binary data
+*.fits
+*.fits.gz
+*.fz
+*.fit
+*.npy
+*.npz
+*.pkl
+*.pickle
+*.h5
+*.hdf5
+*.zarr/
+*.parquet
+*.dump
+*.bak
+*.sqlite
+*.db
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+*.gz
+*.xz
+*.bz2
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.tif
+*.tiff
+*.pdf
+*.eps
+*.ps
+
+# dependencies, builds, caches, virtualenvs
+node_modules/
+vendor/
+third_party/
+dist/
+build/
+*.egg-info/
+__pycache__/
+.venv/
+venv/
+.tox/
+.mypy_cache/
+.pytest_cache/
+*.min.js
+*.map
+
+# secrets and keys (Graphify also skips most of these by name; stated here on purpose)
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+*.kdbx
+secrets/
+.secrets/
+credentials*
+*secret*
+*password*
+*token*
+kubeconfig*
+*.tfvars
+
+# the graph itself
+graphify-out/
+
+# profile: weave (validator, wdap, weavedr, weave-init, weave-tools, weave-status, weavehub, weave-platform, PyAPS)
+data/
+test_data/
+testdata/
+tests/data/
+fixtures/
+# weave-data-model carries tracked FITS and PDFs; the base rules already skip them
+
+# --- repo-specific additions below (kept when the managed part is refreshed) ---
