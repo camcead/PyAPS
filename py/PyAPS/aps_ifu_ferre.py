@@ -543,7 +543,7 @@ def run_ferre_on_bin(bin_id, pixel, work_dir, ferre_exe, ferre_templates,
                        maxorder[grid_id], nthreads=1)
         
         # Write control file
-        nmlfile = f'input.nml_{grid_id}'
+        nmlfile = f'{pixel}.nml{grid_id}'       # one control file per bin AND grid: bins run side by side in one directory (a shared input.nml_<grid> would be overwritten by the next bin)
         writenml(nml, nmlfile=nmlfile, path=work_dir)
         
         # Add to command list
@@ -756,6 +756,19 @@ def parse_ferre_output_ifu(work_dir, pixel, bin_id, grid_prefix):
         print(f"    Error parsing FERRE output: {e}")
         return None
 
+def run_bins(func, n_bins, nthreads=1):
+    """Call `func(i_bin)` for every bin and return the answers in the order of the bins. `nthreads` bins run at the same time (threads: the work of a
+    bin is waiting for ferre.x processes); nthreads <= 1 is the plain serial loop. An exception of `func` is the caller's to handle (the FERRE bin function
+    catches its own)."""
+    n_workers = max(1, min(int(nthreads or 1), int(n_bins)))
+    if n_workers <= 1:
+        return [func(i) for i in range(n_bins)]
+    print(f"FERRE: {n_bins} bins, {n_workers} at a time")
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=n_workers) as pool:
+        return list(pool.map(func, range(n_bins)))
+
+
 def proc_ferre_ifu(headname, outpath, ferre_exe, ferre_templates, ferre_grid_ids,
                    ferre_grid_prefix='n', configs_gal=None, nthreads=1, overwrite=False,
                    outspec=True, lsf=None, bin_to_bucket=None, lsf_by_bucket=None):
@@ -854,7 +867,9 @@ def proc_ferre_ifu(headname, outpath, ferre_exe, ferre_templates, ferre_grid_ids
     all_merge_metadata = []
     
     # Process each bin
-    for i_bin in range(n_bins):
+    def _one_bin(i_bin):
+        """All the work of one bin: write its FERRE input, run FERRE on its grids, read the answer. Returns the result dict or None.
+        Bins share nothing but the work directory, and every file name carries the bin's own pixel name, so bins can run side by side."""
         bin_id = bin_data['bin_ids'][i_bin]
         wave = bin_data['wavelengths'][i_bin]
         flux = bin_data['spectra'][i_bin]
@@ -872,7 +887,7 @@ def proc_ferre_ifu(headname, outpath, ferre_exe, ferre_templates, ferre_grid_ids
             
             if not success:
                 print(f"    Failed to write FERRE input files for bin {bin_id}")
-                continue
+                return None
             
             # Run FERRE
             lsf_this_bin = (lsf_by_bucket[bin_to_bucket[i_bin]]
@@ -929,13 +944,21 @@ def proc_ferre_ifu(headname, outpath, ferre_exe, ferre_templates, ferre_grid_ids
                     except Exception as e:
                         print(f"    Warning: Could not read spectral data for bin {bin_id}: {e}")
                 
-                results.append(ferre_result)
+                return ferre_result
             
         except Exception as e:
             print(f"    Error processing bin {bin_id}: {e}")
             import traceback
             traceback.print_exc()
-            continue
+            return None
+    
+        return None
+
+    # Bins are independent (own input files, own pixel name, one ferre.x process per grid), so `nthreads` bins run at the same time: FERRE here is a
+    # single-thread process of 10-30 s per grid (3-11 s since the -O2 build) and the 9 grids of a bin used to run one after the other, with one core busy.
+    # With nthreads=1 the loop is the old serial one. The results keep the order of the bins.
+    outs = run_bins(_one_bin, n_bins, nthreads)
+    results.extend(r for r in outs if r is not None)
     
     if len(results) == 0:
         print("ERROR: No valid results obtained from FERRE processing")
