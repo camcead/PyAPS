@@ -915,6 +915,14 @@ def ferre_exe_worker(cmdstr):
             opf_pattern = os.path.join(work_dir, f'*.opf{grid_id}')
             opf_files = glob.glob(opf_pattern)
             output_file_exists = len(opf_files) > 0
+        elif work_dir:
+            # IFU bins name their control file <pixel>.nml<grid> (bins run side by side in one
+            # directory), and FERRE writes <pixel>.opf<grid> next to it: look for exactly that file
+            # (a glob would see the files of the other bins)
+            m = re.match(r'^(?P<pixel>.+)\.nml(?P<grid>\d+)$', nml_filename)
+            if m:
+                output_file_exists = os.path.exists(
+                    os.path.join(work_dir, f"{m.group('pixel')}.opf{m.group('grid')}"))
 
         # Check for FERRE-specific error indicators
         error_indicators = [
