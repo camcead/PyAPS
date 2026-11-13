@@ -74,3 +74,23 @@ def test_missing_chrome_is_a_warning_not_an_error(monkeypatch, capsys):
     check_env.main(["--profile", "explorer", "--no-import", "--lock", "none", "--quiet"])
     out = capsys.readouterr().out
     assert "CHROME" in out and "plotly_get_chrome" in out
+
+
+def test_ferre_without_libgomp_is_flagged_as_the_slow_O0_build(tmp_path, monkeypatch):
+    """The -O0 FERRE of upstream commits 60be172..0e05a6a has no OpenMP runtime (and is ~3 times slower): the checker warns, it never fails."""
+    slow, fast = tmp_path / "slow.x", tmp_path / "fast.x"
+    slow.write_bytes(b"\x7fELF" + b"\0" * 64 + b"libc.so.6\0")
+    fast.write_bytes(b"\x7fELF" + b"\0" * 64 + b"libgomp.so.1\0libc.so.6\0")
+    assert check_env.ferre_links_openmp(str(slow)) is False
+    assert check_env.ferre_links_openmp(str(fast)) is True
+    assert check_env.ferre_links_openmp(str(tmp_path / "nothing")) is None
+    (tmp_path / "text").write_text("not an elf")
+    assert check_env.ferre_links_openmp(str(tmp_path / "text")) is None
+    monkeypatch.setenv("FERRE_EXE", str(slow))
+    msg = check_env.ferre_findings()
+    assert len(msg) == 1 and "libgomp" in msg[0] and "f50a006" in msg[0]
+    monkeypatch.setenv("FERRE_EXE", str(fast))
+    assert check_env.ferre_findings() == []
+    monkeypatch.setenv("FERRE_EXE", str(tmp_path / "missing"))
+    monkeypatch.setattr(check_env, "ROOT", tmp_path)
+    assert check_env.ferre_findings() == []

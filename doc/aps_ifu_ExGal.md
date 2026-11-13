@@ -495,7 +495,8 @@ These are the same parameters used by APSOB (see `APSOB_README.md`). They are fo
 | `PPXF` | bool | `False` | Run pPXF stellar kinematics module. |
 | `EMIPPXF` | bool | `False` | Run EMIPPXF emission line fitting module. |
 | `LS` | bool | `False` | Run line strength index module. |
-| `nthreads` | int | `1` | Number of parallel threads for fitting modules. |
+| `nthreads` | int | `1` | The CPU budget of the stage (CLI: `--mp_ExGal`): at most this many worker processes at a time, shared between patches that run side by side and the PPXF / EMIPPXF / LS pool inside each patch. `1` = the plain serial loop. |
+| `patch_workers` | int or None | `None` | Patches that run at the same time (CLI: `--patch_workers`). `None` / `0` = chosen from `nthreads` and the aperture sizes, largest first. `1` = one patch after the other with a pool of `nthreads` inside (the behaviour before 2026-11-13). `N` = N patches at a time (at most `nthreads`). Same driver as IFU_Gal: `aps_ifu_patch_pool.py`, `doc/aps_ifu_Gal.md` section 7.7. |
 | `overwrite` | bool | `True` | Overwrite existing output files. |
 | `UAPSID` | str or None | `None` | Unique APS identifier written to L2 FITS header. |
 
@@ -503,7 +504,8 @@ These are the same parameters used by APSOB (see `APSOB_README.md`). They are fo
 
 | Argument | Type | Default | Description |
 |---|---|---|---|
-| `--mp_ExGal` | int | `1` | Same as `nthreads` — number of threads for fitting. |
+| `--mp_ExGal` | int | `1` | Same as `nthreads`: the CPU budget of the stage. |
+| `--patch_workers` | int | `0` | Same as `patch_workers`: 0 = automatic, 1 = one patch at a time, N = N patches at a time. |
 | `--patch_array` | str or None | `None` | Single target as comma-separated string: `"id,RA,Dec,A,B,Z,ZERR,CLASS"`. |
 
 ---

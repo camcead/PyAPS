@@ -721,6 +721,26 @@ For HR data the code automatically doubles all mp values. For stacking level 0
 | `--seg2d_white_images` | csv paths | `None` | Input images for 2D source extraction. |
 | `--patch_file` | path | `None` | Pre-existing patch file containing extraction ellipses and class assignments. If `None`, IFU_Prepare generates it. |
 
+**IFU stages on a workstation (IFU_Gal, IFU_ExGal)**
+
+The patches of a patch table are independent, so IFU_Gal and IFU_ExGal run several at the same time inside the CPUs you give them. Without SLURM
+(`--hpc 1`, or the stage scripts called by hand) the machine is the limit: the `laptop` profile asks 4 CPUs for IFU_Gal and 6 for IFU_ExGal and the
+`limits: clamp` policy lowers that to a share of your machine (75 % of the usable CPUs, 80 % of the free RAM), so a request never exceeds the machine.
+
+```bash
+python aps_runner.py ... --slurm_profile laptop                       # or: slurm_profile: laptop in script_params.yaml
+python aps_ifu_Gal.py ... --mp_Gal 8                                  # a stage called by hand: up to 8 worker processes at a time
+python aps_ifu_Gal.py ... --mp_Gal 8 --patch_workers 1                # one patch after the other, 8 bins at a time inside it
+python aps_ifu_Gal.py ... --mp_Gal 1                                  # plain serial loop (the default of the stage scripts)
+```
+
+* `--mp_Gal` / `--mp_ExGal` is the budget: never more than that many worker processes at a time (patches side by side x workers inside a patch).
+* `--patch_workers 0` (default) chooses from the budget and the patch sizes (largest patch first, the plan is printed); `1` = one patch at a time as before 2026-11-13; `N` = N patches at a time. With a budget of 1 every setting is the serial loop. In `script_params.yaml`: `IFU_patch_workers`.
+* `export OMP_NUM_THREADS=1` first (the pipeline scripts do): numpy must not add threads of its own to the workers.
+* IFU_Gal needs **FERRE f50a006 or later** ([externals/README.md](externals/README.md)): the -O0 build of July to October 2026 is 3 times slower and has no OpenMP; `python tools/check_env.py` warns when `ferre.x` does not link libgomp.
+* Memory: about 2 GB for each worker of IFU_Gal (10 workers: 20 GB) and the cube pages once (4-8 GB); the profile asks for what it needs and the limits policy lowers the workers when the RAM is smaller.
+* Details and the measurements: [doc/SLURM_RESOURCES.md](doc/SLURM_RESOURCES.md) section 13.
+
 ### Config file (`script_params.yaml`)
 
 The YAML config file controls everything that does not change between runs.

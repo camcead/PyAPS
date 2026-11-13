@@ -65,6 +65,11 @@ def prettyOutput_Failed(outputlabel, progressbar=False):
     sys.stdout.write("\r\r [ "+'\033[0;31m'+"FAILED  "+'\033[0;39m'+"] "+outputlabel)
     sys.stdout.flush(); print("")
 
+def prettyOutput_Error(outputlabel, progressbar=False):
+    """Same as prettyOutput_Failed. IFUExGalEMIPPXF calls this name in its error handlers; it did not exist, so the handler itself raised
+    AttributeError (found 2026-11-13 on the serial path of the stellar re-fit, which a pool of 40 workers never takes)."""
+    prettyOutput_Failed(outputlabel, progressbar)
+
 def prettyOutput_DonePrefix():
     return(" [ "+'\033[0;32m'+"DONE    "+'\033[0;39m'+"] ")
 

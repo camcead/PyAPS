@@ -260,6 +260,7 @@ These control how sources are detected in the white-light image.
 | `--seg2d_ext_thresh` | float or `None` | `None` (all shipped `IFU_params` JSON configs) | Detection threshold in units of local RMS noise. Lower values detect fainter sources but increase false positives. **`None` auto-estimates it from the white-light image** -- see below. |
 | `--seg2d_minarea` | int or `None` | `None` (all shipped `IFU_params` JSON configs) | Minimum source area in pixels. Sources smaller than this are rejected as noise peaks or cosmic rays. **`None` auto-estimates it from the white-light image** -- see below. |
 | `--seg2d_deblend_nthresh` | int or `None` | `4` | Number of deblending sub-thresholds. Higher values separate close pairs more aggressively. `None` is accepted for consistency but simply resolves to the fixed default `4` -- **not** data-driven, deliberately (this parameter is left alone rather than auto-tuned). |
+| `--seg2d_deblend_mode` | `fixed` / `auto` | `auto` | `fixed` = `sep` deblending with `seg2d_deblend_nthresh` only (the behaviour before 2026-11-13). `auto` = the same, then, in a crowded field only, blends of point sources are split into their stars; a sparse field, a galaxy or any parent that fails a safety rule is returned exactly as with `fixed`. Set `fixed` to turn it off. See [aps_ifu_seg2d_robust.md](aps_ifu_seg2d_robust.md) section 7. |
 | `--seg2d_radii_factor` | float | `8.0` | Kron radius scale factor. Multiplied by the fitted Kron radius to define the aperture boundary. Larger values capture more outer flux at the cost of more contamination. |
 | `--seg2d_max_targets` | int | `150` | Safety cap on the number of 2D detections kept (0 = off). Above it the brightest detections (by flux) are kept and a WARNING is printed; see [aps_ifu_seg2d_robust.md](aps_ifu_seg2d_robust.md). Command-line only (the runner does not pass it). |
 
@@ -356,6 +357,7 @@ values without needing to change the command line:
     "seg2d_ext_thresh"       : "2.5",
     "seg2d_minarea"          : "300",
     "seg2d_deblend_nthresh"  : "4",
+    "seg2d_deblend_mode"     : "auto",
     "seg2d_radii_factor"     : "8.0",
     "seg3d"                  : "False",
     "seg3d_merge"            : "False",

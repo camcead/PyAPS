@@ -74,8 +74,8 @@ footprint:
   LS:        {base_gb: 3.5, per_cpu_gb: 0, note: "PSS 1-2.4 GB, 3.5 GB at most"}
   L2merge:   {base_gb: 6,  per_cpu_gb: 0, note: "a 41 s peak: MaxRSS 5.6 GB on a HR OB"}
   IFU_PR:    {base_gb: 17, per_cpu_gb: 0, note: "PSS 13-17 GB, 27 GB for a heavy HR cube"}
-  IFU_ExGal: {base_gb: 4,  per_cpu_gb: 0.4, note: "PSS 14-18 GB with up to 40 workers"}
-  IFU_Gal:   {base_gb: 4,  per_cpu_gb: 8.0, note: "PSS 5-6 GB with 2 workers, 36 GB with 4 (OB dependent): grows with the workers"}
+  IFU_ExGal: {base_gb: 14, per_cpu_gb: 0.4, note: "ONE patch lane peaks at 12-13 GB PSS (OB 26140, LR: 4 lanes 48.8-51.5 GB, 2026-11-13) + 0.4 GB per pool worker (14-18 GB with 40 workers in one patch, before). More lanes are only started while the memory of the job allows (aps_ifu_patch_pool.lane_cap, 12 GB per lane), so this is the least a run needs, not what the request lets it use"}
+  IFU_Gal:   {base_gb: 4,  per_cpu_gb: 2.0, note: "PSS 13 GB with 4 patches side by side (8 CPUs), 20 GB with 10 patches (10 CPUs, OB 14699, HR; 2026-11-13), 36 GB with 20 RVS workers of the old code: about 2 GB for each worker process (a patch worker holds the aperture it bins, an RVS worker its templates); the cube pages are read once and shared"}
 
 # Depth-first order of the jobs (doc/SLURM_RESOURCES.md, section 10). The queue of the pods is FIFO by the time a job became ELIGIBLE (only the
 # age counts), so the first stages of every later pair pass the last stages of the first pair, and a night ends with many half-finished chains.
@@ -270,21 +270,21 @@ profiles:
           cases:
             - {when: {res: HR}, mem_gb: 36}
         IFU_ExGal:
-          cpus: 40
-          mem_gb: 48
+          cpus: 24
+          mem_gb: 96
           time: "0-10:00:00"
           status: measured
-          note: "busy cores p90 33 (LR) with max 42, run 374 min longest, same in HR (no doubling: 60 cores were asked and 3.7 used); PSS peak 17-20 GB with Chrome, MaxRSS-sum 164-237 GB is a multiple count. 2026-11-06 re-measurement (doc section 12): memory 80 -> 48 GB (HR 128 -> 80), PSS peak 14-20 GB; CPUs and time unchanged (the pool is per patch: 2.0-3.9 busy cores on the 8 OBs of 2026-11-05/06, up to 42 before; a field with many bins in a patch can still use 40)"
+          note: "2026-11-13: cpus 40 -> 24, memory 48 -> 96 GB (HR 80 -> 160). Until now one patch at a time with a pool of `mp` workers (2-4 busy cores on the OBs of 2026-11-05/06 although 40 were asked: the pool of a patch has few bins); now `mp` is shared between PATCHES side by side (lanes, at least 2 pool workers each, aps_ifu_patch_pool) and the pool inside each patch, never more than `mp` workers, so the pool is not counted twice. A lane peaks at 12-13 GB PSS while it reads and bins its aperture (OB 26140, LR, 4 lanes: 48.8-51.5 GB; 14.6 GB RSS in the largest process), its pool workers add 0.4 GB each, and the number of lanes is capped by the memory of the job (90 % / 12 GB): 96 GB gives 7 lanes. 24 CPUs = 7 lanes of 3-4 workers, 4 GB per CPU like the nodes (ARCUS 351 GB / 90). The old 40 only paid off for one patch with very many bins (42 busy cores seen once); it still runs, with 24. Four patches (3, 11, 14, 15 of OB 26140): 8.1 min on 8 CPUs (4 lanes of 2 workers) against 11.5 min on 4 CPUs for the old code (a pool of 4 per patch, one patch at a time; peak 15 GB). HR 160 GB is the LR figure x 1.7 as before, not measured. Longest completed run 374 min (before: 1-4 busy cores); time unchanged. First nights to confirm; earlier: 2026-11-06 re-measurement (doc section 12): memory 80 -> 48 GB, PSS 14-20 GB with the pool of one patch"
           cases:
-            - {when: {res: HR}, mem_gb: 80}
+            - {when: {res: HR}, mem_gb: 160}
         IFU_Gal:
-          cpus: 4
+          cpus: 10
           mem_gb: 48
           time: "0-16:00:00"
           status: measured
-          note: "2026-11-13: cpus 2 -> 4, memory 32 -> 48 GB (HR 64 -> 96), time unchanged. The 4 CPUs are now used: ifu_Gal runs `mp` spatial bins of a patch at the same time (aps_ifu_ferre.run_bins), each with its own single-thread ferre.x; until now the 9 grids of a bin and the bins ran one after the other (3 minutes per bin on the -O0 ferre.x, 486 bins in 24 h on OB 14699 night 20260315: TIMEOUT with 15 of 44 patches). The production ferre.x is the -O2 build of upstream f50a006 since 2026-11-13 (2.9 times faster per run, identical output). Earlier (2026-11-06): cpus 4 -> 2 because only 1.0-1.3 cores were busy, which was the serial code, not a too large request. 2026-11-06 re-measurement (doc section 12): cpus 4 -> 2 (1.0-1.3 busy cores in 98 production jobs, 1.03-1.23 in the 8 jobs of 2026-11-05/06), memory 48 -> 32 GB (HR 96 -> 64; MaxRSS, which overstates the footprint, was 4.9-10.9 GB at 4 CPUs), time unchanged (longest production run 696 min; 1.8-23 min per patch). Earlier: serial on the single-thread ferre.x of the production pod (1.0-1.3 busy cores p50/p90, 4.3 at most, 91 jobs); on the OpenMP ferre.x of the dev pod a small OB used 7 cores for 4 min against 1.8 cores for 12 min with 2 CPUs; run 518 min LR / 696 min HR. PSS peak 36 GB (LR, 20 workers; 6 GB with 2 workers in the dev rehearsal, 5-6 GB for three OBs), 20 GB HR with 40 workers (5 GB with 2): the footprint grows with the workers, so 4 CPUs need less than the 20 or 40 the audit measured"
+          note: "2026-11-13: cpus 2 -> 10 (4 for a few hours), memory 32 -> 48 GB (HR no longer 96), time unchanged. Design: ONE ferre.x PROCESS PER GRID, 9 grids per bin, plus the python process: 10 CPUs (the MOS FR stage asks 9 for the same reason); ifu_Gal now spends the `mp` CPUs on patches side by side (aps_ifu_patch_pool: lanes, largest patch first) and on the bins inside a patch (RVS pool, aps_ifu_ferre.run_bins), never more than `mp` worker processes at a time. The reduction to 2 CPUs of 2026-11-06 read 1.0-1.3 busy cores of the SERIAL code (one patch, one bin, one grid at a time) as the size of the job: a wrong conclusion. Cost measured on OB 14699 (HR, 2026-11-13, -O2 ferre.x): 65 s per bin and worker (RVS 1-3 s, 9 grids x 6-8 s), 30-40 s per patch for reading and binning the aperture, 91 ... 2 bins per patch; 10 patches (2-4 bins each) on 10 CPUs: 5.1 min; 5 patches (14, 11, 9, 2, 2 bins) on 8 CPUs: 8.2 min; the same bins serial: about 90 s each under load. The whole OB (44 patches, 582 bins: 495 in the 15 big patches, ~3 in each of the 29 single stars) is about 1.3-1.5 h on 10 CPUs by the plan (68 bin-times of 65 s), 29 h serial on the -O0 build (it timed out at 24 h with 15 patches). Memory: PSS 13 GB at 8 CPUs, 20 GB at 10 CPUs (footprint 4 + 2 GB per worker), 48 GB is 2 x. Time: the limit only has to catch a hung job (nothing waits behind it); the longest known field needs ~3 h at 10 CPUs, so 16 h (HR 24 h) stay."
           cases:
-            - {when: {res: HR}, mem_gb: 96, time: {set: "1-00:00:00"}}
+            - {when: {res: HR}, time: {set: "1-00:00:00"}}
 
     MIFU:
       common:
@@ -294,7 +294,7 @@ profiles:
       stages:
         IFU_PR:    {cpus: 3,  mem_gb: 24,  time: "0-06:00:00", status: unmeasured, note: "no mini IFU job has ever run; CPUs from the old values, memory and time from the large IFU"}
         IFU_ExGal: {cpus: 10, mem_gb: 80,  time: "0-10:00:00", status: unmeasured}
-        IFU_Gal:   {cpus: 10, mem_gb: 72,  time: "0-16:00:00", status: unmeasured, note: "IFU_Gal is serial on the single-thread build: 2 CPUs would be enough, confirm on the first mini IFU job"}
+        IFU_Gal:   {cpus: 10, mem_gb: 72,  time: "0-16:00:00", status: unmeasured, note: "10 CPUs = one ferre.x per grid + 1, as the large IFU (20 in HR by the old doubling rule); a mini IFU has few patches, so the CPUs go inside the patches. Never measured: confirm on the first mini IFU job"}
 
     CS:
       stages:
@@ -324,16 +324,8 @@ profiles:
           cases:
             - {when: {grid: m, res: LR}, mem_gb: 80, time: {set: "2-00:00:00"}}
             - {when: {grid: m, res: HR}, mem_gb: 160, time: {set: "2-00:00:00"}}
-    LIFU:
-      stages:
-        IFU_Gal:
-          cpus: 4
-          mem_gb: 48
-          time: "0-16:00:00"
-          status: unmeasured
-          note: "keeps 4 CPUs (v2 has 2): on an OpenMP ferre.x the CPUs are FERRE threads, and the one rehearsal on such a build used 7 cores for 4 min against 1.8 cores for 12 min with 2 CPUs. The production accounting of the OpenMP site (72 jobs, 20-40 CPUs asked) shows 1.0-1.4 busy cores in 70 of them, but nothing has run with this profile yet. Memory as v2"
-          cases:
-            - {when: {res: HR}, mem_gb: 96, time: {set: "1-00:00:00"}}
+    # IFU_Gal is NOT overridden: mknml_ifu starts every ferre.x with NTHREADS=1 and measured wall times with NTHREADS 1 / 2 / 4 were identical on single-object bins, so
+    # OpenMP threads do not help the IFU bins; the CPUs of IFU_Gal are single-thread ferre.x processes side by side, as in v2.
 
   laptop:
     description: >
@@ -364,4 +356,4 @@ profiles:
       stages:
         IFU_PR:    {cpus: 2, mem_gb: 24, time: "0-12:00:00", status: unmeasured, cases: [{when: {res: HR}, mem_gb: 36}]}
         IFU_ExGal: {cpus: 6, mem_gb: 80, time: "1-00:00:00", status: unmeasured, cases: [{when: {res: HR}, mem_gb: 128}]}
-        IFU_Gal:   {cpus: 2, mem_gb: 48, time: "1-12:00:00", status: unmeasured, cases: [{when: {res: HR}, mem_gb: 96}]}
+        IFU_Gal:   {cpus: 4, mem_gb: 48, time: "1-12:00:00", status: unmeasured, note: "4 patches / bins side by side on a 4-8 core machine (the limits policy clamp lowers it to the share of the machine); footprint 4 + 2 GB per CPU"}

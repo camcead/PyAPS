@@ -363,7 +363,7 @@ def test_v2_has_no_hr_doubling_except_where_it_was_measured(table):
     assert {s: lr[s].cpus for s in lr} == {"RR": 8, "RVS": 12, "FR": 9, "PPXF": 10, "EMI": 6, "LS": 2, "L2merge": 1}
     assert {s: hr[s].cpus for s in hr} == {**{s: lr[s].cpus for s in lr}, "RR": 16, "RVS": 24}
     lifu = R("LIFU", table, {"res": "HR", "stack_level": 1, "grid": "n"}, profile="v2")
-    assert [lifu[s].cpus for s in ("IFU_PR", "IFU_ExGal", "IFU_Gal")] == [3, 40, 4]       # IFU_Gal 4 -> 2 on 2026-11-06 (serial code: 1.0-1.3 busy cores), 2 -> 4 on 2026-11-13 (bins run side by side)
+    assert [lifu[s].cpus for s in ("IFU_PR", "IFU_ExGal", "IFU_Gal")] == [3, 24, 10]       # IFU_Gal 4 -> 2 on 2026-11-06 (SERIAL code: 1.0-1.3 busy cores), 2 -> 10 on 2026-11-13 (one ferre.x per grid + 1, patches and bins run side by side); IFU_ExGal 40 -> 24 (the pool is shared by patches, 4 GB per CPU)
 
 
 def test_v2_fr_asks_less_than_the_old_190_and_380_gb_but_enough_for_the_fine_grids(table):
@@ -401,21 +401,49 @@ def test_v2_memory_is_the_true_footprint_with_a_margin_not_the_rss_sum(table):
     assert lr["RR"].mem_gb == 24 and hr["RR"].mem_gb == 36 and lr["RVS"].mem_gb == 72 and hr["RVS"].mem_gb == 144
     assert lr["L2merge"].mem_gb == 8 and hr["L2merge"].mem_gb == 12
     lifu = R("LIFU", table, {"res": "LR", "stack_level": 1, "grid": "n"}, profile="v2")
-    # 2026-11-06 re-measurement (doc section 12): the footprint of the large IFU stages with the CPUs they now ask for, and the largest MaxRSS seen
-    # at the new allocation (an upper bound of the PSS: 10.9 GB for IFU_Gal at 4 CPUs, 14-20 GB PSS for IFU_ExGal with 40 workers)
-    assert lifu["IFU_Gal"].mem_gb == 48 and lifu["IFU_Gal"].cpus == 4
-    assert lifu["IFU_Gal"].mem_gb >= 1.25 * slres.footprint_gb(table, "IFU_Gal", {"res": "LR", "stack_level": 1, "grid": "n"}, lifu["IFU_Gal"].cpus)
-    assert lifu["IFU_Gal"].mem_gb >= 2.5 * 10.9
-    assert lifu["IFU_ExGal"].mem_gb == 48 and lifu["IFU_ExGal"].mem_gb >= 1.25 * 20
+    # 2026-11-13 (doc section 13): IFU_Gal PSS 13 GB with 4 patches side by side, 20 GB with 10 (OB 14699, HR); IFU_ExGal one lane peaks at 12-13 GB PSS
+    # (OB 26140: 48.8-51.5 GB for 4 lanes). The footprint of IFU_Gal at its CPUs is the most it can use; ExGal's is the least a run needs (lanes follow the memory).
+    ctx = {"res": "LR", "stack_level": 1, "grid": "n"}
+    assert lifu["IFU_Gal"].mem_gb == 48 and lifu["IFU_Gal"].cpus == 10
+    assert lifu["IFU_Gal"].mem_gb >= 1.25 * slres.footprint_gb(table, "IFU_Gal", ctx, lifu["IFU_Gal"].cpus)
+    assert lifu["IFU_Gal"].mem_gb >= 2.0 * 19.6
+    assert lifu["IFU_ExGal"].mem_gb == 96 and lifu["IFU_ExGal"].cpus == 24
+    assert lifu["IFU_ExGal"].mem_gb >= 1.25 * slres.footprint_gb(table, "IFU_ExGal", ctx, lifu["IFU_ExGal"].cpus)
+    assert lifu["IFU_ExGal"].mem_gb >= 7 * 12                                  # room for 7 lanes of 12 GB (aps_ifu_patch_pool.lane_cap)
     lifu_hr = R("LIFU", table, {"res": "HR", "stack_level": 1, "grid": "n"}, profile="v2")
-    assert (lifu_hr["IFU_Gal"].mem_gb, lifu_hr["IFU_ExGal"].mem_gb) == (96, 80) and lifu_hr["IFU_Gal"].time == "1-00:00:00"
+    assert (lifu_hr["IFU_Gal"].mem_gb, lifu_hr["IFU_ExGal"].mem_gb) == (48, 160) and lifu_hr["IFU_Gal"].time == "1-00:00:00"
+    assert lifu_hr["IFU_Gal"].cpus == 10 and lifu_hr["IFU_ExGal"].cpus == 24      # no HR doubling
 
 
-def test_v2_openmp_keeps_four_cpus_for_ifu_gal_because_they_are_ferre_threads(table):
-    """v2 asks 4 CPUs for IFU_Gal (four bins side by side, a single-thread ferre.x each); v2_openmp keeps its own entry, unmeasured."""
-    r = R("LIFU", table, {"res": "LR", "stack_level": 1, "grid": "n"}, profile="v2_openmp")
-    assert r["IFU_Gal"].cpus == 4 and r["IFU_Gal"].mem_gb == 48 and r["IFU_Gal"].time == "0-16:00:00" and r["IFU_Gal"].status == "unmeasured"
-    assert r["IFU_ExGal"].mem_gb == 48 and r["IFU_PR"].cpus == 3
+def test_ifu_gal_is_sized_for_one_ferre_process_per_grid(table):
+    """The design of IFU_Gal is one ferre.x process per grid (9 grids per bin) plus the python process: 10 CPUs, every CPU a worker process of the stage
+    (aps_ifu_patch_pool lanes x aps_ifu_ferre.run_bins). The reduction to 2 CPUs of 2026-11-06 took the 1.0-1.3 busy cores of the SERIAL code for the size of
+    the job. The footprint of the stage follows its CPUs (about 2 GB per worker process, measured on OB 14699)."""
+    ctx = {"res": "LR", "stack_level": 1, "grid": "n"}
+    for prof in ("v2", "v2_openmp"):
+        r = R("LIFU", table, ctx, profile=prof)["IFU_Gal"]
+        assert r.cpus == 10 and r.mem_gb == 48 and r.time == "0-16:00:00" and r.status == "measured"
+    assert slres.footprint_gb(table, "IFU_Gal", ctx, 10) == pytest.approx(24.0)
+    assert R("MIFU", table, ctx, profile="v2")["IFU_Gal"].cpus == 10
+    assert R("MIFU", table, {"res": "HR", "stack_level": 1, "grid": "n"}, profile="v2")["IFU_Gal"].cpus == 20     # the old HR doubling of the mini IFU
+    assert R("LIFU", table, ctx, profile="default")["IFU_Gal"].cpus == 20          # legacy value, untouched (golden)
+
+
+def test_v2_openmp_does_not_change_ifu_gal_because_ifu_bins_gain_nothing_from_openmp_threads(table):
+    """mknml_ifu starts every ferre.x with NTHREADS=1 and measured wall times with NTHREADS 1 / 2 / 4 were identical on single-object bins: the CPUs of
+    IFU_Gal are single-thread ferre.x processes side by side on both builds. v2_openmp inherits the v2 row (it used to keep 4 CPUs on the thread argument)."""
+    ctx = {"res": "LR", "stack_level": 1, "grid": "n"}
+    a, b = R("LIFU", table, ctx, profile="v2"), R("LIFU", table, ctx, profile="v2_openmp")
+    for st in ("IFU_PR", "IFU_ExGal", "IFU_Gal"):
+        assert (a[st].cpus, a[st].mem_gb, a[st].time) == (b[st].cpus, b[st].mem_gb, b[st].time)
+    assert R("MOS", table, ctx, profile="v2_openmp")["FR"].cpus == 18               # FR is where OpenMP does help
+
+
+def test_laptop_profile_gives_ifu_gal_four_workers(table):
+    ctx = {"res": "LR", "stack_level": 1, "grid": "n"}
+    r = R("LIFU", table, ctx, profile="laptop")
+    assert r["IFU_Gal"].cpus == 4 and r["IFU_Gal"].mem_gb == 48 and r["IFU_ExGal"].cpus == 6
+    assert slres.footprint_gb(table, "IFU_Gal", ctx, 4) == pytest.approx(12.0)      # 4 + 2 GB per worker: what the clamp on a small machine works from
 
 
 def test_the_old_v2_pss_profile_is_gone(table):
