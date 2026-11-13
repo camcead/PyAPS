@@ -30,6 +30,7 @@ test_patch_table(...)    ->  bool   (re-exported from _patch_utils)
 import json
 import os
 import sys
+import time
 from copy import deepcopy
 from pathlib import Path
 
@@ -1077,6 +1078,7 @@ def ifu_ExGal(
     EMIPPXF=False,
     LS=False,
     nthreads=1,
+    patch_workers=None,
     # --- spectral flags ---
     wlranges=None,
     aps_ids=None,
@@ -1102,6 +1104,16 @@ def ifu_ExGal(
     """
     ExGal IFU analysis — loops over a patch table and processes every
     GALAXY / QSO target.
+
+    nthreads : int
+        The CPU budget of the job (``--mp_ExGal``): shared out between patches that run side by side and
+        the PPXF / EMIPPXF / LS worker pool inside each patch, never more than `nthreads` workers at a time.
+    patch_workers : int or None
+        ``None`` / 0 (default): choose how many patches run at the same time from the budget and the sizes
+        of the apertures (aps_ifu_patch_pool.plan_workers), the largest first. ``1``: one patch after the
+        other in table order with a pool of `nthreads` inside the patch (the behaviour before patch-level
+        parallelism). ``N``: N patches at a time (at most `nthreads`). With ``nthreads=1`` every setting is
+        the plain serial loop.
 
     spaxel_weighted_lsf : bool or None, optional
         Per-bin resolution for PPXF/EMIPPXF/LineStrength template
@@ -1175,10 +1187,12 @@ def ifu_ExGal(
     # 4. Loop over patch table                                            #
     # ------------------------------------------------------------------ #
     proper_targets  = len(wp_table)
-    fault_counter   = 0
     from PyAPS.aps_ifu_patch_report import PatchTally
+    from PyAPS import aps_ifu_patch_pool as pool
     tally = PatchTally('ExGal', outpath, headname)
 
+    # Pass 1 (cheap, in table order): which rows are patches to run
+    tasks = []
     for trgs in wp_table:
 
         # Skip masked sources
@@ -1194,8 +1208,6 @@ def ifu_ExGal(
                   "CLASS=%s" % (trgs["id"], class_value or "—"))
             proper_targets -= 1
             continue
-
-        patch_headname = headname + "_" + ("P%04d" % trgs["id"])
 
         # Radius enhancement for single / large targets
         path_area = float(trgs["A_world"]) * float(trgs["B_world"])
@@ -1237,101 +1249,32 @@ def ifu_ExGal(
             proper_targets -= 1
             continue
 
-        z_input_patch = [z, zerr]
+        tasks.append({
+            "id": int(trgs["id"]), "z": z, "zerr": zerr, "class_value": class_value,
+            "patch_area": patch_area, "mask_patch_area": mask_patch_area,
+            "cost": pool.estimate_bins(patch_area[2], patch_area[3]),
+        })
 
-        print("\n" + "=" * 70)
-        print("** ExGAL: id=%d  Z=%.5f  CLASS=%s"
-              % (trgs["id"], z, class_value))
-        print("=" * 70)
-
+    # Pass 2: the patches, side by side as the budget allows (largest first); one lane = the old serial loop
+    plan = pool.plan_workers([t["cost"] for t in tasks], nthreads, patch_workers,
+                             max_lanes=pool.lane_cap(pool.LANE_GB["ExGal"]), min_inner=2)
+    print("INFO: " + plan.describe("IFU_ExGal"))
+    patch_ctx = dict(
+        infiles=infiles, headname=headname, outpath=outpath, IFU_config_dir=IFU_config_dir, ExGal_templates=ExGal_templates,
+        IFU_params=IFU_params, PPXF=PPXF, EMIPPXF=EMIPPXF, LS=LS, wlranges=wlranges, aps_ids=aps_ids,
+        targsrvy=targsrvy, targclass=targclass, mask_aps_ids=mask_aps_ids, sens_corr=sens_corr,
+        mask_gaps=mask_gaps, safe_mask_gaps=safe_mask_gaps, vacuum=vacuum, tellurics=tellurics,
+        fill_gap=fill_gap, arms_ratio=arms_ratio, join_arms=join_arms, UAPSID=UAPSID, catdir=catdir,
+        caldir=caldir, no_spec_ext=no_spec_ext, spaxel_weighted_lsf=spaxel_weighted_lsf,
+    )
+    for _ in tasks:
         tally.attempt()
-        try:
-            prep = ifu_ExGal_prepare(
-                infiles, patch_headname, IFU_params, outpath,
-                IFU_config_dir,
-                wlranges=wlranges, aps_ids=aps_ids,
-                targsrvy=targsrvy, targclass=targclass,
-                mask_aps_ids=mask_aps_ids,
-                area=patch_area, mask_areas=mask_patch_area,
-                sens_corr=sens_corr, mask_gaps=mask_gaps,
-                safe_mask_gaps=safe_mask_gaps, vacuum=vacuum,
-                tellurics=tellurics, fill_gap=fill_gap,
-                arms_ratio=arms_ratio, join_arms=join_arms,
-                z_input=z_input_patch,
-                catdir=catdir, caldir=caldir,
-                spaxel_weighted_lsf=spaxel_weighted_lsf,
-            )
-
-            if prep is None:
-                print(f"  Skipped (no valid spaxels in aperture)")
-                proper_targets -= 1
-                tally.no_valid_spaxels()
-                continue
-
-            cube          = prep["cube"]
-            configs       = prep["configs"]
-            LSF_Data      = prep["LSF_Data"]
-            LSF_Templates = prep["LSF_Templates"]
-            figdir        = prep["figdir"]
-            bin_to_bucket      = prep["bin_to_bucket"]
-            LSF_Data_by_bucket = prep["LSF_Data_by_bucket"]
-
-            if PPXF:
-                IFUExGalPPXF.runModule_PPXF(
-                    nthreads, configs, cube["velscale"],
-                    LSF_Data, LSF_Templates,
-                    outpath, IFU_config_dir, ExGal_templates,
-                    figdir, patch_headname,
-                    z, zerr, large_error, debug=False,
-                    bin_to_bucket=bin_to_bucket, LSF_Data_by_bucket=LSF_Data_by_bucket)
-
-            if EMIPPXF:
-                IFUExGalEMIPPXF.runModule_EMIPPXF(
-                    nthreads, configs, cube["velscale"],
-                    LSF_Data, LSF_Templates,
-                    outpath, IFU_config_dir, ExGal_templates,
-                    figdir, patch_headname,
-                    z, zerr, large_error,
-                    debug=False, diag_plots=True,
-                    tie_mode="optimised", save_all_plots=True,
-                    bin_to_bucket=bin_to_bucket, LSF_Data_by_bucket=LSF_Data_by_bucket)
-
-            if LS:
-                IFUExGalLS.runModule_LINESTRENGTH(
-                    configs["LS_MODE"], configs["LS_RES"],
-                    nthreads, configs, cube["velscale"],
-                    LSF_Data, outpath, IFU_config_dir,
-                    ExGal_templates, figdir, patch_headname,
-                    debug=False,
-                    bin_to_bucket=bin_to_bucket, LSF_Data_by_bucket=LSF_Data_by_bucket)
-
-            ifuExGalL2merge(
-                infiles, outpath, patch_headname,
-                wlranges=wlranges, outfile_suffix="_APS",
-                EMIPPXF_LEVEL="BIN", LS_RES="ADAPTED",
-                patch_area=patch_area, patch_id=int(trgs["id"]),
-                UAPSID=UAPSID, no_spec_ext=no_spec_ext)
-            tally.written()
-
-        except ValueError as e:
-            if "No valid spaxels remaining after filters!" in str(e):
-                print(f"  No valid spaxels — skipping id={trgs['id']}")
-                tally.no_valid_spaxels()
-            else:
-                fault_counter += 1
-                tally.failed()
-                import traceback
-                print(f"** ExGAL FAILED  id={trgs['id']}: {e}")
-                traceback.print_exc()
-            sys.stdout.flush()
-
-        except Exception:
-            fault_counter += 1
-            tally.failed()
-            import traceback
-            print(f"** ExGAL FAILED  id={trgs['id']}")
-            traceback.print_exc()
-            sys.stdout.flush()
+    results = pool.run_patches(
+        tasks, lambda task, inner: _run_exgal_patch(task, inner, patch_ctx), plan, label="ExGAL")
+    proper_targets, fault_counter = pool.apply_results(results, tally, proper_targets)
+    for r in results:
+        if len(results) > 1 and r.get("seconds") is not None:
+            print("INFO: ExGAL patch id=%s: %s in %.0f s" % (r["id"], r["outcome"], r["seconds"]))
 
     nothing_written = tally.finish()
     if proper_targets > 0 and proper_targets == fault_counter:
@@ -1339,6 +1282,120 @@ def ifu_ExGal(
     if nothing_written:
         sys.exit("No ExGal product was written for any of the %d attempted patches" % tally.n['attempted'])
 
+
+def _run_exgal_patch(task, inner, ctx):
+    """All the work of ONE ExGal patch: prepare, PPXF, EMIPPXF, LS, merge into the APS product.
+
+    `inner` = size of the PPXF / EMIPPXF / LS worker pool inside the patch (1 = serial inside the patch). Returns
+    ``{id, outcome: written|no_valid_spaxels|failed, fault, proper_drop, seconds}`` for the parent's PatchTally; an Exception is
+    caught here as the serial loop did (the other patches go on), SystemExit is not. The PPXF Monte-Carlo errors and the LS MCMC are random:
+    ``PYAPS_PATCH_SEED=<n>`` seeds numpy with n + patch id at the start of every patch (for comparing runs; with an inner pool of 1 the result
+    is then reproducible).
+    """
+    t0 = time.time()
+    patch_id = int(task["id"])
+    patch_headname = ctx["headname"] + "_" + ("P%04d" % patch_id)
+    patch_area, mask_patch_area = task["patch_area"], task["mask_patch_area"]
+    z, zerr = task["z"], task["zerr"]
+    outpath, infiles, IFU_config_dir = ctx["outpath"], ctx["infiles"], ctx["IFU_config_dir"]
+    ExGal_templates = ctx["ExGal_templates"]
+    answer = {"id": patch_id, "outcome": "failed", "fault": False, "proper_drop": False, "rvs_ok": None, "ferre_ok": None}
+
+    seed = os.environ.get("PYAPS_PATCH_SEED", "").strip()
+    if seed:                                   # tests only: the Monte-Carlo errors of PPXF / LS then do not depend on which patch ran before
+        np.random.seed((int(seed) + patch_id) % (2 ** 32))
+
+    print("\n" + "=" * 70)
+    print("** ExGAL: id=%d  Z=%.5f  CLASS=%s" % (patch_id, z, task["class_value"]))
+    print("=" * 70)
+
+    try:
+        prep = ifu_ExGal_prepare(
+            infiles, patch_headname, ctx["IFU_params"], outpath,
+            IFU_config_dir,
+            wlranges=ctx["wlranges"], aps_ids=ctx["aps_ids"],
+            targsrvy=ctx["targsrvy"], targclass=ctx["targclass"],
+            mask_aps_ids=ctx["mask_aps_ids"],
+            area=patch_area, mask_areas=mask_patch_area,
+            sens_corr=ctx["sens_corr"], mask_gaps=ctx["mask_gaps"],
+            safe_mask_gaps=ctx["safe_mask_gaps"], vacuum=ctx["vacuum"],
+            tellurics=ctx["tellurics"], fill_gap=ctx["fill_gap"],
+            arms_ratio=ctx["arms_ratio"], join_arms=ctx["join_arms"],
+            z_input=[z, zerr],
+            catdir=ctx["catdir"], caldir=ctx["caldir"],
+            spaxel_weighted_lsf=ctx["spaxel_weighted_lsf"],
+        )
+
+        if prep is None:
+            print(f"  Skipped (no valid spaxels in aperture)")
+            answer.update(outcome="no_valid_spaxels", proper_drop=True)
+            return answer
+
+        cube          = prep["cube"]
+        configs       = prep["configs"]
+        LSF_Data      = prep["LSF_Data"]
+        LSF_Templates = prep["LSF_Templates"]
+        figdir        = prep["figdir"]
+        bin_to_bucket      = prep["bin_to_bucket"]
+        LSF_Data_by_bucket = prep["LSF_Data_by_bucket"]
+
+        if ctx["PPXF"]:
+            IFUExGalPPXF.runModule_PPXF(
+                inner, configs, cube["velscale"],
+                LSF_Data, LSF_Templates,
+                outpath, IFU_config_dir, ExGal_templates,
+                figdir, patch_headname,
+                z, zerr, large_error, debug=False,
+                bin_to_bucket=bin_to_bucket, LSF_Data_by_bucket=LSF_Data_by_bucket)
+
+        if ctx["EMIPPXF"]:
+            IFUExGalEMIPPXF.runModule_EMIPPXF(
+                inner, configs, cube["velscale"],
+                LSF_Data, LSF_Templates,
+                outpath, IFU_config_dir, ExGal_templates,
+                figdir, patch_headname,
+                z, zerr, large_error,
+                debug=False, diag_plots=True,
+                tie_mode="optimised", save_all_plots=True,
+                bin_to_bucket=bin_to_bucket, LSF_Data_by_bucket=LSF_Data_by_bucket)
+
+        if ctx["LS"]:
+            IFUExGalLS.runModule_LINESTRENGTH(
+                configs["LS_MODE"], configs["LS_RES"],
+                inner, configs, cube["velscale"],
+                LSF_Data, outpath, IFU_config_dir,
+                ExGal_templates, figdir, patch_headname,
+                debug=False,
+                bin_to_bucket=bin_to_bucket, LSF_Data_by_bucket=LSF_Data_by_bucket)
+
+        ifuExGalL2merge(
+            infiles, outpath, patch_headname,
+            wlranges=ctx["wlranges"], outfile_suffix="_APS",
+            EMIPPXF_LEVEL="BIN", LS_RES="ADAPTED",
+            patch_area=patch_area, patch_id=patch_id,
+            UAPSID=ctx["UAPSID"], no_spec_ext=ctx["no_spec_ext"])
+        answer["outcome"] = "written"
+
+    except ValueError as e:
+        if "No valid spaxels remaining after filters!" in str(e):
+            print(f"  No valid spaxels — skipping id={patch_id}")
+            answer["outcome"] = "no_valid_spaxels"
+        else:
+            answer["fault"] = True
+            import traceback
+            print(f"** ExGAL FAILED  id={patch_id}: {e}")
+            traceback.print_exc()
+        sys.stdout.flush()
+
+    except Exception:
+        answer["fault"] = True
+        import traceback
+        print(f"** ExGAL FAILED  id={patch_id}")
+        traceback.print_exc()
+        sys.stdout.flush()
+    finally:
+        answer["seconds"] = round(time.time() - t0, 1)
+    return answer
 
 
 """
@@ -1385,7 +1442,12 @@ def exgal_runner(options=None):
             (("--PPXF",), dict(type=str2bool, default=False)),
             (("--EMIPPXF",), dict(type=str2bool, default=False)),
             (("--LS",), dict(type=str2bool, default=False)),
-            (("--mp_ExGal",), dict(type=int, default=1)),
+            (("--mp_ExGal",), dict(type=int, default=1, help="CPU budget of the stage: workers at a time over patches and the PPXF/EMIPPXF/LS pool inside a patch (never more)")),
+            (("--patch_workers",), dict(
+                type=int, default=0,
+                help=("Patches that run at the same time. 0 (default) = choose from --mp_ExGal and the aperture sizes, largest first; "
+                      "1 = one patch after the other (a pool of --mp_ExGal workers inside each patch); N = N patches at a time (at most --mp_ExGal)."),
+            )),
             (("--uapsid",), dict(type=none_or_str, default=None)),
             (("--no_spec_ext",), dict(type=str2bool, default=False)),
             (("--patch_array",), dict(
@@ -1464,6 +1526,7 @@ def exgal_runner(options=None):
         patch_array=patch_array,
         PPXF=args.PPXF, EMIPPXF=args.EMIPPXF, LS=args.LS,
         nthreads=args.mp_ExGal,
+        patch_workers=args.patch_workers,
         wlranges=wlranges, aps_ids=aps_ids,
         targsrvy=targsrvy, targclass=targclass,
         mask_aps_ids=mask_aps_ids,

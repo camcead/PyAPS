@@ -261,20 +261,28 @@ def prepare_stellar_fit_for_emi_range_parallel(outdir, rootname, logLam_emi, log
                 # Run PPXF with stellar template only, fixed kinematics
                 regularization = max(0.1, np.std(bin_data_emi[goodpixels, i]) * 1e-3)
 
+                # Fix kinematics by using very tight bounds
+                bounds_list = ([
+                    [start_fixed[0]-1, start_fixed[0]+1],  # V ± 1 km/s
+                    [max(30, start_fixed[1]-5), start_fixed[1]+5]  # sigma with minimum 30 km/s
+                ] + [[-0.01, 0.01]] * (len(start_fixed)-2)  # Higher moments ± 0.01
+                    if len(start_fixed) > 2 else [
+                    [start_fixed[0]-1, start_fixed[0]+1],
+                    [max(30, start_fixed[1]-5), start_fixed[1]+5]
+                ])
+                # Validate bounds exactly as worker_stellar_fit_for_emi does (the pool path): a start sigma below 25 km/s puts the lower bound 30 above
+                # the upper bound sigma+5 and ppxf refuses the bin; the pool path never did
+                if bounds_list[0][0] >= bounds_list[0][1]:
+                    bounds_list[0] = [start_fixed[0]-10, start_fixed[0]+10]
+                if bounds_list[1][0] >= bounds_list[1][1]:
+                    bounds_list[1] = [30, 300]
+
                 pp = ppxf(_template_for_bin(i), bin_data_emi[:, i], noise_emi[:, i], velscale, velscale_ratio=velscale_ratio,
                          start=start_fixed, goodpixels=goodpixels, plot=False, quiet=True,
                          moments=len(start_fixed), degree=configs.get('ADEG', 12),
                          mdegree=configs.get('MDEG', 0), lam=lam_emi, lam_temp= lam_emi_template,
                          bias=regularization,
-                         # Fix kinematics by using very tight bounds
-                         bounds=[
-                             [start_fixed[0]-1, start_fixed[0]+1],  # V ± 1 km/s
-                             [max(30, start_fixed[1]-5), start_fixed[1]+5]  # sigma with minimum 30 km/s
-                         ] + [[-0.01, 0.01]] * (len(start_fixed)-2)  # Higher moments ± 0.01
-                         if len(start_fixed) > 2 else [
-                             [start_fixed[0]-1, start_fixed[0]+1],
-                             [max(30, start_fixed[1]-5), start_fixed[1]+5]
-                         ])
+                         bounds=bounds_list)
 
                 # Store the stellar fit model
                 stellar_fit_emi_range[i, :] = pp.bestfit

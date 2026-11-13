@@ -319,6 +319,19 @@ The string is split and passed to `run_ferre_for_ifu_gal()` as a list.
 
 ---
 
+### 7.7 Patches side by side (since 2026-11-13)
+
+The patches of a table are independent (own `<headname>_PNNNN` files and work directory), so `ifu_Gal` runs several at the same time inside its CPU budget `nthreads` (`--mp_Gal`):
+
+* The budget is split into **lanes**. A lane is one process that takes patches from a queue and gives each patch `capacity` inner workers (RVS pool, FERRE bins at a time). The capacities of all lanes add up to `nthreads`, so the stage never runs more worker processes than the CPUs of its job.
+* `--patch_workers 0` (default) simulates one lane of `nthreads` and 2 .. min(patches, `nthreads`) lanes from the estimated bins of every patch (area of the aperture) and takes the fewest lanes within 5 % of the shortest estimated wall time: many small patches use one lane per CPU, a few big ones use few lanes with several inner workers. `--patch_workers 1` is the old behaviour exactly (one patch after the other, in table order, `nthreads` bins at a time); `--patch_workers N` fixes N lanes. With `--mp_Gal 1` every setting is the serial loop.
+* Patches start **largest first**. A real field is uneven (OB 14699: 91, 58, 54, ... 14, 11, 9 bins, then 29 single stars of 2-4 bins), so the big ones start first and the small ones fill the gaps.
+* The plan is printed (`INFO: IFU_Gal patch plan: 44 patches on 7 lane(s) with 2+2+2+1+1+1+1 inner worker(s) ...`), lines of a patch in a lane start with `[P0014] `, and every patch ends with `INFO: GAL patch id=14: written in 412 s`.
+* A patch that fails (an exception, `sys.exit`, a worker killed for memory) is reported failed and the others go on. The parent adds the answers up in table order, so `<headname>_Gal_patches.json`, the `IFU_PATCH_SUMMARY` line and the exit rule (the job fails when at least 10 patches were attempted and none was written, or when every patch failed) do not depend on the order in which patches finished.
+* The results are the same as before: the FERRE and RVS tables of a patch are bit identical between the serial and the parallel run (doc/SLURM_RESOURCES.md, section 13).
+
+Standalone on a workstation: `python aps_ifu_Gal.py ... --mp_Gal 8` uses up to 8 processes (export `OMP_NUM_THREADS=1` so that numpy does not add threads of its own); ferre.x must be the upstream build f50a006 or later (`python tools/check_env.py` warns when it is the slow -O0 build).
+
 ## 8. Running from the Command Line
 
 ### Minimal run — preparation only
@@ -594,7 +607,8 @@ These are identical to the ExGal module. See `aps_ifu_exgal_README.md` Section 9
 |---|---|---|---|
 | `patch_file` | str or None | `None` | Patch FITS table from `aps_ifu_prepare`. Mutually exclusive with `patch_array`. |
 | `patch_array` | dict or None | `None` | Single injected row (debug mode). |
-| `nthreads` | int | `1` | Threads for RVS and FERRE fitting. CLI: `--mp_Gal`. |
+| `nthreads` | int | `1` | The CPU budget of the stage (CLI: `--mp_Gal`): at most this many worker processes at a time, shared between patches that run side by side and the bins (RVS, FERRE) inside each patch. `1` = the plain serial loop. See section 7.7. |
+| `patch_workers` | int or None | `None` | Patches that run at the same time (CLI: `--patch_workers`). `None` / `0` = chosen from `nthreads` and the patch sizes, largest patch first. `1` = one patch after the other in table order (the behaviour before 2026-11-13). `N` = N patches at a time (at most `nthreads`). |
 | `overwrite` | bool | `True` | Overwrite existing output files. |
 | `UAPSID` | str or None | `None` | Written to L2 FITS header. |
 

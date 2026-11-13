@@ -17,6 +17,7 @@ test_patch_table(...)  ->  bool
 import json
 import os
 import sys
+import time
 from pathlib import Path
 
 import numpy as np
@@ -576,6 +577,7 @@ def ifu_Gal(
     mp_prep=1,
     # --- threading ---
     nthreads=1,
+    patch_workers=None,
     # --- misc ---
     overwrite=True,
     UAPSID=None,
@@ -588,6 +590,16 @@ def ifu_Gal(
     """
     Gal IFU analysis — loops over a patch table and processes every
     STAR / WD target.
+
+    nthreads : int
+        The CPU budget of the job (``--mp_Gal``). It is shared out between patches that run side by side
+        and the bins (RVS, FERRE) inside each patch, never more than `nthreads` workers at a time.
+    patch_workers : int or None
+        ``None`` / 0 (default): choose the number of patches that run at the same time from the budget and
+        the sizes of the patches (aps_ifu_patch_pool.plan_workers), the largest patches first.
+        ``1``: one patch after the other in the order of the table, `nthreads` bins at a time inside the
+        patch (the behaviour before patch-level parallelism). ``N``: N patches at a time (at most `nthreads`).
+        With ``nthreads=1`` every setting is the plain serial loop.
 
     Patch table resolution (same as ifu_ExGal):
       1. patch_array — single injected row, ctarg_excluded ignored.
@@ -677,10 +689,12 @@ def ifu_Gal(
         gal_aperture_factor, patch_array_mode)
     print(f"INFO: Gal aperture factor = {enhanced_rad_factor}")
     proper_targets      = len(wp_table)
-    fault_counter       = 0
     from PyAPS.aps_ifu_patch_report import PatchTally
+    from PyAPS import aps_ifu_patch_pool as pool
     tally = PatchTally('Gal', outpath, headname)
 
+    # Pass 1 (cheap, in table order): which rows are patches to run
+    tasks = []
     for trgs in wp_table:
 
         # Skip masked
@@ -709,8 +723,6 @@ def ifu_Gal(
             proper_targets -= 1
             continue
 
-        patch_headname = headname + "_" + ("P%04d" % trgs["id"])
-
         rad_factor = enhanced_rad_factor
         patch_area = [
             float(trgs["RA_icrs"]),  float(trgs["DEC_icrs"]),
@@ -725,141 +737,188 @@ def ifu_Gal(
             proper_targets -= 1
             continue
 
-        z_input_patch = [z, zerr]
+        tasks.append({
+            "id": int(trgs["id"]), "z": z, "zerr": zerr, "class_value": class_value,
+            "patch_area": patch_area,
+            "cost": pool.estimate_bins(patch_area[2], patch_area[3]),
+        })
 
-        print("\n" + "=" * 70)
-        print("** GAL: id=%d  Z=%.5f  CLASS=%s"
-              % (trgs["id"], z, class_value))
-        print("=" * 70)
-
+    # Pass 2: the patches, side by side as the budget allows (largest first); one lane = the old serial loop
+    plan = pool.plan_workers([t["cost"] for t in tasks], nthreads, patch_workers,
+                             max_lanes=pool.lane_cap(pool.LANE_GB["Gal"]))
+    print("INFO: " + plan.describe("IFU_Gal"))
+    patch_ctx = dict(
+        infiles=infiles, headname=headname, outpath=outpath, IFU_config_dir=IFU_config_dir, IFU_params=IFU_params,
+        rvs_config=rvs_config, ferre_exe=ferre_exe, ferre_templates=ferre_templates, ferre_grid_ids=ferre_grid_ids,
+        ferre_grid_prefix=ferre_grid_prefix, spbin_size_gal=spbin_size_gal, min_snr_gal=min_snr_gal,
+        voronoi_gal=voronoi_gal, target_snr_gal=target_snr_gal, wlranges=wlranges, aps_ids=aps_ids,
+        targsrvy=targsrvy, targclass=targclass, mask_aps_ids=mask_aps_ids, sens_corr=sens_corr,
+        mask_gaps=mask_gaps, safe_mask_gaps=safe_mask_gaps, vacuum=vacuum, tellurics=tellurics,
+        fill_gap=fill_gap, arms_ratio=arms_ratio, overwrite=overwrite, UAPSID=UAPSID, catdir=catdir,
+        caldir=caldir, no_spec_ext=no_spec_ext, spaxel_weighted_lsf=spaxel_weighted_lsf,
+    )
+    for _ in tasks:
         tally.attempt()
-        try:
-            prep = ifu_Gal_prepare(
-                infiles, patch_headname, IFU_params, outpath,
-                wlranges=wlranges, aps_ids=aps_ids,
-                targsrvy=targsrvy, targclass=targclass,
-                mask_aps_ids=mask_aps_ids,
-                area=patch_area, mask_areas=None,
-                sens_corr=sens_corr, mask_gaps=mask_gaps,
-                safe_mask_gaps=safe_mask_gaps, vacuum=vacuum,
-                tellurics=tellurics, fill_gap=fill_gap,
-                arms_ratio=arms_ratio, join_arms=True,
-                z_input=z_input_patch,
-                spbin_size_gal=spbin_size_gal,
-                min_snr_gal=min_snr_gal,
-                voronoi_gal=voronoi_gal,
-                target_snr_gal=target_snr_gal,
-                catdir=catdir, caldir=caldir,
-                IFU_config_dir=IFU_config_dir,
-                spaxel_weighted_lsf=spaxel_weighted_lsf,
-            )
-
-            if prep is None:
-                print(f"  Skipped (no valid spaxels in aperture)")
-                proper_targets -= 1
-                tally.no_valid_spaxels()
-                continue
-
-            configs_gal = prep["configs_gal"]
-            lsf_values  = prep["lsf_values"]
-            figdir      = prep["figdir"]
-            bin_to_bucket = prep["bin_to_bucket"]
-            lsf_by_bucket = prep["lsf_by_bucket"]
-
-            # Resolve RVS / FERRE config
-
-            # Priority: explicit argument > config file > hardcoded default (last resort only)
-            for attr, key, hardcoded_default in [
-                (rvs_config,        "RVS_CONFIG",        None),
-                (ferre_exe,         "FERRE_EXE",         None),
-                (ferre_templates,   "FERRE_TEMPLATES",   None),
-                (ferre_grid_prefix, "FERRE_GRID_PREFIX", "n"),
-            ]:
-                if attr is not None:
-                    # explicit command-line argument wins
-                    configs_gal[key] = attr
-                elif configs_gal.get(key):
-                    # already in config file — use it, print for visibility
-                    print(f"  {key} from config: {configs_gal[key]}")
-                elif hardcoded_default is not None:
-                    # genuine last resort
-                    configs_gal[key] = hardcoded_default
-                    print(f"  WARNING: {key} not in config — using hardcoded default: {hardcoded_default}")
-                else:
-                    print(f"  WARNING: {key} not set (not in config, not passed as argument)")
-
-            # ferre_grid_ids — same logic but needs list handling
-            if ferre_grid_ids is not None:
-                configs_gal["FERRE_GRID_IDS"] = (
-                    ",".join(str(x) for x in ferre_grid_ids)
-                    if isinstance(ferre_grid_ids, list)
-                    else ferre_grid_ids
-                )
-            elif configs_gal.get("FERRE_GRID_IDS"):
-                print(f"  FERRE_GRID_IDS from config: {configs_gal['FERRE_GRID_IDS']}")
-            else:
-                print("  WARNING: FERRE_GRID_IDS not set")
-
-
-            _ferre_ids = [
-                str(x).strip()
-                for x in configs_gal["FERRE_GRID_IDS"].split(",")
-            ] if isinstance(configs_gal["FERRE_GRID_IDS"], str) \
-              else list(configs_gal["FERRE_GRID_IDS"])
-
-            # RVS
-            from PyAPS.aps_ifu_rvs import run_rvs_for_ifu_gal
-            rvs_ok = run_rvs_for_ifu_gal(
-                headname=patch_headname, outpath=outpath,
-                rvs_config=configs_gal["RVS_CONFIG"],
-                figdir=figdir, nthreads=nthreads,
-                configs_gal=configs_gal, overwrite=overwrite,
-                lsf=lsf_values,
-                bin_to_bucket=bin_to_bucket, lsf_by_bucket=lsf_by_bucket)
-            if not rvs_ok:
-                print("WARNING: RVS failed for id=%d" % trgs["id"])
-
-            # FERRE
-            _fe = configs_gal.get("FERRE_EXE")
-            _ft = configs_gal.get("FERRE_TEMPLATES")
-            if _fe and _ft:
-                from PyAPS.aps_ifu_ferre import run_ferre_for_ifu_gal
-                fe_ok = run_ferre_for_ifu_gal(
-                    headname=patch_headname, outpath=outpath,
-                    ferre_exe=_fe, ferre_templates=_ft,
-                    ferre_grid_ids=_ferre_ids,
-                    ferre_grid_prefix=configs_gal["FERRE_GRID_PREFIX"],
-                    configs_gal=configs_gal, nthreads=nthreads,
-                    overwrite=overwrite, outspec=True, lsf=lsf_values,
-                    bin_to_bucket=bin_to_bucket, lsf_by_bucket=lsf_by_bucket)
-                if not fe_ok:
-                    print("WARNING: FERRE failed for id=%d" % trgs["id"])
-            else:
-                print("INFO: FERRE skipped (ferre_exe or ferre_templates not set)")
-
-            ifuGalL2merge(
-                infiles, outpath, patch_headname,
-                wlranges=wlranges, outfile_suffix="_APS",
-                patch_area=patch_area, patch_id=int(trgs["id"]),
-                UAPSID=UAPSID, no_spec_ext=no_spec_ext)
-            tally.written()
-
-        except Exception as _exc:
-            if "No valid spaxels remaining after filters!" in str(_exc):
-                tally.no_valid_spaxels()
-            else:
-                tally.failed()
-            fault_counter += 1
-            import traceback
-            print("** GAL FAILED  id=%d" % trgs["id"])
-            traceback.print_exc()
-            sys.stdout.flush()
+    results = pool.run_patches(
+        tasks, lambda task, inner: _run_gal_patch(task, inner, patch_ctx), plan, label="GAL")
+    proper_targets, fault_counter = pool.apply_results(results, tally, proper_targets)
+    for r in results:
+        if len(results) > 1 and r.get("seconds") is not None:
+            print("INFO: GAL patch id=%s: %s in %.0f s" % (r["id"], r["outcome"], r["seconds"]))
 
     nothing_written = tally.finish()
     if proper_targets > 0 and proper_targets == fault_counter:
         sys.exit("All Gal targets failed")
     if nothing_written:
         sys.exit("No Gal product was written for any of the %d attempted patches" % tally.n['attempted'])
+
+
+def _run_gal_patch(task, inner, ctx):
+    """All the work of ONE Gal patch: prepare (read the aperture, bin it), RVS, FERRE, merge into the APS product.
+
+    `task` = ``{id, z, zerr, class_value, patch_area}``, `inner` = inner workers for the bins (RVS pool, FERRE bins at a time), `ctx` = the arguments of
+    :func:`ifu_Gal`. Returns the answer the parent adds to the PatchTally:
+    ``{id, outcome: written|no_valid_spaxels|failed, fault, proper_drop, rvs_ok, ferre_ok, seconds}``.
+    Everything the patch writes carries its own name `<headname>_PNNNN`; it reads, and writes, nothing that another patch writes.
+    An Exception is caught here (the patch fails, the others go on) exactly as the serial loop did; SystemExit is not.
+    """
+    t0 = time.time()
+    patch_id = int(task["id"])
+    patch_headname = ctx["headname"] + "_" + ("P%04d" % patch_id)
+    patch_area = task["patch_area"]
+    z, zerr = task["z"], task["zerr"]
+    outpath = ctx["outpath"]
+    infiles = ctx["infiles"]
+    answer = {"id": patch_id, "outcome": "failed", "fault": False, "proper_drop": False, "rvs_ok": None, "ferre_ok": None}
+
+    print("\n" + "=" * 70)
+    print("** GAL: id=%d  Z=%.5f  CLASS=%s" % (patch_id, z, task["class_value"]))
+    print("=" * 70)
+
+    try:
+        prep = ifu_Gal_prepare(
+            infiles, patch_headname, ctx["IFU_params"], outpath,
+            wlranges=ctx["wlranges"], aps_ids=ctx["aps_ids"],
+            targsrvy=ctx["targsrvy"], targclass=ctx["targclass"],
+            mask_aps_ids=ctx["mask_aps_ids"],
+            area=patch_area, mask_areas=None,
+            sens_corr=ctx["sens_corr"], mask_gaps=ctx["mask_gaps"],
+            safe_mask_gaps=ctx["safe_mask_gaps"], vacuum=ctx["vacuum"],
+            tellurics=ctx["tellurics"], fill_gap=ctx["fill_gap"],
+            arms_ratio=ctx["arms_ratio"], join_arms=True,
+            z_input=[z, zerr],
+            spbin_size_gal=ctx["spbin_size_gal"],
+            min_snr_gal=ctx["min_snr_gal"],
+            voronoi_gal=ctx["voronoi_gal"],
+            target_snr_gal=ctx["target_snr_gal"],
+            catdir=ctx["catdir"], caldir=ctx["caldir"],
+            IFU_config_dir=ctx["IFU_config_dir"],
+            spaxel_weighted_lsf=ctx["spaxel_weighted_lsf"],
+        )
+
+        if prep is None:
+            print(f"  Skipped (no valid spaxels in aperture)")
+            answer.update(outcome="no_valid_spaxels", proper_drop=True)
+            return answer
+
+        configs_gal = prep["configs_gal"]
+        lsf_values  = prep["lsf_values"]
+        figdir      = prep["figdir"]
+        bin_to_bucket = prep["bin_to_bucket"]
+        lsf_by_bucket = prep["lsf_by_bucket"]
+
+        # Resolve RVS / FERRE config
+
+        # Priority: explicit argument > config file > hardcoded default (last resort only)
+        for attr, key, hardcoded_default in [
+            (ctx["rvs_config"],        "RVS_CONFIG",        None),
+            (ctx["ferre_exe"],         "FERRE_EXE",         None),
+            (ctx["ferre_templates"],   "FERRE_TEMPLATES",   None),
+            (ctx["ferre_grid_prefix"], "FERRE_GRID_PREFIX", "n"),
+        ]:
+            if attr is not None:
+                # explicit command-line argument wins
+                configs_gal[key] = attr
+            elif configs_gal.get(key):
+                # already in config file — use it, print for visibility
+                print(f"  {key} from config: {configs_gal[key]}")
+            elif hardcoded_default is not None:
+                # genuine last resort
+                configs_gal[key] = hardcoded_default
+                print(f"  WARNING: {key} not in config — using hardcoded default: {hardcoded_default}")
+            else:
+                print(f"  WARNING: {key} not set (not in config, not passed as argument)")
+
+        # ferre_grid_ids — same logic but needs list handling
+        ferre_grid_ids = ctx["ferre_grid_ids"]
+        if ferre_grid_ids is not None:
+            configs_gal["FERRE_GRID_IDS"] = (
+                ",".join(str(x) for x in ferre_grid_ids)
+                if isinstance(ferre_grid_ids, list)
+                else ferre_grid_ids
+            )
+        elif configs_gal.get("FERRE_GRID_IDS"):
+            print(f"  FERRE_GRID_IDS from config: {configs_gal['FERRE_GRID_IDS']}")
+        else:
+            print("  WARNING: FERRE_GRID_IDS not set")
+
+
+        _ferre_ids = [
+            str(x).strip()
+            for x in configs_gal["FERRE_GRID_IDS"].split(",")
+        ] if isinstance(configs_gal["FERRE_GRID_IDS"], str) \
+          else list(configs_gal["FERRE_GRID_IDS"])
+
+        # RVS
+        from PyAPS.aps_ifu_rvs import run_rvs_for_ifu_gal
+        rvs_ok = run_rvs_for_ifu_gal(
+            headname=patch_headname, outpath=outpath,
+            rvs_config=configs_gal["RVS_CONFIG"],
+            figdir=figdir, nthreads=inner,
+            configs_gal=configs_gal, overwrite=ctx["overwrite"],
+            lsf=lsf_values,
+            bin_to_bucket=bin_to_bucket, lsf_by_bucket=lsf_by_bucket)
+        answer["rvs_ok"] = bool(rvs_ok)
+        if not rvs_ok:
+            print("WARNING: RVS failed for id=%d" % patch_id)
+
+        # FERRE
+        _fe = configs_gal.get("FERRE_EXE")
+        _ft = configs_gal.get("FERRE_TEMPLATES")
+        if _fe and _ft:
+            from PyAPS.aps_ifu_ferre import run_ferre_for_ifu_gal
+            fe_ok = run_ferre_for_ifu_gal(
+                headname=patch_headname, outpath=outpath,
+                ferre_exe=_fe, ferre_templates=_ft,
+                ferre_grid_ids=_ferre_ids,
+                ferre_grid_prefix=configs_gal["FERRE_GRID_PREFIX"],
+                configs_gal=configs_gal, nthreads=inner,
+                overwrite=ctx["overwrite"], outspec=True, lsf=lsf_values,
+                bin_to_bucket=bin_to_bucket, lsf_by_bucket=lsf_by_bucket)
+            answer["ferre_ok"] = bool(fe_ok)
+            if not fe_ok:
+                print("WARNING: FERRE failed for id=%d" % patch_id)
+        else:
+            print("INFO: FERRE skipped (ferre_exe or ferre_templates not set)")
+
+        ifuGalL2merge(
+            infiles, outpath, patch_headname,
+            wlranges=ctx["wlranges"], outfile_suffix="_APS",
+            patch_area=patch_area, patch_id=patch_id,
+            UAPSID=ctx["UAPSID"], no_spec_ext=ctx["no_spec_ext"])
+        answer["outcome"] = "written"
+
+    except Exception as _exc:
+        answer["outcome"] = ("no_valid_spaxels"
+                             if "No valid spaxels remaining after filters!" in str(_exc) else "failed")
+        answer["fault"] = True
+        import traceback
+        print("** GAL FAILED  id=%d" % patch_id)
+        traceback.print_exc()
+        sys.stdout.flush()
+    finally:
+        answer["seconds"] = round(time.time() - t0, 1)
+    return answer
 
 
 """
@@ -914,7 +973,12 @@ def gal_runner(options=None):
             (("--class_z_rad",), dict(type=float, default=1.5)),
             (("--class_ntop",), dict(type=int, default=1)),
             (("--mp_prep",), dict(type=int, default=1)),
-            (("--mp_Gal",), dict(type=int, default=1)),
+            (("--mp_Gal",), dict(type=int, default=1, help="CPU budget of the stage: workers at a time over patches and bins (never more)")),
+            (("--patch_workers",), dict(
+                type=int, default=0,
+                help=("Patches that run at the same time. 0 (default) = choose from --mp_Gal and the patch sizes, largest patch first; "
+                      "1 = one patch after the other (the bins of a patch use --mp_Gal workers); N = N patches at a time (at most --mp_Gal)."),
+            )),
             (("--uapsid",), dict(type=none_or_str, default=None)),
             (("--no_spec_ext",), dict(type=str2bool, default=False)),
             (("--gal_aperture_factor",), dict(
@@ -1025,6 +1089,7 @@ def gal_runner(options=None):
         class_ntop=args.class_ntop,
         mp_prep=args.mp_prep,
         nthreads=args.mp_Gal,
+        patch_workers=args.patch_workers,
         overwrite=args.overwrite,
         UAPSID=args.uapsid,
         catdir=args.catdir, caldir=args.caldir,

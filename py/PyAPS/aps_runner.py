@@ -1418,6 +1418,11 @@ def ifu_scriptGEN(infiles, config_file, cat_list=None, aps_ids=None, wlranges=No
     #########################################################################################
     ### Generate Commands dictionary
 
+    # Patches of IFU_ExGal / IFU_Gal run side by side inside the CPUs of their job (--mp_ExGal / --mp_Gal, see aps_ifu_patch_pool.py). By default the
+    # stage decides from the patch sizes; script_params `IFU_patch_workers: 1` = one patch after the other (the old behaviour), N = N patches at a time.
+    _pw = str(conf.get('IFU_patch_workers', '') or '').strip().lower()
+    patch_workers_arg = (' --patch_workers ' + str(int(_pw))) if _pw not in ('', 'auto', 'none', '0') else ''
+
     ## The patch file that ExGal and Gal will read.
     ## If the user supplied a patch_file, use it directly for all three stages.
     ## Otherwise, prepare writes {headname}_targets_mod.fits and ExGal/Gal read that.
@@ -1583,6 +1588,7 @@ def ifu_scriptGEN(infiles, config_file, cat_list=None, aps_ids=None, wlranges=No
         + ' --join_arms '        + conf['IFU_join_arms']
         + ' --arms_ratio '       + str(arms_ratio_str)
         + ' --mp_ExGal '         + str(mp[1])
+        + patch_workers_arg
         + ' --aps_ids '          + str(aps_ids_str)
         + ' --targsrvy '         + str(targsrvy_str)
         + ' --targclass '        + str(targclass_str)
@@ -1625,6 +1631,7 @@ def ifu_scriptGEN(infiles, config_file, cat_list=None, aps_ids=None, wlranges=No
         + ' --join_arms '        + conf['IFU_join_arms']
         + ' --arms_ratio '       + str(arms_ratio_str)
         + ' --mp_Gal '           + str(mp[2])
+        + patch_workers_arg
         + ' --aps_ids '          + str(aps_ids_str)
         + ' --targsrvy '         + str(targsrvy_str)
         + ' --targclass '        + str(targclass_str)

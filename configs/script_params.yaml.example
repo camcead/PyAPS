@@ -154,6 +154,8 @@ IFU_vacuum: 'False'
 IFU_fill_gap: 'False'
 IFU_join_arms: 'True'
 IFU_fig: 'True'
+# IFU_patch_workers: 1     # optional. Patches of IFU_Gal / IFU_ExGal that run at the same time inside the CPUs of the job (--mp_Gal / --mp_ExGal).
+#                          # Not set (default) = the stage chooses from the patch sizes, largest first; 1 = one patch after the other (old behaviour); N = N at a time.
 IFU_Gal_run: 'True'
 IFU_ExGal_run: 'True'
 seg2d: 'True'
