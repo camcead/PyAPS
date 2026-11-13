@@ -6,6 +6,9 @@ All notable changes to PyAPS are documented here. The format follows
 
 ## Unreleased
 
+### Changed (externals/README.md: which FERRE to build, 2026-11-13)
+- Build upstream FERRE commit f50a006 (2026-10-21) or later. The commits 60be172 to 0e05a6a (July to October 2026) have `OPT = -O0` in `src/makefile` by accident (reverted upstream in be05232): a `ferre.x` built from them is about 3 times slower and has no OpenMP. The README says how to check (`ldd bin/ferre.x | grep gomp`).
+
 ### Fixed (MOS line strengths still all NaN after the LS fixes: the MOS EMIPPXF stage failed for every fibre, OB 26133, 2026-11-06; doc/MOS_GETTING_STARTED_TUTORIAL.md section 13)
 - **`aps_utils.apply_redshift_to_fwhm_corrected` returned `float(1-element array)`** for a scalar wavelength; NumPy 2.5 made that an error ("only 0-dimensional arrays can be converted to Python scalars"). `IFUExGalEMIPPXF.prepare_emission_template` (used by the MOS EMIPPXF) calls the LSF per emission line, caught the error (`ERROR in batch template creation`), found no emission templates and `emi kinematics analysis failed for 553 targets`: `FLUX_CLEAN_EMI` was NaN in 100 % of the pixels of every fibre, so `MOSExGalLS` had nothing to measure (0 finite of 13,272 index cells, FWHM_FLAG 3 = `Convolution produced invalid values`). Fix: `float(np.ravel(x)[0])`. Test `tests/test_lsf_scalar_call.py`. Checked on the pod with the real files of the OB (8 fibres, scratch copy): EMI templates build, `FLUX_CLEAN_EMI` finite, LS indices finite (36 to 54 of 102 per fibre; the others are outside the rest-frame spectrum).
 - **`MOSExGalLS.run_ls` threw away a whole bin** when none of the SSP-conversion indices (spp = 1) was inside the spectrum (UV-only fibres: 3 of 8 test fibres), although the other indices had been measured (22 to 43 finite per fibre). It now keeps them, like `IFUExGalLS`. Test `tests/test_mos_ls_keeps_other_indices.py`.
