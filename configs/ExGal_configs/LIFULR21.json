@@ -63,6 +63,7 @@
     "seg2d_ext_thresh": "None",
     "seg2d_minarea": "None",
     "seg2d_deblend_nthresh": "4",
+    "seg2d_deblend_mode": "auto",
     "seg2d_radii_factor": "8.0",
     "class_z_rad": "2.5",
     "seg3d": "True",

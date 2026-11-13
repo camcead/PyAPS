@@ -68,6 +68,7 @@ from PyAPS.apsPlot.export import write_image
 from PyAPS.apsPlot.region_plot import plot_region
 from PyAPS.apsPlot.source_detection import build_figure as _build_source_detection_figure
 from PyAPS.apsPlot.source_detection_3d import build_figure as _build_source_detection_3d_figure
+from PyAPS import aps_ifu_deblend
 from PyAPS import aps_ifu_seg3d
 
 # for photutils <=1.5
@@ -543,7 +544,7 @@ def getimages(ra, dec, size=240, filters="giryz"):
 #############################################################
 class ifu_seg2d ():
 
-    def __init__(self, infiles, headname, outpath, white_images = None, white_src = 'PS1', search_gaia=True, extract = True, mask_stars = True, ext_thresh =2.5, minarea =400 , deblend_nthresh=4, radii_factor=7.0, class_ntop=3, max_targets=150):
+    def __init__(self, infiles, headname, outpath, white_images = None, white_src = 'PS1', search_gaia=True, extract = True, mask_stars = True, ext_thresh =2.5, minarea =400 , deblend_nthresh=4, radii_factor=7.0, class_ntop=3, max_targets=150, deblend_mode='auto'):
 
 
         self.gaia_parallax_over_error = 1.0
@@ -554,6 +555,9 @@ class ifu_seg2d ():
         self.ext_thresh = ext_thresh
         self.minarea = minarea
         self.deblend_nthresh = deblend_nthresh
+        # 'fixed' = sep.extract with deblend_nthresh as before; 'auto' = the same, then crowd-adaptive splitting of
+        # blends of point sources (aps_ifu_deblend, doc/aps_ifu_seg2d_robust.md section 7)
+        self.deblend_mode = aps_ifu_deblend.parse_mode(deblend_mode)
         self.radii_factor = radii_factor
         # safety cap on the number of 2D detections kept (0/None = off); see object_extract
         self.max_targets = max_targets
@@ -882,6 +886,26 @@ class ifu_seg2d ():
 
         objects, segmap = sep.extract(extc_data_ext, ext_thresh ,minarea = minarea, deblend_nthresh= deblend_nthresh , err=extc_rms, mask=extc_mask_bool, segmentation_map=True)
 
+        # seg2d_deblend_mode = auto: split blends of point sources in a crowded field (no change otherwise; any
+        # failure keeps the result above -- this step is optional and must never fail the OB)
+        n_parents = len(objects)
+        deblend_info = dict(mode=self.deblend_mode)
+        if self.deblend_mode == 'auto':
+            try:
+                pxsc_arcsec = float(extc_wcs.proj_plane_pixel_scales()[0].value) * 3600.0
+                objects, segmap, deblend_info = aps_ifu_deblend.auto_deblend(
+                    extc_data_ext, objects, segmap, ext_thresh=ext_thresh, minarea=minarea, err=extc_rms,
+                    mask=extc_mask_bool, pixscale_arcsec=pxsc_arcsec,
+                    max_total=int(self.max_targets) if self.max_targets else None, radii_factor=self.radii_factor)
+                print("seg2d deblend auto: %s; %d parents, %d split into %d children (%d compact detections, gate %d, "
+                      "PSF %.1f arcsec)" % ("crowded field" if deblend_info['gate_passed'] else "not a crowded field, nothing split",
+                                            n_parents, deblend_info['n_parents_split'], deblend_info['n_children'],
+                                            deblend_info['n_compact'], deblend_info['gate_min_compact'],
+                                            deblend_info['psf_size_arcsec'] or float('nan')))
+            except Exception as _e:
+                print("WARNING: seg2d_deblend_mode=auto failed (%s: %s); keeping the normal extraction" % (type(_e).__name__, _e))
+                deblend_info = dict(mode='auto', error="%s: %s" % (type(_e).__name__, _e), n_parents_split=0, n_children=0)
+
         n_detected = len(objects)
         n_cap_dropped = 0
         if self.max_targets and n_detected > int(self.max_targets):
@@ -907,7 +931,10 @@ class ifu_seg2d ():
             plain_sep_back=sky_info.get('sep_back'), plain_sep_rms=sky_info.get('sep_rms'),
             sky_constant=bool(sky_info.get('constant')),
             n_detected=int(n_detected), n_kept=int(len(objects)), n_dropped_by_cap=int(n_cap_dropped),
-            max_targets=int(self.max_targets) if self.max_targets else 0)
+            max_targets=int(self.max_targets) if self.max_targets else 0,
+            deblend_mode=self.deblend_mode, n_parents=int(n_parents),
+            n_parents_split=int(deblend_info.get('n_parents_split', 0)), n_children=int(deblend_info.get('n_children', 0)),
+            deblend_auto=({k: v for k, v in deblend_info.items() if k != 'mode'} if self.deblend_mode == 'auto' else None))
         self.seg2d_summary = summary
         try:
             import json as _json
@@ -1415,6 +1442,7 @@ def ifu_worker_prepare(
     seg2d_deblend_nthresh=4,
     seg2d_radii_factor=8.0,
     seg2d_max_targets=150,
+    seg2d_deblend_mode="auto",
     # --- seg3d: optional 3D matched-filter emission-line detection ---
     # (see aps_ifu_seg3d.py module docstring). Opt-in, additive: never
     # touches patch_file/patch_table/classification. Runs independently of
@@ -1569,6 +1597,10 @@ def ifu_worker_prepare(
         Minimum source area in pixels.
     seg2d_deblend_nthresh : float
         Deblending threshold for source extraction.
+    seg2d_deblend_mode : str
+        ``fixed`` = sep.extract with seg2d_deblend_nthresh only (the behaviour before 2026-11-13);
+        ``auto`` (default) = the same, then blends of point sources are split in a crowded field and nothing
+        else changes (see aps_ifu_deblend.py, doc/aps_ifu_seg2d_robust.md section 7).
     seg2d_radii_factor : float
         Ellipse radii scale factor (~3 sigma = 7).
     class_patch : bool
@@ -1684,6 +1716,7 @@ def ifu_worker_prepare(
             radii_factor=seg2d_radii_factor,
             class_ntop=class_ntop,
             max_targets=seg2d_max_targets,
+            deblend_mode=seg2d_deblend_mode,
         )
         patch_file  = ifu_seg2d_out.get_targets_fname()
         class_patch = True   # always classify after segmentation
@@ -1947,6 +1980,14 @@ After this script completes, run in parallel:
 import argparse
 
 
+def _deblend_mode_arg(value):
+    """argparse type of --seg2d_deblend_mode: 'fixed' or 'auto' (anything else is an error, not a silent default)"""
+    try:
+        return aps_ifu_deblend.parse_mode(value)
+    except ValueError as e:
+        raise argparse.ArgumentTypeError(str(e))
+
+
 def ifu_runner(options=None):
 
     parser = build_common_parser(
@@ -1973,6 +2014,9 @@ def ifu_runner(options=None):
             (("--seg2d_ext_thresh",), dict(type=none_or_str, default=2.5)),
             (("--seg2d_minarea",), dict(type=none_or_str, default=400.0)),
             (("--seg2d_deblend_nthresh",), dict(type=none_or_str, default=4)),
+            (("--seg2d_deblend_mode",), dict(type=_deblend_mode_arg, default="auto",
+                help="fixed = sep deblending with --seg2d_deblend_nthresh only; auto = also split blends of "
+                     "point sources in a crowded field (default)")),
             (("--seg2d_radii_factor",), dict(type=float, default=7.0)),
             (("--seg2d_max_targets",), dict(type=int, default=150)),
             (("--seg3d",), dict(type=str2bool, default=False)),
@@ -2080,6 +2124,7 @@ def ifu_runner(options=None):
         seg2d_ext_thresh=seg2d_ext_thresh_val,
         seg2d_minarea=seg2d_minarea_val,
         seg2d_deblend_nthresh=seg2d_deblend_nthresh_val,
+        seg2d_deblend_mode=args.seg2d_deblend_mode,
         seg2d_radii_factor=args.seg2d_radii_factor,
         seg2d_max_targets=args.seg2d_max_targets,
         seg3d=args.seg3d,
