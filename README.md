@@ -735,7 +735,7 @@ python aps_ifu_Gal.py ... --mp_Gal 1                                  # plain se
 ```
 
 * `--mp_Gal` / `--mp_ExGal` is the budget: never more than that many worker processes at a time (patches side by side x workers inside a patch).
-* `--patch_workers 0` (default) chooses from the budget and the patch sizes (largest patch first, the plan is printed); `1` = one patch at a time as before 2026-11-13; `N` = N patches at a time. With a budget of 1 every setting is the serial loop. In `script_params.yaml`: `IFU_patch_workers`.
+* `--patch_workers 0` (default) chooses from the budget and the patch sizes (largest patch first, the plan is printed; IFU_ExGal sets the width of each patch from its real bin count after the binning, `PYAPS_PATCH_WIDTH=static` turns that off); `1` = one patch at a time as before 2026-11-13; `N` = N patches at a time. With a budget of 1 every setting is the serial loop. In `script_params.yaml`: `IFU_patch_workers`.
 * `export OMP_NUM_THREADS=1` first (the pipeline scripts do): numpy must not add threads of its own to the workers.
 * IFU_Gal needs **FERRE f50a006 or later** ([externals/README.md](externals/README.md)): the -O0 build of July to October 2026 is 3 times slower and has no OpenMP; `python tools/check_env.py` warns when `ferre.x` does not link libgomp.
 * Memory: about 2 GB for each worker of IFU_Gal (10 workers: 20 GB) and the cube pages once (4-8 GB); the profile asks for what it needs and the limits policy lowers the workers when the RAM is smaller.
