@@ -117,6 +117,89 @@ def test_the_widest_lane_gets_the_largest_patch():
         assert res[2]["inner"] == plan.lanes[0]
 
 
+# ----------------------------------------------------------------------------------------------------------------------- dynamic widths (IFU_ExGal)
+def test_fill_widths_giant_takes_what_the_small_ones_leave():
+    w = pool.fill_widths({0: 3900, 1: 2, 2: 2, 3: 2, 4: 2, 5: 2, 6: 2}, 40, 2)
+    assert w[0] == 28 and all(w[i] == 2 for i in range(1, 7)) and sum(w.values()) == 40
+
+
+def test_fill_widths_equal_demands_get_equal_widths_and_never_more_than_asked():
+    w = pool.fill_widths({i: 51 for i in range(7)}, 40, 2)
+    assert sum(w.values()) == 40 and max(w.values()) - min(w.values()) <= 1
+    assert pool.fill_widths({0: 3, 1: 3}, 40, 2) == {0: 3, 1: 3}              # a patch of 3 bins never gets more than 3
+    assert pool.fill_widths({0: 0, 1: 9}, 8, 2) == {1: 8}                     # a patch without work takes nothing
+
+
+def test_dynamic_plan_has_lanes_from_memory_and_budget_not_from_costs():
+    plan = pool.plan_workers(OB26037, 40, None, max_lanes=7, min_inner=2, dynamic=True)
+    assert plan.dynamic and len(plan.lanes) == 7 and sum(plan.lanes) == 40 and "dynamic" in plan.reason and "bins are known" in plan.describe("X")
+    assert pool.plan_workers([5], 40, None, min_inner=2, dynamic=True).serial                   # one patch: the whole budget inside it
+    assert pool.plan_workers(OB26037, 40, 1, min_inner=2, dynamic=True).serial                  # patch_workers=1 stays the old serial code
+    assert len(pool.plan_workers(OB26037, 40, 3, max_lanes=7, min_inner=2, dynamic=True).lanes) == 3
+    assert len(pool.plan_workers(OB26037, 6, None, min_inner=2, dynamic=True).lanes) == 3       # 6 workers, 2 each
+
+
+def _dyn_work(bins, hold=0.15, log=None):
+    def work(task, inner):
+        b = pool.current_broker()
+        w = None
+        try:
+            if bins.get(task["id"], 0) > 0:
+                w = b.acquire(task["pos"], bins[task["id"]])
+            t0 = time.time()
+            time.sleep(hold if (w or 0) > 2 else 0.02)
+            return _ok(task, w, t0=t0, t1=time.time())
+        finally:
+            b.release(task["pos"])
+    return work
+
+
+def test_dynamic_widths_giant_gets_the_budget_and_the_total_never_exceeds_it():
+    costs = [3900] + [2] * 8
+    bins = {100 + i: c for i, c in enumerate(costs)}
+    tasks = [{"id": 100 + i, "cost": c} for i, c in enumerate(costs)]
+    plan = pool.plan_workers(costs, 12, 3, min_inner=2, dynamic=True)
+    res = pool.run_patches(tasks, _dyn_work(bins), plan)
+    assert res[0]["inner"] == 8 and all(r["inner"] == 2 for r in res[1:])                      # first wave 8 + 2 + 2, later patches 2
+    events = sorted([(r["t0"], r["inner"]) for r in res] + [(r["t1"], -r["inner"]) for r in res], key=lambda e: (e[0], e[1]))
+    busy = peak = 0
+    for _, d in events:
+        busy += d
+        peak = max(peak, busy)
+    assert peak <= 12
+
+
+def test_dynamic_widths_a_skipped_patch_does_not_block_the_first_wave():
+    costs = [50, 40, 30, 2, 2]
+    bins = {1: 50, 2: 0, 3: 30, 4: 2, 5: 2}                                                   # patch 2 has no valid spaxels: it never acquires
+    tasks = [{"id": i + 1, "cost": c} for i, c in enumerate(costs)]
+    plan = pool.plan_workers(costs, 12, 3, min_inner=2, dynamic=True)
+    t0 = time.time()
+    res = pool.run_patches(tasks, _dyn_work(bins, hold=0.05), plan)
+    assert time.time() - t0 < 20 and len(res) == 5 and res[1]["inner"] is None
+    assert res[0]["inner"] + res[2]["inner"] <= 12 and res[0]["inner"] >= 2 and res[2]["inner"] >= 2
+
+
+def test_dynamic_widths_a_lane_that_dies_gives_its_workers_back():
+    costs = [20, 20, 20, 2, 2, 2, 2, 2]
+    bins = {i + 1: c for i, c in enumerate(costs)}
+    tasks = [{"id": i + 1, "cost": c} for i, c in enumerate(costs)]
+    plan = pool.plan_workers(costs, 6, 3, min_inner=2, dynamic=True)
+
+    def work(task, inner):
+        b = pool.current_broker()
+        w = b.acquire(task["pos"], bins[task["id"]])
+        if task["id"] == 2:
+            os._exit(3)                                                                         # the lane dies holding its workers
+        time.sleep(0.05)
+        b.release(task["pos"])
+        return _ok(task, w)
+    t0 = time.time()
+    res = pool.run_patches(tasks, work, plan)
+    assert time.time() - t0 < 60 and len(res) == 8
+    assert res[1]["outcome"] != "written" and sum(1 for r in res if r["outcome"] == "written") == 7
+
+
 def test_plan_real_field_beats_the_old_serial_order():
     plan = pool.plan_workers(OB14699, 10)
     assert not plan.serial and sum(plan.lanes) <= 10
