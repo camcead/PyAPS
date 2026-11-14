@@ -496,7 +496,7 @@ These are the same parameters used by APSOB (see `APSOB_README.md`). They are fo
 | `EMIPPXF` | bool | `False` | Run EMIPPXF emission line fitting module. |
 | `LS` | bool | `False` | Run line strength index module. |
 | `nthreads` | int | `1` | The CPU budget of the stage (CLI: `--mp_ExGal`): at most this many worker processes at a time, shared between patches that run side by side and the PPXF / EMIPPXF / LS pool inside each patch. `1` = the plain serial loop. |
-| `patch_workers` | int or None | `None` | Patches that run at the same time (CLI: `--patch_workers`). `None` / `0` = chosen from `nthreads` and the aperture sizes, largest first. `1` = one patch after the other with a pool of `nthreads` inside (the behaviour before 2026-11-13). `N` = N patches at a time (at most `nthreads`). Same driver as IFU_Gal: `aps_ifu_patch_pool.py`, `doc/aps_ifu_Gal.md` section 7.7. |
+| `patch_workers` | int or None | `None` | Patches that run at the same time (CLI: `--patch_workers`). `None` / `0` = chosen from `nthreads` and the aperture sizes, largest first. `1` = one patch after the other with a pool of `nthreads` inside (the behaviour before 2026-11-13). `N` = N patches at a time (at most `nthreads`). For IFU_ExGal the width of each patch is NOT planned from the aperture area (the Voronoi bin count follows the S/N): lanes as the memory allows, and each patch takes its inner workers from the budget after its binning (`WidthBroker`, since 2026-11-14; `PYAPS_PATCH_WIDTH=static` = lanes planned from the area). Same driver as IFU_Gal: `aps_ifu_patch_pool.py`, `doc/aps_ifu_Gal.md` section 7.7. |
 | `overwrite` | bool | `True` | Overwrite existing output files. |
 | `UAPSID` | str or None | `None` | Unique APS identifier written to L2 FITS header. |
 
