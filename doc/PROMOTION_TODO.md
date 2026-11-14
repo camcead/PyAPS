@@ -1,7 +1,8 @@
-# Dev-only work waiting for promotion to prod
+# Dev: work waiting for promotion to prod (the checklist)
 
 Last updated 2026-11-14. Work goes dev -> prod; public `main` is only for public releases.
-This file lists what is on `dev` and deliberately NOT on `prod` yet. Remove an entry when it is promoted.
+This file lists what is on `dev` and deliberately NOT on `prod` yet. Tick the boxes here. Prod has its own
+copy of the file (what is absent there and why); remove the entry from both when it is promoted.
 
 ## 1. FERRE metallicity columns `FEH` / `FEH_ERR` renamed `MH` / `MH_ERR`
 
