@@ -77,6 +77,46 @@ def test_plan_few_big_patches_share_the_budget():
     assert plan.serial and plan.inner == 10                             # one patch: all the budget goes inside it
 
 
+# OB 26037 (night 20261112, ExGal): ONE patch with 606 Voronoi bins (1941 s on 24 workers) and ten single stars (84-153 s each, mostly the fixed work of reading and
+# binning the aperture). Equal lanes slow the big patch by the same factor as the lanes are narrower, so the plan was one lane of 24 and 53 min.
+OB26037 = [1313] + [2] * 10
+
+
+def test_plan_one_giant_patch_and_small_ones_gets_a_wide_lane():
+    for budget in (24, 40):
+        plan = pool.plan_workers(OB26037, budget, None, max_lanes=7, min_inner=2)
+        assert not plan.serial and plan.lanes[0] >= budget - 6 and sum(plan.lanes) == budget and min(plan.lanes) >= 2
+        assert "wide lane" in plan.reason
+        assert plan.est_wall < 0.85 * plan.est_serial                     # the estimated gain over one lane (20 % at 24 workers, 33 % at 40)
+        assert pool.simulate(OB26037, plan.lanes, plan.order) == plan.est_wall
+
+
+def test_plan_similar_patches_keep_equal_lanes():
+    plan = pool.plan_workers([20] * 40, 24, None, max_lanes=7, min_inner=2)
+    assert max(plan.lanes) - min(plan.lanes) <= 1 and "wide lane" not in plan.reason
+
+
+def test_plan_wide_lane_respects_min_inner_and_the_lane_cap():
+    plan = pool.plan_workers(OB26037, 24, None, max_lanes=2, min_inner=2)
+    assert len(plan.lanes) <= 2
+    plan = pool.plan_workers(OB26037, 5, None, min_inner=2)
+    assert sum(plan.lanes) <= 5 and min(plan.lanes) >= 2 and len(plan.lanes) <= 2
+
+
+def test_the_widest_lane_gets_the_largest_patch():
+    """With lanes of different width a race for the queue could give the giant patch to the narrow lane."""
+    def work(task, inner):
+        time.sleep(0.05)
+        return _ok(task, inner)
+    costs = [2, 2, 1313] + [2] * 8
+    tasks = [{"id": 10 + i, "cost": c} for i, c in enumerate(costs)]
+    plan = pool.plan_workers(costs, 24, None, max_lanes=7, min_inner=2)
+    assert plan.lanes[0] > plan.lanes[-1]
+    for _ in range(5):                                                      # a race would show up in some of the runs
+        res = pool.run_patches(tasks, work, plan)
+        assert res[2]["inner"] == plan.lanes[0]
+
+
 def test_plan_real_field_beats_the_old_serial_order():
     plan = pool.plan_workers(OB14699, 10)
     assert not plan.serial and sum(plan.lanes) <= 10
@@ -173,9 +213,10 @@ def test_parallel_answers_in_table_order_and_biggest_patch_starts_first():
     tasks = [{"id": i, "cost": c} for i, c in zip(ids, costs)]
     res = pool.run_patches(tasks, work, plan)
     assert [r["id"] for r in res] == ids                                    # the order of the table, not of completion
-    first = sorted(res, key=lambda r: r["t0"])[:3]                          # 3 lanes: the first three patches of the queue start together
-    assert {104, 107} <= {r["id"] for r in first}                           # the two biggest are among them (the queue is largest first)
-    assert [r["id"] for r in sorted(res, key=lambda r: r["t0"])[3:]] and 108 not in {r["id"] for r in first}
+    by_id = {r["id"]: r for r in res}
+    for big in (104, 107):                                                  # the two biggest are the FIRST patch of their lane (the queue is largest first);
+        assert min(r["t0"] for r in res if r["pid"] == by_id[big]["pid"]) == by_id[big]["t0"]    # not "the first three to start": a lane may be slow to fork
+    assert by_id[104]["pid"] != by_id[107]["pid"]                           # two different lanes
     assert {r["inner"] for r in res} == {1}                                 # 3 lanes of 1 inner worker: budget 3
 
 
@@ -474,7 +515,7 @@ def test_plan_min_inner_keeps_the_pool_path_of_the_modules():
 # ----------------------------------------------------------------------------------------------------------------------- the runner
 @pytest.mark.parametrize("workers,expect", [(None, None), ("1", "--patch_workers 1"), ("4", "--patch_workers 4"), ("auto", None), ("0", None)])
 def test_runner_gives_the_stage_scripts_the_cpu_budget_and_the_patch_workers_option(tmp_path, monkeypatch, workers, expect):
-    """--mp_Gal / --mp_ExGal are the CPUs of the resource table (v2: 10 and 24); --patch_workers appears only when script_params sets IFU_patch_workers."""
+    """--mp_Gal / --mp_ExGal are the CPUs of the resource table (v2: 10 and 40); --patch_workers appears only when script_params sets IFU_patch_workers."""
     pytest.importorskip("yaml")
     import sys
     sys.path.insert(0, os.path.dirname(__file__))
@@ -494,6 +535,6 @@ def test_runner_gives_the_stage_scripts_the_cpu_budget_and_the_patch_workers_opt
     scripts = mod.ifu_scriptGEN(infiles=infiles, config_file=str(conf), headname="hn", UAPSID="abcdef012345", hpc=0, aps_ovr=True, mp_LIFU=None, mp_MIFU=None)
     gal = (scripts / "abcdef012345_IFU_Gal.sh").read_text()
     exg = (scripts / "abcdef012345_IFU_ExGal.sh").read_text()
-    assert " --mp_Gal 10" in gal and " --mp_ExGal 24" in exg and "#SBATCH --ntasks=10" in gal and "#SBATCH --ntasks=24" in exg
+    assert " --mp_Gal 10" in gal and " --mp_ExGal 40" in exg and "#SBATCH --ntasks=10" in gal and "#SBATCH --ntasks=40" in exg
     for text in (gal, exg):
         assert (expect in text) if expect else ("--patch_workers" not in text)

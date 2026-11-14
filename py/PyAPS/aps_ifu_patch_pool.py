@@ -13,6 +13,9 @@ The budget
         patch_workers = N > 1:                         N lanes (at most mp, at most the number of patches), `mp` shared out as evenly as it goes.
         patch_workers = 0 / None (auto):               the number of lanes with the shortest estimated wall time (see plan_workers): many small patches
                                                        use one lane per CPU; a few big patches use fewer lanes with several inner workers each.
+                                                       Lanes are equal unless one big patch dwarfs the rest (OB 26037: one patch of 606 Voronoi bins
+                                                       and ten single stars): then a wide lane takes the big patch and narrow ones the rest, when the
+                                                       estimated wall time is more than 5 % shorter (_best_skewed).
 
         IFU_ExGal: every lane gets at least 2 inner workers (`min_inner`): PPXF / EMIPPXF / LS have a pool path (the one production always ran) and a separate
         serial path for one worker; a budget of 1 stays the plain serial loop.
@@ -23,7 +26,8 @@ Memory
     the cgroup limit or the free RAM, 90 % of it, divided by the GB per lane); the CPUs that no lane can use go to the inner workers.
 
 The order
-    Patches are handed out largest first (longest processing time first), by the estimated number of bins (area of the aperture). The patch sizes of a
+    Patches are handed out largest first (longest processing time first), by the estimated number of bins (area of the aperture); the first ones go to
+    the lanes by width (the widest lane gets the largest patch, run_patches), the rest through a shared queue. The patch sizes of a
     real field are very uneven (91 bins ... 2 bins), so the big ones start first and the small ones fill the gaps.
 
 Isolation
@@ -215,7 +219,16 @@ def plan_workers(costs, mp_budget, patch_workers=None, max_lanes=None, min_inner
     for p in range(1, top + 1):
         lanes = split_even(budget, p)
         walls.append((simulate(costs, lanes, order if p > 1 else list(range(n))), p, lanes))
-    best = min(w[0] for w in walls)
+    # Uneven lanes (2026-11-14, OB 26037: one patch of 606 Voronoi bins and ten of 2): with equal lanes the big patch is slowed by the same factor as the lanes
+    # are narrower, so "one lane" won. A wide lane for the big patch and narrow ones for the rest is tried too; it is only taken when it beats the best equal split
+    # by more than AUTO_TOLERANCE, so a field of similar patches keeps the equal lanes.
+    best_equal = min(w[0] for w in walls)
+    skew = _best_skewed(costs, order, budget, top, int(min_inner))
+    if skew is not None and skew[0] * AUTO_TOLERANCE < best_equal:
+        wall, lanes = skew
+        why = "auto, wide lane for the big patches" + ("" if cap is None or top >= room else ", memory allows %d lanes" % cap)
+        return PatchPlan(budget, n, lanes, order, why, wall, t_one, cap=cap)
+    best = best_equal
     for wall, p, lanes in walls:
         if wall <= best * AUTO_TOLERANCE:
             if p == 1:
@@ -223,6 +236,43 @@ def plan_workers(costs, mp_budget, patch_workers=None, max_lanes=None, min_inner
             why = "auto" + ("" if cap is None or top >= room else ", memory allows %d lanes" % cap)
             return PatchPlan(budget, n, lanes, order, why, wall, t_one, cap=cap)
     return serial("auto")
+
+
+def _best_skewed(costs, order, budget, top, min_inner, max_steps=40):
+    """Best uneven lane set with 2 .. `top` lanes: for every lane count the first lane (the one that takes the largest patch) is made as wide as it pays,
+    the other lanes share the rest, then single workers are moved between lanes while the estimated wall time falls. Returns (wall, lanes) or None."""
+    min_inner = max(1, min_inner)
+    found = None
+    for p in range(2, top + 1):
+        if budget < p * min_inner:
+            break
+        start = None
+        for w0 in range(min_inner, budget - (p - 1) * min_inner + 1):
+            lanes = [w0] + split_even(budget - w0, p - 1)
+            lanes = sorted(lanes, reverse=True)
+            wall = simulate(costs, lanes, order)
+            if start is None or wall < start[0]:
+                start = (wall, lanes)
+        wall, lanes = start
+        for _ in range(max_steps):
+            move = None
+            for i in range(p):
+                for j in range(p):
+                    if i == j or lanes[i] <= min_inner:
+                        continue
+                    trial = list(lanes)
+                    trial[i] -= 1
+                    trial[j] += 1
+                    trial.sort(reverse=True)
+                    w = simulate(costs, trial, order)
+                    if w < wall - 1e-9 and (move is None or w < move[0]):
+                        move = (w, trial)
+            if move is None:
+                break
+            wall, lanes = move
+        if found is None or wall < found[0] - 1e-9:
+            found = (wall, lanes)
+    return found
 
 
 # ------------------------------------------------------------------------------------------------------------------------------------------
@@ -284,7 +334,7 @@ def _limit_threads():
         pass
 
 
-def _lane_main(lane, capacity, work, tasks, taskq, conn):
+def _lane_main(lane, capacity, work, tasks, taskq, conn, first=None):
     try:
         signal.signal(signal.SIGTERM, signal.SIG_DFL)  # the parent turns SIGTERM into SystemExit (to clean up); a lane must simply die when terminated
     except Exception:
@@ -298,7 +348,10 @@ def _lane_main(lane, capacity, work, tasks, taskq, conn):
     raw_out, raw_err = sys.stdout, sys.stderr
     try:
         while True:
-            pos = taskq.get()
+            if first is not None:                      # the patch handed to this lane at the start (see run_patches), then the shared queue
+                pos, first = first, None
+            else:
+                pos = taskq.get()
             if pos is None:
                 break
             task = tasks[pos]
@@ -357,7 +410,11 @@ def run_patches(tasks, work, plan, label="IFU", out=None):
     from multiprocessing import connection
     ctx = mp.get_context("fork")
     taskq = ctx.SimpleQueue()                          # no feeder thread: nothing is half-sent when the lanes are forked
-    for pos in plan.order:
+    # The first patches (the largest) are handed to the lanes by width, the widest lane gets the largest: with lanes of different width a race for the
+    # queue could give the largest patch to the narrowest lane (the plan assumes the opposite). The rest goes through the shared queue, largest first.
+    by_width = sorted(range(len(plan.lanes)), key=lambda l: (-plan.lanes[l], l))
+    firsts = {lane: plan.order[k] for k, lane in enumerate(by_width[:len(plan.order)])}
+    for pos in plan.order[len(firsts):]:
         taskq.put(pos)
     for _ in range(len(plan.lanes) + len(tasks)):      # end markers for the lanes and for replacements
         taskq.put(None)
@@ -365,9 +422,9 @@ def run_patches(tasks, work, plan, label="IFU", out=None):
     inflight, started, results, ended = {}, set(), {}, set()
     respawns = [0]
 
-    def start(lane, cap):
+    def start(lane, cap, first=None):
         reader, writer = ctx.Pipe(duplex=False)
-        p = ctx.Process(target=_lane_main, args=(lane, cap, work, tasks, taskq, writer), name="patch-lane-%d" % lane)
+        p = ctx.Process(target=_lane_main, args=(lane, cap, work, tasks, taskq, writer, first), name="patch-lane-%d" % lane)
         p.daemon = False                               # a lane starts its own pools (RVS, PPXF, ...): daemonic processes may not have children
         p.start()
         writer.close()                                 # only the lane holds the writing end: its death is an EOF here
@@ -381,6 +438,8 @@ def run_patches(tasks, work, plan, label="IFU", out=None):
             pass
         procs[lane].join(timeout=5)
         pos = inflight.pop(lane, None)
+        if pos is None and firsts.get(lane) is not None and firsts[lane] not in started and firsts[lane] not in results:
+            pos = firsts[lane]                         # the lane died before it reported its first patch
         if pos is not None and pos not in results:
             code = procs[lane].exitcode
             results[pos] = failed_result(tasks[pos], "worker process died (exit code %s)" % code)
@@ -399,7 +458,7 @@ def run_patches(tasks, work, plan, label="IFU", out=None):
     sys.stderr.flush()
     try:
         for lane, cap in enumerate(plan.lanes):
-            start(lane, cap)
+            start(lane, cap, firsts.get(lane))
         while len(results) < len(tasks) and readers:
             for reader in connection.wait(list(readers), timeout=5.0):
                 lane = readers.get(reader)
