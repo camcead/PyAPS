@@ -1036,6 +1036,7 @@ def ifu_ExGal_prepare(
     # runModule_EMIPPXF/runModule_LINESTRENGTH all take the same-named
     # parameters and fall back to the single LSF_Data above whenever
     # either is None/empty -- see each of their own docstrings.
+    n_voronoi_bins = int(np.max(binNum)) + 1 if len(binNum) else 0      # what the width of the patch is set from (aps_ifu_patch_pool.WidthBroker)
     bin_to_bucket = None
     LSF_Data_by_bucket = None
     if spaxel_weighted_lsf:
@@ -1057,6 +1058,7 @@ def ifu_ExGal_prepare(
         "figdir":             figdir,
         "bin_to_bucket":      bin_to_bucket,
         "LSF_Data_by_bucket": LSF_Data_by_bucket,
+        "n_bins":             n_voronoi_bins,
     }
 
 # =========================================================================== #
@@ -1256,8 +1258,12 @@ def ifu_ExGal(
         })
 
     # Pass 2: the patches, side by side as the budget allows (largest first); one lane = the old serial loop
+    # The number of bins of an ExGal patch (Voronoi, set by the S/N) does not follow the area of its aperture (night 20261112: 3974 arcsec^2 -> 2 bins, 6908 ->
+    # 606, 12154 -> 3326), so the widths are not planned from the area: lanes as the memory allows, the width of each patch is set when its bins are known.
+    # PYAPS_PATCH_WIDTH=static goes back to the lanes planned from the area.
     plan = pool.plan_workers([t["cost"] for t in tasks], nthreads, patch_workers,
-                             max_lanes=pool.lane_cap(pool.LANE_GB["ExGal"]), min_inner=2)
+                             max_lanes=pool.lane_cap(pool.LANE_GB["ExGal"]), min_inner=2,
+                             dynamic=os.environ.get("PYAPS_PATCH_WIDTH", "dynamic").strip().lower() != "static")
     print("INFO: " + plan.describe("IFU_ExGal"))
     patch_ctx = dict(
         infiles=infiles, headname=headname, outpath=outpath, IFU_config_dir=IFU_config_dir, ExGal_templates=ExGal_templates,
@@ -1292,8 +1298,11 @@ def _run_exgal_patch(task, inner, ctx):
     ``PYAPS_PATCH_SEED=<n>`` seeds numpy with n + patch id at the start of every patch (for comparing runs; with an inner pool of 1 the result
     is then reproducible).
     """
+    from PyAPS import aps_ifu_patch_pool as pool
     t0 = time.time()
     patch_id = int(task["id"])
+    broker = pool.current_broker()             # None for a serial run or a plan with fixed widths
+    patch_pos = task.get("pos")
     patch_headname = ctx["headname"] + "_" + ("P%04d" % patch_id)
     patch_area, mask_patch_area = task["patch_area"], task["mask_patch_area"]
     z, zerr = task["z"], task["zerr"]
@@ -1330,6 +1339,11 @@ def _run_exgal_patch(task, inner, ctx):
             print(f"  Skipped (no valid spaxels in aperture)")
             answer.update(outcome="no_valid_spaxels", proper_drop=True)
             return answer
+
+        if broker is not None and patch_pos is not None:
+            # the bins are known now: take the inner workers from the budget (the giant patch gets what the small ones leave)
+            inner = broker.acquire(patch_pos, prep.get("n_bins") or 1)
+            print("INFO: ExGAL id=%d: %s bin(s) -> %d inner worker(s)" % (patch_id, prep.get("n_bins"), inner))
 
         cube          = prep["cube"]
         configs       = prep["configs"]
@@ -1394,6 +1408,8 @@ def _run_exgal_patch(task, inner, ctx):
         traceback.print_exc()
         sys.stdout.flush()
     finally:
+        if broker is not None and patch_pos is not None:
+            broker.release(patch_pos)          # also covers a skipped or failed patch (it has no work for the first-wave barrier)
         answer["seconds"] = round(time.time() - t0, 1)
     return answer
 

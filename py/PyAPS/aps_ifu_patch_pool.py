@@ -144,8 +144,9 @@ def lane_cap(lane_gb, avail_gb="detect", fraction=0.9):
 class PatchPlan(object):
     """How the budget is spent: `lanes` = inner workers of every lane (their sum never exceeds `mp`), `order` = positions in dispatch order."""
 
-    def __init__(self, mp_budget, n, lanes, order, reason, est_wall=None, est_serial=None, cap=None, warning=None):
+    def __init__(self, mp_budget, n, lanes, order, reason, est_wall=None, est_serial=None, cap=None, warning=None, dynamic=False, min_inner=1):
         self.mp, self.n, self.lanes, self.order = mp_budget, n, list(lanes), list(order)
+        self.dynamic, self.min_inner = bool(dynamic), max(1, int(min_inner))     # dynamic: the width of a patch is set when its bins are known (WidthBroker)
         self.reason, self.est_wall, self.est_serial = reason, est_wall, est_serial
         self.cap, self.warning = cap, warning                   # memory cap on the lanes (None = unknown), a warning to print
 
@@ -164,6 +165,10 @@ class PatchPlan(object):
         if self.serial:
             return ("%s patch plan: %d patch(es) one after the other in table order, %d inner worker(s) each (budget mp=%d; %s)"
                     % (label, self.n, self.inner, self.mp, self.reason)) + ("\n" + self.warning if self.warning else "")
+        if self.dynamic:
+            return ("%s patch plan: %d patches on %d lane(s); the inner workers of each patch are set when its bins are known, at least %d each, never more than "
+                    "mp=%d together (largest patch first; %s)" % (label, self.n, len(self.lanes), self.min_inner, self.mp, self.reason)
+                    + (("; memory room for %d lane(s)" % self.cap) if self.cap is not None else "") + ("\n" + self.warning if self.warning else ""))
         s = ("%s patch plan: %d patches on %d lane(s) with %s inner worker(s) (budget mp=%d, %d workers busy at most; largest patch first; %s)"
              % (label, self.n, len(self.lanes), "+".join(str(c) for c in self.lanes), self.mp, sum(self.lanes), self.reason))
         if self.est_wall and self.est_serial:
@@ -173,12 +178,14 @@ class PatchPlan(object):
         return s + ("\n" + self.warning if self.warning else "")
 
 
-def plan_workers(costs, mp_budget, patch_workers=None, max_lanes=None, min_inner=1):
+def plan_workers(costs, mp_budget, patch_workers=None, max_lanes=None, min_inner=1, dynamic=False):
     """Split the CPU budget `mp_budget` over lanes for patches with the estimated `costs` (bins). Returns a :class:`PatchPlan`.
 
     ``patch_workers``: 1 = the old serial behaviour; N > 1 = N lanes (limited by the budget and the number of patches); 0 / None = auto.
     Auto simulates one lane of `mp` and 2 .. min(n, mp, max_lanes) lanes and takes the fewest lanes within 5 % of the shortest estimated wall time.
     ``max_lanes``: what the memory of the job allows (see :func:`lane_cap`); None = not limited. An explicit N above it is kept and warned about.
+    ``dynamic``: the widths of the lanes are NOT planned from the costs: there are as many lanes as the memory and the budget allow (or `patch_workers`), and every patch
+    takes its inner workers from the budget when its binning is done (WidthBroker). For IFU_ExGal, where the number of bins (Voronoi, set by the S/N) does not follow the area.
     ``min_inner``: fewest inner workers of a lane when there is more than one (IFU_ExGal: 2, because the PPXF / EMIPPXF / LS modules have a pool path, the one
     that always ran in production, and a serial path for one worker that is a different piece of code); a budget of 1 stays the serial loop.
     """
@@ -202,6 +209,20 @@ def plan_workers(costs, mp_budget, patch_workers=None, max_lanes=None, min_inner
     if n == 1:
         return PatchPlan(budget, n, one, [0], "one patch", t_one, t_one, cap=cap)
     order = lpt_order(costs)
+    if dynamic:
+        room_d = max(1, min(n, budget // max(1, int(min_inner))))
+        top_d = room_d if cap is None else max(1, min(room_d, cap))
+        p = top_d if pw <= 1 else max(1, min(pw, n, room_d))
+        why = "dynamic widths" + ("" if pw <= 1 or p == pw else ", patch_workers=%d limited to %d" % (pw, p))
+        if cap is not None and top_d < room_d and pw <= 1:
+            why += ", memory allows %d lanes" % cap
+        if p == 1:
+            return serial(why)
+        warning = None
+        if cap is not None and p > cap:
+            warning = ("WARNING: %d patches at a time may need more memory than this job has (room for about %d); lower --patch_workers or ask for more memory"
+                       % (p, cap))
+        return PatchPlan(budget, n, split_even(budget, p), order, why, None, None, cap=cap, warning=warning, dynamic=True, min_inner=min_inner)
     if pw > 1:
         p = max(1, min(pw, n, budget // max(1, int(min_inner))))
         why = "patch_workers=%d" % pw + ("" if p == pw else " limited to %d by the budget / the number of patches" % p)
@@ -274,6 +295,110 @@ def _best_skewed(costs, order, budget, top, min_inner, max_steps=40):
             found = (wall, lanes)
     return found
 
+
+
+# ------------------------------------------------------------------------------------------------------------------------------------------
+def fill_widths(demands, budget, min_inner=1):
+    """Share `budget` workers between patches that want `demands` ({key: bins}): everyone gets `min_inner`, then one worker at a time goes to the patch that would
+    finish last (bins / workers rounds), never above its demand. Equal patches get equal widths; one giant patch gets what the small ones do not need."""
+    keys = [k for k in demands if demands[k] > 0]
+    mi = max(1, int(min_inner))
+    w = {k: max(1, min(mi, int(demands[k]))) for k in keys}
+    left = int(budget) - sum(w.values())
+    while left > 0:
+        best = None
+        for k in keys:
+            if w[k] >= demands[k]:
+                continue
+            key = (math.ceil(float(demands[k]) / w[k]), demands[k], -keys.index(k))
+            if best is None or key > best[0]:
+                best = (key, k)
+        if best is None:
+            break
+        w[best[1]] += 1
+        left -= 1
+    return w
+
+
+class WidthBroker(object):
+    """Gives each patch its inner workers when its BINS are known (IFU_ExGal, ``plan.dynamic``), shared by all lanes (forked processes).
+
+    Why: the number of bins of an ExGal patch is set by the Voronoi S/N, not by the area of the aperture (night 20261112: area 3974 arcsec^2 -> 2 bins, 4035 -> 505,
+    6908 -> 606, 12154 -> 3326), so a width planned before the run is a guess. After its binning a patch calls ``acquire(pos, n_bins)``:
+      - the FIRST patches (one per lane, the largest by area) wait for each other, then share the budget with ``fill_widths``: the giant takes what the small ones leave;
+      - a patch that starts later takes ``min(its bins, free workers / lanes without workers)`` at least `min_inner`, waiting while fewer than `min_inner` are free.
+    ``release(pos)`` gives the workers back. The sum of the held widths never exceeds the budget: the job never runs more worker processes than it asked for.
+    """
+
+    def __init__(self, ctx, budget, min_inner, n_tasks, first_wave, lanes, wait_s=900.0):
+        self.budget, self.min_inner, self.wait_s = int(budget), max(1, int(min_inner)), float(wait_s)
+        self.first_wave = list(first_wave)
+        self._cond = ctx.Condition()
+        self._free = ctx.Value("i", self.budget, lock=False)
+        self._holding = ctx.Value("i", 0, lock=False)
+        self._active = ctx.Value("i", int(lanes), lock=False)
+        self._demand = ctx.Array("i", [-1] * n_tasks, lock=False)      # -1 unknown, 0 no work (skipped), else bins (first wave only)
+        self._held = ctx.Array("i", [0] * n_tasks, lock=False)
+
+    def acquire(self, pos, n_bins):
+        demand = max(self.min_inner, min(int(n_bins), self.budget))
+        with self._cond:
+            if pos in self.first_wave:
+                self._demand[pos] = demand
+                self._cond.notify_all()
+                deadline = time.time() + self.wait_s
+                while any(self._demand[q] < 0 for q in self.first_wave) and time.time() < deadline:
+                    self._cond.wait(timeout=1.0)
+                known = {q: (self._demand[q] if self._demand[q] >= 0 else self.min_inner) for q in self.first_wave}
+                w = fill_widths(known, self.budget, self.min_inner).get(pos, self.min_inner)
+                while self._free.value < w and self._free.value < self.min_inner:
+                    self._cond.wait(timeout=1.0)
+                w = max(self.min_inner, min(w, self._free.value))
+            else:
+                while self._free.value < self.min_inner:
+                    self._cond.wait(timeout=1.0)
+                lanes_wanting = max(1, self._active.value - self._holding.value)
+                w = max(self.min_inner, min(demand, self._free.value // lanes_wanting, self._free.value))
+            self._free.value -= w
+            self._holding.value += 1
+            self._held[pos] = w
+            self._cond.notify_all()
+        return w
+
+    def release(self, pos):
+        """Give back what `pos` holds; also tells the first-wave barrier that a patch which never got to acquire has no work (skipped, failed)."""
+        with self._cond:
+            if self._demand[pos] < 0:
+                self._demand[pos] = 0
+            w = self._held[pos]
+            if w > 0:
+                self._held[pos] = 0
+                self._free.value += w
+                self._holding.value = max(0, self._holding.value - 1)
+            self._cond.notify_all()
+
+    def lane_exit(self):
+        with self._cond:
+            self._active.value = max(0, self._active.value - 1)
+            self._cond.notify_all()
+
+    def lane_started(self):
+        with self._cond:
+            self._active.value += 1
+
+    def lane_died(self, pos=None):
+        """The parent calls this for a lane that vanished: its workers come back, a patch it never reported counts as skipped, one lane less."""
+        if pos is not None:
+            self.release(pos)
+        self.lane_exit()
+
+
+_BROKER = None
+
+
+def current_broker():
+    """The WidthBroker of the run in progress (set by run_patches before the lanes fork), None for a serial run or a plan with fixed widths."""
+    return _BROKER
 
 # ------------------------------------------------------------------------------------------------------------------------------------------
 class LinePrefixer(object):
@@ -378,6 +503,11 @@ def _lane_main(lane, capacity, work, tasks, taskq, conn, first=None):
                 res["seconds"] = round(time.time() - t0, 1)
             conn.send(("done", pos, res))
     finally:
+        if _BROKER is not None:
+            try:
+                _BROKER.lane_exit()
+            except Exception:
+                pass
         try:
             conn.send(("exit", None, None))
             conn.close()
@@ -421,6 +551,11 @@ def run_patches(tasks, work, plan, label="IFU", out=None):
     procs, caps, readers = {}, {}, {}                  # lane -> Process, lane -> capacity, reader connection -> lane
     inflight, started, results, ended = {}, set(), {}, set()
     respawns = [0]
+    global _BROKER
+    broker = None
+    if getattr(plan, "dynamic", False):
+        broker = WidthBroker(ctx, plan.mp, plan.min_inner, len(tasks), list(firsts.values()), len(plan.lanes))
+        _BROKER = broker                                  # inherited by the lanes at the fork
 
     def start(lane, cap, first=None):
         reader, writer = ctx.Pipe(duplex=False)
@@ -438,6 +573,8 @@ def run_patches(tasks, work, plan, label="IFU", out=None):
             pass
         procs[lane].join(timeout=5)
         pos = inflight.pop(lane, None)
+        if broker is not None and lane not in ended:      # the lane died without leaving: its workers and its place come back
+            broker.lane_died(pos if pos is not None else firsts.get(lane))
         if pos is None and firsts.get(lane) is not None and firsts[lane] not in started and firsts[lane] not in results:
             pos = firsts[lane]                         # the lane died before it reported its first patch
         if pos is not None and pos not in results:
@@ -446,6 +583,8 @@ def run_patches(tasks, work, plan, label="IFU", out=None):
             print("** %s FAILED  id=%s: worker process died (exit code %s)" % (label, tasks[pos].get("id"), code), file=out)
         if lane not in ended and len(started) < len(tasks) and respawns[0] < len(tasks):     # patches are left: a new lane takes its place
             respawns[0] += 1
+            if broker is not None:
+                broker.lane_started()
             start(max(procs) + 1, caps[lane])
         ended.add(lane)
 
@@ -479,6 +618,7 @@ def run_patches(tasks, work, plan, label="IFU", out=None):
             if pos not in results:
                 results[pos] = failed_result(t, "not run: all workers are gone")
     finally:
+        _BROKER = None
         for p in procs.values():
             if p.is_alive():
                 p.join(timeout=5)
