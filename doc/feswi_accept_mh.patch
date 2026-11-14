@@ -1,0 +1,18 @@
+diff --git a/feswi.py b/feswi.py
+index 0ff1adb..1002f4c 100755
+--- a/feswi.py
++++ b/feswi.py
+@@ -288,6 +288,13 @@ def _get_param_table(param_file):
+     with fits.open(param_file) as hdu_list:
+         param_table = Table(hdu_list[1].data)
+ 
++    # PyAPS writes the metallicity as MH / MH_ERR since FERRE wrapper 2.1
++    # (2026-11-12) and as FEH / FEH_ERR before: accept both. FEH is the name
++    # the rest of this code (and the FESWI INPUT extension) uses.
++    for new_name, old_name in (("FEH", "MH"), ("FEH_ERR", "MH_ERR")):
++        if new_name not in param_table.colnames and old_name in param_table.colnames:
++            param_table[new_name] = param_table[old_name]
++
+     return param_table
+ 
+ 

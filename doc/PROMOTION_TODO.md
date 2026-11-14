@@ -16,9 +16,11 @@ copy of the file (what is absent there and why); remove the entry from both when
 
 ### Before promoting (check each, then tick)
 
-- [ ] **FESWI.** The FESWI code installed from `CS/README.md` reads `FEH` / `FEH_ERR` and fails with a
-      KeyError on files written with the new names. Its reader must accept `MH` / `MH_ERR` first,
-      or FESWI must be pinned to the old names. Ask the FESWI owner.
+- [x] **FESWI (dev, 2026-11-14).** FESWI reads `FEH` / `FEH_ERR`. `aps_feswi.feswi_param_file` now gives it a
+      copy with those names (dev; `tests/test_feswi_mh_compat.py`); `doc/feswi_accept_mh.patch` is the same fix
+      inside FESWI for its maintainers. Still to do before prod: run `aps_feswi` once on a real OB on the dev pod
+      and check that the `*-feswi.fits` product is the same as before the rename. The compat code travels with
+      the rename: promote `aps_feswi.py`, the test and the patch file in the same cherry-pick.
 - [ ] **Other readers of L2 `STAR_TABLE`.** WEAVE-ICD-027 v8.00 still lists `FEH` / `FEH_ERR`.
       Check weaveOR (spectrum and target pages), the WAS/validator checks, weavehub and the CASPER tools
       for any use of the old column names (`grep -rn "FEH"` in each repo) and decide whether an ICD
