@@ -39,7 +39,7 @@ copy of the file (what is absent there and why); remove the entry from both when
 - [x] **Tests on the pod (2026-11-15, dev pod 128.232.226.106, `~/venv`, `PYTHONPATH=py`):** `tests/test_ferre_mh_columns.py`,
       `tests/test_feswi_mh_compat.py`, `tests/test_ifu_ferre_parallel_bins.py`, `tests/test_l2_job_failures.py`: 39 passed.
 - [x] **Owner says go (2026-11-15: "go ahead with all still opens").** The promotion is PREPARED, not pushed: local branch
-      `ready-promote-mh` (commit 8a85d82 in the worktree `wt_integ_prod`) = the dev tree of the 21 files plus an emptied prod
+      `ready-promote-mh` (in the worktree `wt_integ_prod`, on the pod host workstation only, not on origin) = the dev tree of the 21 files plus an emptied prod
       todo; its tree equals dev except this file.
 
 ### How to finish the promotion (in this order)
