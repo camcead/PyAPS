@@ -4,6 +4,7 @@ import argparse
 import sys
 import logging
 import shutil
+import tempfile
 from copy import deepcopy
 
 import PyAPS
@@ -13,6 +14,65 @@ from PyAPS.aps_utils import none_or_str, str2bool, print_args, l1_fileinfo
 from PyAPS.aps_common_args import build_common_parser, resolve_common_args
 from PyAPS.aps_ferre import proc_ferre
 APSVERS = PyAPS.__version__
+
+
+################################################################################
+
+
+def feswi_param_file(param_fits, workdir):
+    """Path of the FERRE parameter file to give to FESWI.
+
+    aps_ferre writes the metallicity as ``MH`` / ``MH_ERR`` since FERRE wrapper
+    2.1 (2026-11-12). FESWI (daguado/feswi) still reads ``FEH`` / ``FEH_ERR`` of
+    the first table extension (``_classify_stars``, ``_get_elems_table``, the
+    INPUT extension of its own product). When the file has ``MH`` and no
+    ``FEH`` this writes a copy in ``workdir`` with the SAME base name (FESWI
+    names its outputs from it) in which ``FEH`` / ``FEH_ERR`` are copies of
+    ``MH`` / ``MH_ERR``; the original file is not touched and keeps ``MH``.
+    Files written before the rename, or without the table, are returned as
+    they are. The FESWI product keeps its own column names.
+    """
+    from astropy.io import fits
+    with fits.open(param_fits) as hdul:
+        if len(hdul) < 2 or not hasattr(hdul[1], 'columns'):
+            return param_fits
+        cols = hdul[1].columns
+        names = set(cols.names)
+        wanted = [(old, new) for new, old in (('FEH', 'MH'), ('FEH_ERR', 'MH_ERR'))
+                  if old in names and new not in names]
+        if not wanted:
+            return param_fits
+        extra = [fits.Column(name=new, format=cols[old].format, unit=cols[old].unit,
+                             array=np.array(hdul[1].data[old]))
+                 for old, new in wanted]
+        table = fits.BinTableHDU.from_columns(cols + fits.ColDefs(extra), name=hdul[1].name)
+        structural = ('XTENSION', 'BITPIX', 'NAXIS', 'PCOUNT', 'GCOUNT', 'TFIELDS', 'TTYPE', 'TFORM', 'TUNIT', 'TDIM',
+                      'TNULL', 'TSCAL', 'TZERO', 'TDISP', 'THEAP', 'EXTNAME', 'CHECKSUM', 'DATASUM')
+        for card in hdul[1].header.cards:                  # keep the other header cards (version, comments, WCS-like keys)
+            if not card.keyword.startswith(structural) and card.keyword not in table.header:
+                table.header.append(card)
+        out = os.path.join(workdir, os.path.basename(param_fits))
+        fits.HDUList([fits.PrimaryHDU(header=hdul[0].header), table]
+                     + [h.copy() for h in hdul[2:]]).writeto(out, overwrite=True)
+    logging.info('FESWI reads FEH / FEH_ERR: using a copy of %s with them added (from MH / MH_ERR)',
+                 os.path.basename(param_fits))
+    return out
+
+
+def _call_feswi(feswi, param_file, proc_args):
+    """The call of ``feswi.feswi`` with the arguments of aps_feswi (param_file may be the FEH-named copy)."""
+    return feswi(param_file, proc_args.spec_fits,
+          spectral_windows_file=proc_args.feswi_spectral_windows,
+          cold_blue_grid_file=proc_args.feswi_cold_blue_grid,
+          cold_red_grid_file=proc_args.feswi_cold_red_grid,
+          hot_blue_grid_file=proc_args.feswi_hot_blue_grid,
+          hot_red_grid_file=proc_args.feswi_hot_red_grid,
+          ferre_cmd=proc_args.ferre_exe,
+          ferre_ndim=proc_args.feswi_ferre_ndim,
+          ferre_f_format=proc_args.feswi_ferre_f_format,
+          ferre_f_access=proc_args.feswi_ferre_f_access,
+          ferre_nthreads=proc_args.feswi_ferre_nthreads,
+          overwrite=proc_args.overwrite)
 
 
 ################################################################################
@@ -398,18 +458,14 @@ def feswi_weave(options=None):
     
     logging.info('running FESWI')
     
-    feswi_filename = feswi(proc_args.param_fits, proc_args.spec_fits,
-          spectral_windows_file=proc_args.feswi_spectral_windows,
-          cold_blue_grid_file=proc_args.feswi_cold_blue_grid,
-          cold_red_grid_file=proc_args.feswi_cold_red_grid,
-          hot_blue_grid_file=proc_args.feswi_hot_blue_grid,
-          hot_red_grid_file=proc_args.feswi_hot_red_grid,
-          ferre_cmd=proc_args.ferre_exe,
-          ferre_ndim=proc_args.feswi_ferre_ndim,
-          ferre_f_format=proc_args.feswi_ferre_f_format,
-          ferre_f_access=proc_args.feswi_ferre_f_access,
-          ferre_nthreads=proc_args.feswi_ferre_nthreads,
-          overwrite=proc_args.overwrite)
+    # FESWI reads FEH / FEH_ERR; aps_ferre writes MH / MH_ERR (see feswi_param_file)
+    compat_dir = tempfile.mkdtemp(prefix='feswi_param_', dir=os.getcwd())    # cwd is the outpath here
+    try:
+        feswi_param = feswi_param_file(proc_args.param_fits, compat_dir)
+        feswi_filename = _call_feswi(feswi, feswi_param, proc_args)
+    finally:
+        shutil.rmtree(compat_dir, ignore_errors=True)
+
     
     # Restore the current working directory to the original path
     

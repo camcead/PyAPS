@@ -20,6 +20,8 @@ python3 -m pip install -e .
 ```bash
 git clone git@gitlab.com:daguado/feswi.git FESWI
 ```
+
+FESWI reads the metallicity columns `FEH` / `FEH_ERR` of `ferre_<head>.fits`; `aps_ferre` writes `MH` / `MH_ERR` since FERRE wrapper 2.1. `aps_feswi` therefore gives FESWI a temporary copy of the file with `FEH` / `FEH_ERR` added (no change to FESWI needed). `doc/feswi_accept_mh.patch` is the same fix inside FESWI (`_get_param_table` accepts both names) for its maintainers; apply with `git -C FESWI apply ../../doc/feswi_accept_mh.patch`, tested on commit 2d86c5e.
 ---
 
 ## 3. RRLEW and RRLGV

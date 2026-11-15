@@ -455,7 +455,10 @@ def _ferre_figure(aps_id):
         outdict[f"FLUX_FR_{arm}"] = [np.asarray(spec[f"FLUX_FR_{arm}"][sspos])]
         outdict[f"MODEL_FR_{arm}"] = [np.asarray(spec[f"MODEL_FR_{arm}"][sspos])]
         setups.append(_ARM_NAMES.get(arm, arm))
-    for key in ("FEH", "TEFF", "LOGG", "ALPHA", "MICRO"):
+    # FERRE metallicity: MH since APS_FR_V 2.1, FEH in older L2 files
+    mh_col = "MH" if "MH" in rec.columns.names else "FEH"
+    outdict["MH"] = [rec[mh_col][spos]]
+    for key in ("TEFF", "LOGG", "ALPHA", "MICRO"):
         outdict[key] = [rec[key][spos]]
 
     return _ferre.build_figure(outdict, 0, setups, flux_unit="Normalized Flux")

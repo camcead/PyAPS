@@ -794,6 +794,8 @@ Stellar atmospheric parameters from RVSPECFIT and FERRE:
 
 *Note: This table contains results from two independent analysis methods – RVSPECFIT (columns ending in _RVS) and FERRE (columns without suffix). Both methods provide complementary stellar parameter measurements.*
 
+*Note: Since the PyAPS FERRE wrapper version 2.1 (header keyword `APS_FR_V`, November 2026) the FERRE metallicity columns are `MH` / `MH_ERR`: the FERRE grid dimension METALS is the overall metallicity [M/H], not [Fe/H]. Earlier products, and WEAVE-ICD-027 v8.00, call them `FEH` / `FEH_ERR`.*
+
 | Column | Type | Unit | Description | Typical Range |
 |--------|------|------|-------------|---------------|
 | **APS_ID** | int | - | Unique identifier | 1-1000 |
@@ -818,8 +820,8 @@ Stellar atmospheric parameters from RVSPECFIT and FERRE:
 | **TEFF_ERR** | float | K | Error in Teff (FERRE) | 10 to 500 |
 | **LOGG** | float | dex | Surface gravity (FERRE) | 0.0 to 5.5 |
 | **LOGG_ERR** | float | dex | Error in log g (FERRE) | 0.01 to 1.0 |
-| **FEH** | float | dex | [Fe/H] (FERRE) | -5.0 to 1.0 |
-| **FEH_ERR** | float | dex | Error in [Fe/H] (FERRE) | 0.01 to 0.5 |
+| **MH** | float | dex | Overall metallicity [M/H] (FERRE) | -5.0 to 1.0 |
+| **MH_ERR** | float | dex | Error in [M/H] (FERRE) | 0.01 to 0.5 |
 | **ALPHA** | float | dex | [alpha/Fe] (FERRE) | -0.5 to 0.5 |
 | **ALPHA_ERR** | float | dex | Error in [alpha/Fe] (FERRE) | 0.01 to 0.3 |
 | **MICRO** | float | km/s | Microturbulence | 0 to 10 |

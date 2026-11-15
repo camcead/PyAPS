@@ -3494,8 +3494,10 @@ def main_RRLEW(rrlew_args):
     teff_rvs = data_rvs['TEFF']
     teff_rvs_err = data_rvs['TEFF_ERR']
 
-    feh_rvs = data_rvs['FEH']
-    feh_rvs_err = data_rvs['FEH_ERR']
+    # FERRE metallicity: MH/MH_ERR since APS_FR_V 2.1, FEH/FEH_ERR in older L2 files
+    _mh = 'MH' if 'MH' in data_rvs.columns.names else 'FEH'
+    feh_rvs = data_rvs[_mh]
+    feh_rvs_err = data_rvs[_mh + '_ERR']
 
     alpha_rvs = data_rvs['ALPHA']
     alpha_rvs_err = data_rvs['ALPHA_ERR']

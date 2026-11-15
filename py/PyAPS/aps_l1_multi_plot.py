@@ -218,15 +218,17 @@ def l1_preview(options=None):
     else:
         l2_ref_table = None
 
-    selector = 'FEH'
+    selector = 'MH'
 
-    if selector =='FEH':
+    if selector =='MH':
+        # FERRE metallicity: MH since APS_FR_V 2.1, FEH in older L2 files
+        mh_col = 'MH' if 'MH' in l2_ref_table.colnames else 'FEH'
         # Step 2: Filter rows with SNR_RVS > 20
         filtered_table = l2_ref_table[l2_ref_table['SNR_RVS'] > 10]
 
 
         # Step 3: Select 20 samples with uniformly distributed FEH values
-        unique_feh_values = np.unique(filtered_table['FEH'])
+        unique_feh_values = np.unique(filtered_table[mh_col])
         n_unique_feh_values = len(unique_feh_values)
 
         if n_unique_feh_values >= 20:
@@ -240,7 +242,7 @@ def l1_preview(options=None):
         feh_mask = np.zeros(len(filtered_table), dtype=bool)
 
         for i, feh_value in enumerate(selected_feh_values):
-            feh_mask |= np.isclose(filtered_table['FEH'], feh_value, atol=tolerance)
+            feh_mask |= np.isclose(filtered_table[mh_col], feh_value, atol=tolerance)
 
         # Apply the mask to get the final subset of 20 rows
         final_subset = filtered_table[feh_mask]

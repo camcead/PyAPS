@@ -712,7 +712,7 @@ Detailed stellar atmospheric parameters:
 
 - `TEFF`: Effective temperature (K)
 - `LOGG`: Surface gravity
-- `FEH`: Metallicity [Fe/H]
+- `MH`: Overall metallicity [M/H] (`FEH` before APS_FR_V 2.1)
 - `ALPHAFE`: Alpha enhancement [α/Fe]
 
 #### `*_APS.fits` - Final Merged L2 Product
