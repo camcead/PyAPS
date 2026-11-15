@@ -1,0 +1,20 @@
+--- a/feswi.py
++++ b/feswi.py
+@@ -1710,7 +1710,7 @@
+             # Read the corresponding out param file into a dataframe
+ 
+             df = pd.read_table(ferre_file_dict[feswiclass][elem]['out_param'],
+-                               header=None, delim_whitespace=True)
++                               header=None, sep=r"\s+")
+ 
+             # Get the number of columns in the file
+ 
+@@ -1957,7 +1957,7 @@
+             # Read the corresponding out spec file into a dataframe
+ 
+             df = pd.read_table(ferre_file_dict[feswiclass][elem]['out_spec'],
+-                               header=None, delim_whitespace=True)
++                               header=None, sep=r"\s+")
+ 
+             # For each row in the data frame, save the first pixels as the blue
+             # spectrum and the other ones as the red spectrum
