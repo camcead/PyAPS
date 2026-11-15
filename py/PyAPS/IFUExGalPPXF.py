@@ -10,6 +10,7 @@ import sys
 
 import PyAPS
 from PyAPS import ExGalutil
+from PyAPS import aps_native
 from PyAPS import ExGalPrepare
 from PyAPS import IFUExGalPrepare    as IFUExGalPrepare
 
@@ -347,8 +348,9 @@ def runModule_PPXF(nthreads, configs, velscale, LSF_Data, LSF_Templates, outdir,
 
     # Read data from file
     hdu      = fits.open(outdir+rootname+'_BINSpectra.fits')
-    bin_data = np.array( hdu[1].data.SPEC.T )
-    noise    = np.array( hdu[1].data.ESPEC.T )
+    # native byte order: a serial loop and a pool worker must fit the same bytes (aps_native)
+    bin_data = aps_native.native_array( hdu[1].data.SPEC.T )
+    noise    = aps_native.native_array( hdu[1].data.ESPEC.T )
 
     if hdu[1].data.LOGLAM.ndim > 1:
         logLam   = np.array( hdu[1].data.LOGLAM[0,:])
