@@ -1,0 +1,10 @@
+{
+ "name": "pyaps-standalone",
+ "version": "1.0.0",
+ "interface": 1,
+ "module": "pyaps_standalone.cli",
+ "python_path": ".",
+ "python": ">=3.10",
+ "requires": ["mcp"],
+ "about": "PyAPS (the WEAVE Advanced Processing System, public code) installed and used on the person's own machine through a local MCP server. Members get the public release (main); WEAVE administrators may choose any branch."
+}
