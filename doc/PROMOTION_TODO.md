@@ -10,7 +10,7 @@ branch `dev` in the file of the same name; tick items there, and remove the entr
   validator, WAS) keeps working. Do not change that without the steps below.
 - **Why it is held back now:** the checks are done (the FESWI check on a real OB, the readers, the pod tests; see the dev copy of this
   file) and the owner said go on 2026-11-15. What is left is to deploy the CASPER pod tools first (they must read `MH` before the first file
-  with it exists), then push the prepared branch `ready-promote-mh` (worktree `wt_integ_prod`, commit 8a85d82) to prod and update the pods.
+  with it exists), then push the prepared branch `ready-promote-mh` (in the worktree `wt_integ_prod`) to prod and update the pods.
 - **Do not** cherry-pick `c1cac86` or merge `dev` wholesale into prod while this entry is open; promote
   other dev work commit by commit, and check `git diff origin/prod origin/dev --stat` before every merge.
 - **FESWI (to do on prod):** on dev FESWI keeps working through `aps_feswi.feswi_param_file` (a temporary copy
