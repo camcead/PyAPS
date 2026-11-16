@@ -780,7 +780,7 @@ For each successfully processed patch:
 | `<headname>_P####_table.fits` | Voronoi bin table: coordinates, bin IDs, per-bin SNR, N spaxels per bin |
 | `<headname>_P####_BINSpectra_linear.fits` | Linear-wavelength co-added spectra, one per Voronoi bin |
 | `<headname>_P####_RVS.fits` | Radial velocities from RVS (if RVS ran) |
-| `<headname>_P####_FERRE.fits` | Stellar parameters: Teff, log g, [Fe/H], [α/Fe] per bin (if FERRE ran) |
+| `<headname>_P####_FERRE.fits` | Stellar parameters: Teff, log g, [M/H] (`MH_FERRE`; `FEH_FERRE` before `APS_FR_V` 2.1), [α/Fe] per bin (if FERRE ran) |
 | `<headname>_P####_APS.fits` | Merged L2 product — all results in one FITS file |
 
 Diagnostic figures in `outpath/figs_Gal/`:

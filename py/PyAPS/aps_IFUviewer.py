@@ -293,6 +293,12 @@ def _load_aps_fits(dirprefix):
 # minus the matplotlib rendering (kept purely as data lookup here).
 # --------------------------------------------------------------------------- #
 
+def _ferre_mh_col(names):
+    """Name of the FERRE metallicity column of an IFU Gal STAR_TABLE: ``MH_FERRE`` since APS_FR_V 2.1 (2026-11-16),
+    ``FEH_FERRE`` in files written before. Old files keep working."""
+    return "MH_FERRE" if "MH_FERRE" in names else "FEH_FERRE"
+
+
 def _list_maptypes(st):
     """All maptype strings selectable in this dataset, grouped for the dropdown."""
     groups = []
@@ -322,7 +328,7 @@ def _list_maptypes(st):
                                           ("VRAD", "TEFF", "LOGG", "FEH", "ALPHA", "VSINI", "SNR")]))
     if st.get("ferre_available"):
         groups.append(("Stellar (FERRE)", [(f"FERRE_{p}", p) for p in
-                                            ("TEFF", "LOGG", "FEH", "ALPHA", "MICRO", "SNR", "CHISQ")]))
+                                            ("TEFF", "LOGG", "MH", "ALPHA", "MICRO", "SNR", "CHISQ")]))
     return groups
 
 
@@ -415,10 +421,12 @@ def _resolve_maptype(st, maptype):
         if not st.get("ferre_available"):
             return None, None, None
         param = maptype[len("FERRE_"):]
+        if param == "FEH":      # a map type saved before MH_FERRE (APS_FR_V 2.1) is the same column
+            param = "MH"
         col_labels = {
             "TEFF": ("TEFF_FERRE", "Effective Temperature (FERRE)", "Teff [K]"),
             "LOGG": ("LOGG_FERRE", "Surface Gravity (FERRE)", "log g"),
-            "FEH": ("FEH_FERRE", "Metallicity (FERRE)", "[Fe/H]"),
+            "MH": (_ferre_mh_col(st["star_table_rec"].columns.names), "Metallicity (FERRE)", "[M/H]"),
             "ALPHA": ("ALPHA_FERRE", "Alpha Abundance (FERRE)", "[α/Fe]"),
             "MICRO": ("MICRO_FERRE", "Microturbulence (FERRE)", "ξ [dex]"),
             "SNR": ("SNR_FERRE", "S/N (FERRE)", "S/N"),
@@ -663,10 +671,11 @@ def _ferre_fit_figure(bin_id):
     bin_pos = st["star_table_pos"].get(bin_id)
     if bin_pos is not None:
         rec = st["star_table_rec"]
-        teff, logg, feh, alpha = (rec.TEFF_FERRE[bin_pos], rec.LOGG_FERRE[bin_pos],
-                                   rec.FEH_FERRE[bin_pos], rec.ALPHA_FERRE[bin_pos])
+        mh_col = _ferre_mh_col(rec.columns.names)
+        teff, logg, mh, alpha = (rec.TEFF_FERRE[bin_pos], rec.LOGG_FERRE[bin_pos],
+                                 rec[mh_col][bin_pos], rec.ALPHA_FERRE[bin_pos])
         title += (f"<br>Teff = {teff:.0f} K, log g = {logg:.2f}, "
-                  f"[Fe/H] = {feh:.2f}, [α/Fe] = {alpha:.2f}")
+                  f"[M/H] = {mh:.2f}, [α/Fe] = {alpha:.2f}")
 
     return spectrum_overlay_figure(
         ["bin"], {"bin": wave}, {"bin": observed}, {"bin": model},
