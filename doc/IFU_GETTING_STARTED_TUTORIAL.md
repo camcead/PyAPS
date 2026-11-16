@@ -1144,7 +1144,7 @@ Stellar atmospheric parameters.
 **Key columns:**
 - `TEFF`: Effective temperature (K)
 - `LOGG`: Surface gravity
-- `FEH`: Metallicity [Fe/H]
+- `MH_FERRE` / `MH_ERR_FERRE`: Overall metallicity [M/H] and its uncertainty (`FEH_FERRE` / `FEH_ERR_FERRE` before `APS_FR_V` 2.1, November 2026; readers accept both)
 - `ALPHA`: Alpha enhancement [α/Fe]
 - Uncertainties for all parameters
 

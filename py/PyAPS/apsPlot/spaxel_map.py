@@ -30,7 +30,7 @@ def select_colorscale(maptype: str) -> str:
         return "RdBu_r"
     if any(x in maptype for x in ("SIGMA_", "PPXF_SIGMA", "FLUX_", "AMPL_", "AON_", "AGE", "SNR", "NSPAX")):
         return "Viridis"
-    if any(x in maptype for x in ("METALS", "ALPHA", "LS_", "FEH")):
+    if any(x in maptype for x in ("METALS", "ALPHA", "LS_", "FEH", "FERRE_MH")):
         return "RdYlBu_r"
     if any(x in maptype for x in ("DETECTION", "COMPONENT", "TIE_GROUP", "BIN_ID")):
         return "Turbo"

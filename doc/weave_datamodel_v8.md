@@ -794,7 +794,7 @@ Stellar atmospheric parameters from RVSPECFIT and FERRE:
 
 *Note: This table contains results from two independent analysis methods – RVSPECFIT (columns ending in _RVS) and FERRE (columns without suffix). Both methods provide complementary stellar parameter measurements.*
 
-*Note: Since the PyAPS FERRE wrapper version 2.1 (header keyword `APS_FR_V`, November 2026) the FERRE metallicity columns are `MH` / `MH_ERR`: the FERRE grid dimension METALS is the overall metallicity [M/H], not [Fe/H]. Earlier products, and WEAVE-ICD-027 v8.00, call them `FEH` / `FEH_ERR`.*
+*Note: Since the PyAPS FERRE wrapper version 2.1 (header keyword `APS_FR_V`, November 2026) the FERRE metallicity columns are `MH` / `MH_ERR`: the FERRE grid dimension METALS is the overall metallicity [M/H], not [Fe/H]. Earlier products, and WEAVE-ICD-027 v8.00, call them `FEH` / `FEH_ERR`. The IFU Galactic-mode products follow the same rule: `FEH_FERRE` / `FEH_ERR_FERRE` of `FERRE_IFU_TABLE` and of the IFU `STAR_TABLE` are `MH_FERRE` / `MH_ERR_FERRE` from `APS_FR_V` 2.1 (the IFU templates carry no FERRE columns).*
 
 | Column | Type | Unit | Description | Typical Range |
 |--------|------|------|-------------|---------------|
