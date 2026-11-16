@@ -8,6 +8,11 @@ FERRE on each bin separately, handling the linear wavelength format used in Gala
 Version History:
 - 1.0: Original version
 - 1.1: Fixed unique working directory issue for parallel processing (Oct 2025)
+- 1.2: By Thomas Hajnik's rename of the MOS columns (aps_ferre 2.1, 12 Nov 2026) extended to the IFU: the FERRE metallicity columns
+       FEH_FERRE / FEH_ERR_FERRE are written as MH_FERRE / MH_ERR_FERRE (FERRE_IFU_TABLE of <head>_P####_FERRE.fits and,
+       through aps_L2merge.ifuGalL2merge, the IFU Gal L2 STAR_TABLE). The FERRE grid dimension METALS is the overall
+       metallicity [M/H], not [Fe/H]. Values, units (dex), the white-dwarf marker (-10) and the column position are unchanged.
+       The card APS_FR_V (= aps_constants.__aps_ferre_version__, 2.1) tells which naming a file uses; a file without it has FEH_FERRE.
 """
 
 import os
@@ -676,12 +681,12 @@ def parse_ferre_output_ifu(work_dir, pixel, bin_id, grid_prefix):
             'BIN_ID': bin_id,
             'TEFF_FERRE': np.nan,
             'LOGG_FERRE': np.nan,
-            'FEH_FERRE': np.nan,
+            'MH_FERRE': np.nan,
             'ALPHA_FERRE': np.nan,
             'MICRO_FERRE': np.nan,
             'TEFF_ERR_FERRE': np.nan,
             'LOGG_ERR_FERRE': np.nan,
-            'FEH_ERR_FERRE': np.nan,
+            'MH_ERR_FERRE': np.nan,
             'ALPHA_ERR_FERRE': np.nan,
             'MICRO_ERR_FERRE': np.nan,
             'SNR_FERRE': np.nan,
@@ -692,11 +697,11 @@ def parse_ferre_output_ifu(work_dir, pixel, bin_id, grid_prefix):
         
         # Parse based on grid dimensionality (from original code)
         if m_cells == 19:
-            # 3D Kurucz grids (Teff, logg, [Fe/H])
-            result['FEH_FERRE'] = float(cells[1])
+            # 3D Kurucz grids (Teff, logg, [M/H])
+            result['MH_FERRE'] = float(cells[1])
             result['TEFF_FERRE'] = float(cells[2])
             result['LOGG_FERRE'] = float(cells[3])
-            result['FEH_ERR_FERRE'] = float(cells[4])
+            result['MH_ERR_FERRE'] = float(cells[4])
             result['TEFF_ERR_FERRE'] = float(cells[5])
             result['LOGG_ERR_FERRE'] = float(cells[6])
             result['SNR_FERRE'] = float(cells[8])
@@ -707,13 +712,13 @@ def parse_ferre_output_ifu(work_dir, pixel, bin_id, grid_prefix):
                 result['COVAR_FERRE'] = cov
             
         elif m_cells == 39:
-            # 5D Kurucz grids (Teff, logg, [Fe/H], [alpha/Fe], micro)
-            result['FEH_FERRE'] = float(cells[1])
+            # 5D Kurucz grids (Teff, logg, [M/H], [alpha/Fe], micro)
+            result['MH_FERRE'] = float(cells[1])
             result['ALPHA_FERRE'] = float(cells[2])
             result['MICRO_FERRE'] = float(cells[3])
             result['TEFF_FERRE'] = float(cells[4])
             result['LOGG_FERRE'] = float(cells[5])
-            result['FEH_ERR_FERRE'] = float(cells[6])
+            result['MH_ERR_FERRE'] = float(cells[6])
             result['ALPHA_ERR_FERRE'] = float(cells[7])
             result['MICRO_ERR_FERRE'] = float(cells[8])
             result['TEFF_ERR_FERRE'] = float(cells[9])
@@ -727,7 +732,7 @@ def parse_ferre_output_ifu(work_dir, pixel, bin_id, grid_prefix):
                 
         elif m_cells == 12:
             # 2D white dwarfs (Teff, logg)
-            result['FEH_FERRE'] = -10.0  # WD marker
+            result['MH_FERRE'] = -10.0  # WD marker
             result['TEFF_FERRE'] = float(cells[1])
             result['LOGG_FERRE'] = float(cells[2])
             result['TEFF_ERR_FERRE'] = float(cells[3])
@@ -975,8 +980,8 @@ def proc_ferre_ifu(headname, outpath, ferre_exe, ferre_templates, ferre_grid_ids
         'TEFF_ERR_FERRE': 'K',
         'LOGG_FERRE': 'dex',
         'LOGG_ERR_FERRE': 'dex',
-        'FEH_FERRE': 'dex',
-        'FEH_ERR_FERRE': 'dex',
+        'MH_FERRE': 'dex',
+        'MH_ERR_FERRE': 'dex',
         'ALPHA_FERRE': 'dex',
         'ALPHA_ERR_FERRE': 'dex',
         'MICRO_FERRE': 'dex',
@@ -989,7 +994,9 @@ def proc_ferre_ifu(headname, outpath, ferre_exe, ferre_templates, ferre_grid_ids
     
     # Add metadata to parameter table
     import PyAPS
+    from PyAPS import aps_constants
     outtab.meta['EXTNAME'] = 'FERRE_IFU_TABLE'
+    outtab.meta['APS_FR_V'] = (aps_constants.__aps_ferre_version__, 'PYAPS FERRE wrapper version (>=2.1: MH_FERRE, MH_ERR_FERRE)')
     outtab.meta['APSVERS'] = (PyAPS.__version__, 'APS version')
     outtab.meta['BINSPEC'] = (os.path.basename(binspec_file), 'Input binned spectra file')
     outtab.meta['NBINS'] = (n_bins, 'Total number of bins in input')
@@ -1004,7 +1011,7 @@ def proc_ferre_ifu(headname, outpath, ferre_exe, ferre_templates, ferre_grid_ids
     
     # Create parameter-only table
     param_cols = ['BIN_ID', 'TEFF_FERRE', 'TEFF_ERR_FERRE', 'LOGG_FERRE', 'LOGG_ERR_FERRE',
-                  'FEH_FERRE', 'FEH_ERR_FERRE', 'ALPHA_FERRE', 'ALPHA_ERR_FERRE',
+                  'MH_FERRE', 'MH_ERR_FERRE', 'ALPHA_FERRE', 'ALPHA_ERR_FERRE',
                   'MICRO_FERRE', 'MICRO_ERR_FERRE', 'SNR_FERRE', 'CHISQ_FERRE', 'FLAG_FERRE']
     
     # Add optional columns if they exist

@@ -474,6 +474,8 @@ One row per target. Key columns:
 | `ERR_LOGG` | dex | Formal uncertainty on log g |
 | `MH` | dex | Overall metallicity [M/H] (FERRE grid dimension METALS); called `FEH` before APS_FR_V 2.1 |
 | `MH_ERR` | dex | Formal uncertainty on [M/H]; called `FEH_ERR` before APS_FR_V 2.1 |
+
+IFU Galactic mode (`aps_ifu_ferre.py`, `<head>_P####_FERRE.fits`, extension `FERRE_IFU_TABLE`, and the IFU L2 `STAR_TABLE` that `aps_L2merge.ifuGalL2merge` builds from it) follows the same rule since 2026-11-16: `MH_FERRE` / `MH_ERR_FERRE` (dex) instead of `FEH_FERRE` / `FEH_ERR_FERRE`, same values, units, white-dwarf marker (-10) and column position; the header card `APS_FR_V` (2.1) tells the naming, a file without it has the old names. The RVSPECFIT columns `FEH_RVS` / `FEH_ERR_RVS` keep their names: RVSPECFIT measures [Fe/H].
 | `ALPHAFE` | dex | Alpha-element abundance (5D grids only) |
 | `ERR_ALPHAFE` | dex | Formal uncertainty on [α/Fe] (5D grids only) |
 | `MICRO` | km/s | Microturbulence (5D grids only) |
