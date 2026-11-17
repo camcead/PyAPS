@@ -535,6 +535,29 @@ FERRE parameters are set in the module config JSON file (for IFU) or in
 For single-exposure (stacking level 0) data, the pipeline automatically switches to
 the lighter 3D grid set and halves `NTHREADS_FR` to avoid memory pressure.
 
+### White dwarfs without Balmer mask and linemask (`wd_nomask_FR`, `--wd_nomask`)
+
+`mask_balmer_FR` (`--maskbalmer`) and, for HR, `use_linemasks_FR` (`--uselinemasks`) mask
+pixels for every target by giving them a very large error. White dwarfs carry their
+T_eff/log g information almost only in the Balmer lines, so with `wd_nomask_FR: 'True'`
+they are fitted without either mask. The decision is made per target:
+
+- **WD catalogue:** `TARGSRVY` contains the survey code `WD` (exact token of a
+  comma-separated list) or `TARGCLASS` is `STAR_WD`.
+- **Redrock fallback**, only for targets without catalogue class information
+  (`TARGCLASS` empty or `UNKNOWN`): the top-ranked Redrock classification is `STAR`
+  with a white dwarf `SUBCLASS` (`WD`, `WD:DA_1`, `WDmagnetic`, `CalciumWD`, `CarbonWD`).
+  For every other `TARGCLASS` (`STAR`, `STAR_FGK`, `SKY`, `GALAXY`, ...) Redrock is
+  ignored: its white dwarf calls on stellar targets were not confirmed by Gaia.
+
+All other targets are processed exactly as without the option (their FERRE input
+files are identical). With the option on, the working directory gets
+`<headname>_wd_nomask.csv` (one row per target: the values used, the result of each
+test, the reason and whether the masks were applied), and `FR_TABLE` / `FR_SPEC` get
+the header cards `WDNOMASK = T`, `NWDCAT` (targets unmasked through the WD catalogue)
+and `NWDRR` (targets unmasked through the Redrock fallback). With the option off
+(the command-line default, also when the key is missing from the YAML) nothing changes.
+
 ---
 
 ## 14. Running from the Command Line

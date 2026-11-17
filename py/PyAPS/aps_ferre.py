@@ -57,6 +57,7 @@ versions:
  4.2 (CASU, Aug 2026) - make_fr_plot moved to PyAPS.apsPlot.ferre (Plotly), built on the same spectrum_overlay_figure shared with aps_rr/aps_rvs - part of the new cross-module PyAPS.apsPlot platform. Same output convention and layout (2 arms x 2 halves).
  4.3 By Thomas Hajnik (CASU, Nov 2026) - SNR_FR is now the median S/N over the pixels FERRE actually fits (masked/invalid pixels excluded) instead of FERRE's median over all pixels; CHISQ_TOT is renormalised to the fitted pixels
  4.4 By Thomas Hajnik (CASU, Nov 2026) - The metallicity columns FEH/FEH_ERR are renamed MH/MH_ERR (FR_TABLE and, through aps_L2merge, the L2 STAR_TABLE): the FERRE grid dimension METALS is the overall metallicity [M/H], not [Fe/H]. APS_FR_V 2.1
+ 4.5 By Thomas Hajnik (CASU, Nov 2026) - New option --wd_nomask: white dwarfs (WD catalogue: TARGSRVY WD or TARGCLASS STAR_WD; Redrock rank-0 WD only if TARGCLASS is empty/UNKNOWN) are fitted without the Balmer mask and the linemask; all other stars are unchanged
 """
 
 #################################################
@@ -223,6 +224,75 @@ def _prepare_ferre_error_arrays(yivar, yflux):
     ferre_ivar[invalid_mask] = mask_ivar
 
     return ferre_ivar, output_error, invalid_mask
+
+
+# --wd_nomask: which targets are fitted without the Balmer mask and the linemask.
+# Catalogue first (TARGSRVY token WD or TARGCLASS STAR_WD). Redrock is used only as a fallback
+# for targets without catalogue class information: with the current Redrock, its white-dwarf
+# calls on stellar targets (STAR, STAR_FGK, ...) were never confirmed by Gaia, so Redrock is
+# ignored for every other TARGCLASS.
+WD_RR_FALLBACK_TARGCLASSES = ('', 'UNKNOWN')
+
+
+def _norm(value):
+    """Stripped upper-case string of a FITS/APSOB value (bytes, None or a 1-element array allowed)."""
+    if value is None:
+        return ''
+    if isinstance(value, (list, tuple, np.ndarray)):
+        value = np.ravel(value)
+        if value.size == 0:
+            return ''
+        value = value[0]
+    if isinstance(value, bytes):
+        value = value.decode(errors='replace')
+    return str(value).strip().upper()
+
+
+def _as_list(values):
+    """Classifier CLASS/SUBCLASS entry (scalar in single mode, rank array otherwise) as a list of strings."""
+    if isinstance(values, (bytes, str)) or np.ndim(values) == 0:
+        values = [values]
+    return [(v.decode(errors='replace') if isinstance(v, bytes) else str(v)).strip() for v in values]
+
+
+def _wd_subclass(subclass):
+    """True if the best archetype of a Redrock SUBCLASS is a white dwarf type
+    (WD, WD:DA_1, WDmagnetic_37, CalciumWD_35, CarbonWD, ...); later archetypes after ';' are ignored."""
+    name = str(subclass).split(';')[0].split('_')[0].split(':')[0].strip().upper()
+    return bool(name) and (name.startswith('WD') or name.endswith('WD'))
+
+
+def _is_catalogue_wd(targsrvy, targclass):
+    """White dwarf according to the target catalogue: TARGSRVY contains the survey code WD
+    (exact token of a comma-separated list) or TARGCLASS is STAR_WD."""
+    surveys = [s.strip() for s in _norm(targsrvy).split(',')]
+    return 'WD' in surveys or _norm(targclass) == 'STAR_WD'
+
+
+def _is_redrock_wd_rank0(classes, subclasses):
+    """True if the top-ranked Redrock classification is CLASS STAR with a white dwarf SUBCLASS."""
+    classes, subclasses = _as_list(classes), _as_list(subclasses)
+    if not classes or not subclasses:
+        return False
+    return classes[0].upper() == 'STAR' and _wd_subclass(subclasses[0])
+
+
+def _wd_exemption(targsrvy, targclass, classes, subclasses):
+    """Decide whether one target is fitted without the Balmer mask and the linemask.
+
+    exempt = WD catalogue  or  (TARGCLASS in WD_RR_FALLBACK_TARGCLASSES and Redrock rank-0 white dwarf)
+    """
+    catalogue = _is_catalogue_wd(targsrvy, targclass)
+    rr_rank0 = _is_redrock_wd_rank0(classes, subclasses)
+    rr_used = _norm(targclass) in WD_RR_FALLBACK_TARGCLASSES
+    if catalogue:
+        reason = 'catalogue'
+    elif rr_used and rr_rank0:
+        reason = 'redrock_fallback'
+    else:
+        reason = ''
+    return {'exempt': bool(reason), 'reason': reason, 'catalogue_test': catalogue,
+            'redrock_rank0': rr_rank0, 'redrock_used': rr_used}
 
 
 def _ferre_fit_stats(flux2d, err2d):
@@ -1486,10 +1556,20 @@ def ferre_outdict(pixel, targs_info, targs_setups, grid_prefix='n', path=None,
 
 def ferre_write_fits(outdict, infiles, setups, join_arms, units_str, param_file,
                      spec_file=None, match_table=None, merge_metadata=None,
-                     linemask=None, uselinemasks=None):
+                     linemask=None, uselinemasks=None, wd_nomask_info=None):
     """
     Write FERRE outputs to FITS files with enhanced metadata tracking.
+
+    wd_nomask_info : None or dict with 'n_catalogue' and 'n_redrock' (only when --wd_nomask is on);
+        adds the header cards WDNOMASK, NWDCAT and NWDRR to FR_TABLE and FR_SPEC.
     """
+    wd_cards = []
+    if wd_nomask_info is not None:
+        wd_cards = [
+            ('WDNOMASK', (True, 'WDs fitted without Balmer mask and linemask')),
+            ('NWDCAT', (int(wd_nomask_info['n_catalogue']), 'N stars unmasked: WD catalogue (TARGSRVY/TARGCLASS)')),
+            ('NWDRR', (int(wd_nomask_info['n_redrock']), "N stars unmasked: Redrock rank-0 WD, TARGCLASS ''/UNKNOWN")),
+        ]
 
     ## GENERATE FERRE OUTPUT TABLES (params only)
     outdict.sort('APS_ID')
@@ -1519,6 +1599,8 @@ def ferre_write_fits(outdict, infiles, setups, join_arms, units_str, param_file,
 
     FR_param.meta['LMASKUSE'] = (linemask_used, "1 if linemask was used 0 otherwise")
     FR_param.meta['LMASK'] = (linemask_name, 'Path to FERRE linemask file')
+    for key, card in wd_cards:
+        FR_param.meta[key] = card
 
     # Add grid tracking metadata if available
     if merge_metadata is not None:
@@ -1573,6 +1655,8 @@ def ferre_write_fits(outdict, infiles, setups, join_arms, units_str, param_file,
 
         outdict.meta['LMASKUSE'] = (linemask_used, '1 if linemask used, 0 otherwise')
         outdict.meta['LMASK'] = (linemask_name, 'Path to FERRE linemask file')
+        for key, card in wd_cards:
+            outdict.meta[key] = card
 
         # Add grid tracking metadata if available
         if merge_metadata is not None:
@@ -1613,11 +1697,14 @@ def proc_ferre(infiles, classfile, param_fits, aps_ids=None, targsrvy=None, targ
                vacuum=None, fill_gap=None, arms_ratio=None, join_arms=None, split_arms=None,
                nthreads=None, ferre=None, match_table=None, catdir=None, caldir=None,
                configdir=None, min_grids_required=2, maskbalmer=None, linemask=None,
-               uselinemasks=None):
+               uselinemasks=None, wd_nomask=False):
     """
     Main FERRE processing function with enhanced error handling and grid tracking.
 
     Additional parameters:
+    wd_nomask : bool
+        If True, white dwarfs (see _wd_exemption) are fitted without the Balmer mask and the
+        linemask; every other target is processed exactly as with wd_nomask=False.
     min_grids_required : int
         Minimum number of successful grids required to continue (default: 1)
     """
@@ -1760,6 +1847,42 @@ def proc_ferre(infiles, classfile, param_fits, aps_ids=None, targsrvy=None, targ
                           'VRAD':vrad_rvs,
                           'VRAD_ERR':vrad_err_rvs}
 
+    # --wd_nomask: per-target decision whether the Balmer mask and the linemask are applied
+    wd_decision = {}
+    wd_nomask_info = None
+    if wd_nomask and (maskbalmer or uselinemasks):
+        class_row = {int(a): i for i, a in enumerate(class_tab['APS_ID'])}
+        for tgs in targs_id:
+            t = targs[targs_idfx[tgs]]
+            i_cls = class_row.get(int(tgs))
+            classes = class_tab['CLASS'][i_cls] if i_cls is not None else []
+            subclasses = class_tab['SUBCLASS'][i_cls] if i_cls is not None else []
+            decision = _wd_exemption(t.targsrvy, t.targclass, classes, subclasses)
+            decision.update(CNAME=str(t.cname).strip(), TARGSRVY=_norm(t.targsrvy), TARGCLASS=_norm(t.targclass),
+                            RR_CLASS0=(_as_list(classes) or [''])[0], RR_SUBCLASS0=(_as_list(subclasses) or [''])[0])
+            wd_decision[tgs] = decision
+
+        n_cat = sum(d['reason'] == 'catalogue' for d in wd_decision.values())
+        n_rr = sum(d['reason'] == 'redrock_fallback' for d in wd_decision.values())
+        wd_nomask_info = {'n_catalogue': n_cat, 'n_redrock': n_rr}
+        print(f'--> wd_nomask: {n_cat + n_rr} of {len(wd_decision)} targets fitted without Balmer mask/linemask '
+              f'({n_cat} WD catalogue, {n_rr} Redrock fallback)')
+        for tgs, d in wd_decision.items():
+            if d['exempt']:
+                print(f"    APS_ID {tgs} {d['CNAME']}: {d['reason']} (TARGSRVY={d['TARGSRVY']}, TARGCLASS={d['TARGCLASS']}, "
+                      f"Redrock rank 0: {d['RR_CLASS0']} {d['RR_SUBCLASS0']})")
+
+        import csv
+        csv_cols = ['APS_ID', 'CNAME', 'TARGSRVY', 'TARGCLASS', 'RR_CLASS0', 'RR_SUBCLASS0',
+                    'catalogue_test', 'redrock_rank0', 'redrock_used', 'reason', 'masks_applied']
+        with open(os.path.join(path, str(pixel) + '_wd_nomask.csv'), 'w', newline='') as fcsv:
+            writer = csv.writer(fcsv)
+            writer.writerow(csv_cols)
+            for tgs, d in wd_decision.items():
+                writer.writerow([tgs, d['CNAME'], d['TARGSRVY'], d['TARGCLASS'], d['RR_CLASS0'], d['RR_SUBCLASS0'],
+                                 d['catalogue_test'], d['redrock_rank0'], d['redrock_used'], d['reason'],
+                                 not d['exempt']])
+
     # Set up maxorder based on grid prefix
     if grid_prefix == 'n':
         maxorder = {'1':3, '2':3, '3':3, '4':2, '5':1, '6':3, '7':3, '8':3, '9':3}
@@ -1883,15 +2006,18 @@ def proc_ferre(infiles, classfile, param_fits, aps_ids=None, targsrvy=None, targ
                 source_ivar, yflux
             )
 
+            # --wd_nomask: white dwarfs get neither the Balmer mask nor the linemask
+            skip_masks = bool(wd_nomask) and wd_decision.get(tgs, {}).get('exempt', False)
+
             # Mask Balmer regions if requested
-            if maskbalmer:
+            if maskbalmer and not skip_masks:
                 balmer = [[4334,4349],[4853,4868],[6555,6570]]
                 # lithium = [6705,6715]
                 for balmer_range in balmer:
                     balmer_mask = (x >= balmer_range[0]) & (x <= balmer_range[1])
                     yivar[balmer_mask] = 1.0 / (large_error**2)
 
-            if uselinemasks:
+            if uselinemasks and not skip_masks:
                 mask_list = np.column_stack((mask_windows['start'], mask_windows['end'])).tolist()
                 
                 for mask_range in mask_list:
@@ -2159,7 +2285,8 @@ def proc_ferre(infiles, classfile, param_fits, aps_ids=None, targsrvy=None, targ
     ## Write outputs into fits file with merge metadata
     ferre_write_fits(outdict, targs_infiles, targs_setups, targs_join_arms, units_str,
                     param_fits, spec_file=spec_fits, match_table=match_table,
-                    merge_metadata=merge_result, linemask=linemask, uselinemasks=uselinemasks)
+                    merge_metadata=merge_result, linemask=linemask, uselinemasks=uselinemasks,
+                    wd_nomask_info=wd_nomask_info)
 
 
 
@@ -2209,6 +2336,10 @@ def ferre_weave(options=None):
                                       help="Mask wavelength regions inside Balmer bins (H-alpha, H-beta, H-gamma)")),
             (("--uselinemasks",), dict(type=str2bool, default=None, required=False,
                                         help="Use linemask when determining stellar parameters")),
+            (("--wd_nomask",), dict(type=str2bool, default=False, required=False,
+                                     help="Fit white dwarfs without the Balmer mask and the linemask (WD catalogue: "
+                                          "TARGSRVY WD or TARGCLASS STAR_WD; Redrock rank-0 WD only if TARGCLASS is "
+                                          "empty/UNKNOWN). All other targets are unchanged")),
         ],
     )
 
@@ -2320,7 +2451,7 @@ def ferre_weave(options=None):
         tellurics=args.tellurics, vacuum=args.vacuum, fill_gap=args.fill_gap, arms_ratio=arms_ratio,
         join_arms=args.join_arms, split_arms=args.split_arms, nthreads=args.mp, ferre=args.ferre_exe, match_table=None,
         catdir=args.catdir, caldir=args.caldir, configdir=args.configdir, maskbalmer=args.maskbalmer,
-        linemask=args.linemask, uselinemasks=args.uselinemasks)
+        linemask=args.linemask, uselinemasks=args.uselinemasks, wd_nomask=args.wd_nomask)
 
 
 #################################################################################################
