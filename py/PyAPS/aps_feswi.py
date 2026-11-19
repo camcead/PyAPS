@@ -75,6 +75,51 @@ def _call_feswi(feswi, param_file, proc_args):
           overwrite=proc_args.overwrite)
 
 
+def is_feswi_v2(feswi_path):
+    """True if --feswi_path is a FESWI v2 repository (github.com/thastro/FESWI: feswi_v2.py at its top level)."""
+    return os.path.isfile(os.path.join(feswi_path, 'feswi_v2.py'))
+
+
+def feswi_v2_zero_points(windows_file):
+    """Solar zero-point file belonging to a FESWI v2 window file: named by the key "solar_zero_points" of
+    <windows>.provenance.json, in the same folder. None if the window file has none (then FESWI v2 writes no
+    FESWI_<X>_CAL columns). FESWI v2 itself checks that the zero-points were measured with exactly this window file."""
+    import json
+    prov = os.path.splitext(windows_file)[0] + '.provenance.json'
+    if not os.path.isfile(prov):
+        return None
+    with open(prov) as f:
+        name = json.load(f).get('solar_zero_points')
+    return os.path.join(os.path.dirname(os.path.abspath(windows_file)), name) if name else None
+
+
+def _call_feswi_v2(proc_args):
+    """FESWI v2 (HR only) on the FR products of this stack. Grid folder = folder of --feswi_cold_blue_grid (FESWI v2
+    picks the blue or green grid from the setup); solar zero-points from the window file's provenance. FESWI v2 reads
+    the MH / MH_ERR columns of aps_ferre itself (no FEH copy needed). Returns the output file, or None for a
+    non-HR stack."""
+    import feswi_v2
+    try:
+        feswi_v2.read_setup(proc_args.infiles)
+    except Exception as e:                                  # not an HR blue + red pair
+        logging.warning('FESWI v2 runs on HR stacks only (%s): nothing done', e)
+        return None
+    zp = feswi_v2_zero_points(proc_args.feswi_spectral_windows)
+    logging.info('FESWI v2: windows %s, solar zero-points %s, grids %s', proc_args.feswi_spectral_windows, zp,
+                 os.path.dirname(os.path.abspath(proc_args.feswi_cold_blue_grid)))
+    return feswi_v2.feswi(
+        proc_args.param_fits, proc_args.spec_fits, proc_args.infiles,
+        spectral_windows_file=proc_args.feswi_spectral_windows,
+        solar_zero_points=zp,
+        grid_dir=os.path.dirname(os.path.abspath(proc_args.feswi_cold_blue_grid)),
+        outdir=proc_args.outpath,
+        aps_ids=[int(i) for i in proc_args.aps_ids] if proc_args.aps_ids is not None else None,
+        ferre_cmd=proc_args.ferre_exe,
+        ferre_nthreads=max(1, int(proc_args.feswi_ferre_nthreads)),
+        ferre_max_workers=2,                                # the two FERRE jobs of a class run together (validated)
+        overwrite=proc_args.overwrite)
+
+
 ################################################################################
 
 
@@ -267,11 +312,12 @@ def _get_feswi_parser():
     
     parser.add_argument(
         '--feswi_spectral_windows', required=True, type=none_or_str,
-        help='JSON file with the spectral windows for each element')
+        help='JSON file with the spectral windows for each element (FESWI v2: its solar zero-point file is named in '
+             '<file>.provenance.json)')
     
     parser.add_argument(
         '--feswi_cold_blue_grid', required=True, type=none_or_str,
-        help='file with cold grid in the blue range')
+        help='file with cold grid in the blue range (FESWI v2: its folder is the grid folder of all v2 grids)')
     
     parser.add_argument(
         '--feswi_cold_red_grid', required=True, type=none_or_str,
@@ -452,6 +498,15 @@ def feswi_weave(options=None):
     # Add feswi_path to the Python path and import feswi
     
     sys.path.insert(1, proc_args.feswi_path)
+
+    if is_feswi_v2(proc_args.feswi_path):
+        logging.info('running FESWI v2 (%s)', proc_args.feswi_path)
+        try:
+            feswi_filename = _call_feswi_v2(proc_args)
+        finally:
+            os.chdir(orig_dir)
+        return feswi_filename
+
     from feswi import feswi
     
     # Call FESWI
