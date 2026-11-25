@@ -373,12 +373,12 @@ only) and prints the address to open:
 
 ```bash
 python aps_explorer.py --outpath /path/to/results/ --headname observation_P0001 --port 8080
-# prints:  <the address of your JupyterLab>/user/<you>/proxy/absolute/8080/   -> open it in your own browser
+# prints:  <host>/user/<you>/<server-name>/proxy/absolute/8080/   -> open it in your own browser (your JupyterLab address up to /lab, plus proxy/absolute/8080/)
 ```
 
 Open that address in any tab of the browser you use for the hub (signed in); no browser on the pod's desktop is needed. The port in the
 address is the `--port` of the command. With a PyAPS version older than 2026-11-25 give the address yourself in the same command:
-`PYAPS_EXPLORER_URL_PREFIX=/user/<you>/proxy/absolute/8080/ python aps_explorer.py ... --port 8080`. Details, switches and
+`PYAPS_EXPLORER_URL_PREFIX=/user/<you>/<server-name>/proxy/absolute/8080/ python aps_explorer.py ... --port 8080` (the path is the one of your JupyterLab address, which on CAMCEADHUB includes the server name, usually `jupyter`; `echo $JUPYTERHUB_SERVICE_PREFIX` in a terminal of the server prints it). Details, switches and
 troubleshooting: [Running on a JupyterHub server](doc/aps_explorer.md#running-on-a-jupyterhub-server). On your own computer nothing changes.
 
 If PyAPS is installed via `pip` (not run from a source checkout), a console
