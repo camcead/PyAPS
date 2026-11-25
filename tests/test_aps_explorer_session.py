@@ -368,8 +368,8 @@ def test_jupyter_proxy_setup_in_a_jupyterhub_pod():
     assert _jupyter_proxy_setup(env, ["--port", "8080"]) == ("/user/jfalcon/proxy/absolute/8080/", 8080)
     assert _jupyter_proxy_setup(env, []) == ("/user/jfalcon/proxy/absolute/8080/", 8080)
     # a hub that lives under a sub-path (a hub mounted under a sub-path)
-    env = {"JUPYTERHUB_SERVICE_PREFIX": "/jhub-imperial-v4/user/ab12/"}
-    assert _jupyter_proxy_setup(env, ["--port=8123"]) == ("/jhub-imperial-v4/user/ab12/proxy/absolute/8123/", 8123)
+    env = {"JUPYTERHUB_SERVICE_PREFIX": "/hub-b/user/ab12/"}
+    assert _jupyter_proxy_setup(env, ["--port=8123"]) == ("/hub-b/user/ab12/proxy/absolute/8123/", 8123)
 
 
 def test_jupyter_proxy_setup_is_off_outside_a_pod_and_when_overridden():
