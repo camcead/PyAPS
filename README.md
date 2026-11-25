@@ -366,8 +366,20 @@ python aps_explorer.py --port 8080
 # then open http://localhost:8080 in a browser
 ```
 
-On a JupyterHub server (a pod, where `localhost` is not your own computer) the explorer detects the hub and prints the address to open
-through the server's built-in proxy; see [Running on a JupyterHub server](doc/aps_explorer.md#running-on-a-jupyterhub-server).
+**Running on a JupyterHub server (for example a CAMCEADHUB pod).** On a server the program runs in the pod, so `http://localhost:8080`
+in the browser of your own computer shows "can't connect". The explorer detects a JupyterHub server (the variable
+`JUPYTERHUB_SERVICE_PREFIX`), publishes itself through the server's built-in `jupyter-server-proxy` (behind your own login, loopback
+only) and prints the address to open:
+
+```bash
+python aps_explorer.py --outpath /path/to/results/ --headname observation_P0001 --port 8080
+# prints:  <the address of your JupyterLab>/user/<you>/proxy/absolute/8080/   -> open it in your own browser
+```
+
+Open that address in any tab of the browser you use for the hub (signed in); no browser on the pod's desktop is needed. The port in the
+address is the `--port` of the command. With a PyAPS version older than 2026-11-25 give the address yourself in the same command:
+`PYAPS_EXPLORER_URL_PREFIX=/user/<you>/proxy/absolute/8080/ python aps_explorer.py ... --port 8080`. Details, switches and
+troubleshooting: [Running on a JupyterHub server](doc/aps_explorer.md#running-on-a-jupyterhub-server). On your own computer nothing changes.
 
 If PyAPS is installed via `pip` (not run from a source checkout), a console
 script does the same thing without needing the full path:
