@@ -345,7 +345,7 @@ python PyAPS/py/PyAPS/aps_explorer.py --outpath results/<folder>/ --headname <he
 prints the address to open, in any tab of your normal browser, on the same host name as your JupyterLab:
 
 ```
-<your JupyterLab address up to the host name>/user/<you>/proxy/absolute/8080/
+<your JupyterLab address up to the host name>/user/<you>/<server-name>/proxy/absolute/8080/
 ```
 
 (where a hub is mounted under a sub-path the path starts with that hub's own prefix; the printed line always has the right one).
