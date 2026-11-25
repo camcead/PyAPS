@@ -166,6 +166,8 @@ def save_ppxf(rootname, configs, outdir, metalist, bin_data , bin_error, ppxf_re
     dataHDU.header['ADEG'] = (configs['ADEG'],'Degree of the add. Legendre polynomial for PPXF')
     dataHDU.header['MDEG'] = (configs['MDEG'],'Degree of the mult. Legendre polynomial for PPXF')
     dataHDU.header['MC_PPXF'] = (configs['MC_PPXF'],'N. of MC simulations to extract errors in PPXF')
+    if ExGalutil.ppxf_bias(configs) is not None:   # only when set: default outputs keep exactly their old header
+        dataHDU.header['PPXF_BIA'] = (ExGalutil.ppxf_bias(configs),'PPXF penalisation (bias) of the kinematics fit')
     if 'LMIN_PPXF' in configs.keys():
         dataHDU.header['LW_PPXF'] = (configs['LMIN_PPXF'],'Min wavelength (OBS.) used by PPXF')
     if 'LMAX_PPXF' in configs.keys():
@@ -319,7 +321,8 @@ def workerPPXF_serial(outdir,config_dir, templates_dir, logLam, bin_data, bin_er
 
     sol, bestfit, optimal_template, mc_results, formal_error = \
     run_ppxf(templates, bin_data, bin_error, velscale, start, goodpixels_ppxf, configs['MOM'],\
-        configs['ADEG'], configs['MDEG'], offset, velscale_ratio, nsims, nbins, logLam, logLam_template, debug, i)
+        configs['ADEG'], configs['MDEG'], offset, velscale_ratio, nsims, nbins, logLam, logLam_template, debug, i,
+        bias=ExGalutil.ppxf_bias(configs))
 
     return i, sol, bestfit, optimal_template, mc_results, formal_error, goodpixels_ppxf, ppxf_meta
 ############################################################################################################################
@@ -341,10 +344,12 @@ def workerPPXF(inQueue, outQueue):
 ############################################################################################################################
 
 def run_ppxf(templates, log_bin_data, log_bin_error, velscale, start, goodpixels, nmoments,
-             adeg, mdeg, offset, velscale_ratio, nsims, nbins, logLam, logLam_template, debug, i):
+             adeg, mdeg, offset, velscale_ratio, nsims, nbins, logLam, logLam_template, debug, i, bias=None):
     """
     Calls the penalised Pixel-Fitting routine from Cappellari & Emsellem 2004
-    to determine the stellar kinematics.
+    to determine the stellar kinematics. ``bias`` is the penalisation of the main fit
+    (config key BIAS_PPXF, see ExGalutil.ppxf_bias); None = pPXF's own default.
+    The Monte-Carlo simulations keep bias=0.
     """
     ExGalutil.printProgress(i, nbins, barLength=50)
 
@@ -358,7 +363,7 @@ def run_ppxf(templates, log_bin_data, log_bin_error, velscale, start, goodpixels
                   goodpixels=goodpixels, plot=False, quiet=True,
                   moments=nmoments, degree=adeg, mdegree=mdeg,
                   velscale_ratio=velscale_ratio,
-                  lam=lam_stellar, lam_temp=lam_stellar_template)
+                  lam=lam_stellar, lam_temp=lam_stellar_template, bias=bias)
 
         # Make the unconvolved optimal stellar template
         # normalized_weights = pp.weights / np.sum(pp.weights)
@@ -434,6 +439,8 @@ def runModule_PPXF(nthreads, configs, velscale, LSF_Templates, outdir, config_di
     npix     = bin_data.shape[1]
 
     nsims  = configs['MC_PPXF']
+    if ExGalutil.ppxf_bias(configs) is not None:   # config BIAS_PPXF; None = pPXF default (a bad value stops here)
+        print(">>> pPXF penalisation (bias) of the kinematics fit: BIAS_PPXF = %g" % ExGalutil.ppxf_bias(configs))
 
 
     # Array to store results of ppxf

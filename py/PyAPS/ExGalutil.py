@@ -1,4 +1,5 @@
 import sys
+import numbers
 
 
 
@@ -78,3 +79,34 @@ def prettyOutput_WarningPrefix():
 
 def prettyOutput_FailedPrefix():
     return(" [ "+'\033[0;31m'+"FAILED  "+'\033[0;39m'+"] ")
+
+
+# ==============================================================================
+#                          p P X F   P E N A L I S A T I O N
+# ==============================================================================
+
+def ppxf_bias(configs):
+    """
+    The penalisation ("bias") of the stellar-kinematics pPXF fit, from the config key ``BIAS_PPXF``.
+
+    pPXF penalises the Gauss-Hermite moments h3, h4, ... towards zero; the bias keyword sets how strongly (Cappellari & Emsellem 2004,
+    section 3.4). A large bias pulls noisy h3/h4 to a flat zero map, a small one lets them vary (and become noisy). Absent, ``None``,
+    ``"None"``, ``"default"`` or an empty string means pPXF's own default (the value that was always used before this key existed),
+    so existing configs give identical results. Otherwise a number >= 0 (``0`` switches the penalisation off).
+
+    Returns None (pPXF default) or a float. Raises ValueError for anything else, so a typo stops the run at the start instead of
+    giving NaN results bin by bin. The Monte-Carlo error simulations keep ``bias=0`` as before.
+    """
+    value = configs.get('BIAS_PPXF', None)
+    if value is None:
+        return None
+    if isinstance(value, str):
+        if value.strip().lower() in ('', 'none', 'default', 'null'):
+            return None
+        try:
+            value = float(value)
+        except ValueError:
+            raise ValueError("BIAS_PPXF must be a number >= 0 or 'None' (pPXF default), got %r" % (configs['BIAS_PPXF'],))
+    if isinstance(value, bool) or not isinstance(value, numbers.Real) or value != value or value < 0:
+        raise ValueError("BIAS_PPXF must be a number >= 0 or 'None' (pPXF default), got %r" % (configs['BIAS_PPXF'],))
+    return float(value)
