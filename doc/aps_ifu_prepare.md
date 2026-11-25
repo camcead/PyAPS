@@ -1300,6 +1300,14 @@ Classification (`ifu_class`, Section 7 above) is separate: it isn't driven by th
 | `PPXF_LIB_LMIN` | float | `1200.0` | Hard blue limit of your stellar template library (Å rest). |
 | `PPXF_LIB_LMAX` | float | `10000.0` | Hard red limit of your stellar template library (Å rest). |
 
+### pPXF penalisation of the stellar kinematics (`BIAS_PPXF`)
+
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `BIAS_PPXF` | float >= 0, or `"None"` | absent = `"None"` | The `bias` keyword of the pPXF fit of the stellar kinematics (IFU_ExGal and MOS_ExGal, `IFUExGalPPXF` / `MOSExGalPPXF`). pPXF penalises the Gauss-Hermite moments h3, h4 ... towards zero, and `bias` sets how strongly (Cappellari & Emsellem 2004, section 3.4). Absent, `null` or `"None"` = pPXF's own default, exactly what PyAPS always used, so existing configs give identical results. A smaller number lets h3 and h4 vary (and become noisier), a larger one flattens them to zero, `0` switches the penalisation off. |
+
+A user calibrated this on WEAVE data (2026-11-25, J. Falcon): with pPXF's default, the h3 and h4 maps came out extremely flat (all zero), and `BIAS_PPXF` of about 0.2 - 0.3 worked better. That is a starting point to test on your own data, not a validated default, so the shipped configs do not set it. Example: `"BIAS_PPXF": 0.25`. A value that is not a number >= 0 stops the run at the start with a clear message. When set, the value is also written to the header of `<head>_ppxf.fits` (`PPXF_BIA`), and the run prints it. The Monte-Carlo error simulations of the same fit keep `bias=0`, as before; the emission-line fits (EMIPPXF) have their own regularisation and are not affected.
+
 ### Full example config (LIFULR11.json, key parameters)
 
 ```json

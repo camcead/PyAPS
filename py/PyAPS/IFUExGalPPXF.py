@@ -49,22 +49,24 @@ def workerPPXF(inQueue, outQueue):
     and multiprocessing.Process.
     """
     for templates, bin_data, noise, velscale, start, goodpixels_ppxf, nmoments,\
-        adeg, mdeg, offset, velscale_ratio, error_limit, nsims, nbins, lam, lam_template, i\
+        adeg, mdeg, offset, velscale_ratio, error_limit, nsims, nbins, lam, lam_template, i, bias\
         in iter(inQueue.get, 'STOP'):
 
         sol, bestfit, optimal_template, mc_results, formal_error, goodpixels_ppxf = \
-          run_ppxf(templates, bin_data, noise, velscale, start, goodpixels_ppxf, error_limit, nmoments, adeg, mdeg, offset, velscale_ratio, nsims, nbins, lam, lam_template, i)
+          run_ppxf(templates, bin_data, noise, velscale, start, goodpixels_ppxf, error_limit, nmoments, adeg, mdeg, offset, velscale_ratio, nsims, nbins, lam, lam_template, i, bias=bias)
 
         outQueue.put(( i, sol, bestfit, optimal_template, mc_results, formal_error, goodpixels_ppxf ))
 
 
 def run_ppxf( templates, log_bin_data, log_bin_error, velscale, start, goodpixels, error_limit, nmoments, adeg, mdeg,\
-        offset, velscale_ratio, nsims, nbins, lam, lam_template, i):
+        offset, velscale_ratio, nsims, nbins, lam, lam_template, i, bias=None):
     """
     Calls the penalised Pixel-Fitting routine from Cappellari & Emsellem 2004
     (ui.adsabs.harvard.edu/?#abs/2004PASP..116..138C;
     ui.adsabs.harvard.edu/?#abs/2017MNRAS.466..798C), in order to determine the
-    stellar kinematics.
+    stellar kinematics. ``bias`` is the penalisation of the main fit (config key
+    BIAS_PPXF, see ExGalutil.ppxf_bias); None = pPXF's own default. The Monte-Carlo
+    simulations keep bias=0.
     """
     ExGalutil.printProgress( i, nbins, barLength=50 )
 
@@ -81,7 +83,8 @@ def run_ppxf( templates, log_bin_data, log_bin_error, velscale, start, goodpixel
 
         # Call PPXF
         pp = ppxf(templates, log_bin_data, log_bin_error, velscale, start, goodpixels=goodpixels, plot=False, \
-                    quiet=True, moments=nmoments, degree=adeg, mdegree=mdeg, velscale_ratio=velscale_ratio, lam=lam, lam_temp=lam_template)
+                    quiet=True, moments=nmoments, degree=adeg, mdegree=mdeg, velscale_ratio=velscale_ratio, lam=lam, lam_temp=lam_template,
+                    bias=bias)
 
         # Make the unconvolved optimal stellar template
         normalized_weights = pp.weights / np.sum( pp.weights )
@@ -212,6 +215,8 @@ def save_ppxf(rootname,configs, outdir, ppxf_result, mc_results, formal_error, l
     dataHDU.header['ADEG'] = (configs['ADEG'],'Degree of the add. Legendre polynomial for PPXF')
     dataHDU.header['MDEG'] = (configs['MDEG'],'Degree of the mult. Legendre polynomial for PPXF')
     dataHDU.header['MC_PPXF'] = (configs['MC_PPXF'],'N. of MC simulations to extract errors in PPXF')
+    if ExGalutil.ppxf_bias(configs) is not None:   # only when set: default outputs keep exactly their old header
+        dataHDU.header['PPXF_BIA'] = (ExGalutil.ppxf_bias(configs),'PPXF penalisation (bias) of the kinematics fit')
     if 'LMIN_PPXF' in configs.keys():
         dataHDU.header['LW_PPXF'] = (configs['LMIN_PPXF'],'Min wavelength (OBS.) used by PPXF')
     if 'LMAX_PPXF' in configs.keys():
@@ -441,6 +446,9 @@ def runModule_PPXF(nthreads, configs, velscale, LSF_Data, LSF_Templates, outdir,
     offset = (logLam_template[0] - logLam[0])*C
     # noise  = np.ones((npix,nbins))
     nsims  = configs['MC_PPXF']
+    bias   = ExGalutil.ppxf_bias(configs)   # config BIAS_PPXF; None = pPXF default
+    if bias is not None:
+        print(">>> pPXF penalisation (bias) of the kinematics fit: BIAS_PPXF = %g" % bias)
 
     # Initial guesses
     start = np.zeros((nbins,2))
@@ -494,7 +502,7 @@ def runModule_PPXF(nthreads, configs, velscale, LSF_Data, LSF_Templates, outdir,
         for i in range(nbins):
             inQueue.put( ( templates_lookup[i], bin_data[:,i], noise[:,i], velscale, start[i,:], goodpixels_ppxf,\
                             configs['MOM'], configs['ADEG'], configs['MDEG'], offset, velscale_ratio,\
-                            error_limit, nsims, nbins, np.exp(logLam),np.exp(logLam_template), i) )
+                            error_limit, nsims, nbins, np.exp(logLam),np.exp(logLam_template), i, bias) )
 
         # now get the results with indices
         ppxf_tmp = [outQueue.get() for _ in range(nbins)]
@@ -540,7 +548,7 @@ def runModule_PPXF(nthreads, configs, velscale, LSF_Data, LSF_Templates, outdir,
               mc_results[i,:configs['MOM']], formal_error[i,:configs['MOM']],goodpixels_bin = run_ppxf\
                 (templates_lookup[i], bin_data[:,i], noise[:,i], velscale, start[i,:], goodpixels_ppxf,\
                 error_limit, configs['MOM'], configs['ADEG'], configs['MDEG'], offset, velscale_ratio,\
-                nsims, nbins,np.exp(logLam), np.exp(logLam_template), i)
+                nsims, nbins,np.exp(logLam), np.exp(logLam_template), i, bias=bias)
 
             # given that size of ppxf_goodpixels could be different than other arrays here
             ppxf_goodpixels[i,0:len(goodpixels_bin)] = goodpixels_bin
