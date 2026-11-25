@@ -575,6 +575,14 @@ The JSON config file (`LIFULR11.json`, `LIFUHR11.json`, etc.) controls all scien
 
 `LMIN_PPXF` and `LMAX_PPXF` define the preferred low-z optical window. These values are also used as the Ca H&K blue clamp at intermediate redshift. At high redshift the window adapts automatically. `PPXF_LIB_LMIN/LMAX` are the hard limits of your template library.
 
+### pPXF penalisation (`BIAS_PPXF`)
+
+```json
+"BIAS_PPXF"       : 0.25
+```
+
+Optional. The `bias` keyword of the stellar-kinematics pPXF fit: it penalises h3, h4 towards zero. Absent or `"None"` = pPXF's own default (unchanged results). A smaller number gives livelier (and noisier) h3/h4 maps, a larger one flatter maps, `0` = no penalisation. A user found the default gave all-zero h3/h4 maps on WEAVE data and 0.2 - 0.3 worked better; test it on your data. The Monte-Carlo error simulations keep `bias=0`; the emission-line fits are not affected. Details: `doc/aps_ifu_prepare.md`, "pPXF penalisation of the stellar kinematics".
+
 ### Fitting parameters
 
 ```json

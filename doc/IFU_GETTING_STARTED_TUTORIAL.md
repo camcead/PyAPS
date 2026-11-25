@@ -1857,6 +1857,7 @@ firefox figs_ExGal/*_snr_stages.png
   "VELSCALE": "None",          // Auto velocity scale
   "MOM": 4,                    // Fit V, σ, h3, h4
   "MDEG": 4,                   // Multiplicative polynomial degree
+  // "BIAS_PPXF": 0.25,        // optional: pPXF penalisation of h3/h4 (absent = pPXF default; 0.2-0.3 gives livelier maps, see doc/aps_ifu_prepare.md)
   "REDDENING": [0.1, 0.1],     // Allow E(B-V) 0-0.1
 
   // === EMIPPXF Settings ===
