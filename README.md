@@ -366,6 +366,9 @@ python aps_explorer.py --port 8080
 # then open http://localhost:8080 in a browser
 ```
 
+On a JupyterHub server (a pod, where `localhost` is not your own computer) the explorer detects the hub and prints the address to open
+through the server's built-in proxy; see [Running on a JupyterHub server](doc/aps_explorer.md#running-on-a-jupyterhub-server).
+
 If PyAPS is installed via `pip` (not run from a source checkout), a console
 script does the same thing without needing the full path:
 ```bash
