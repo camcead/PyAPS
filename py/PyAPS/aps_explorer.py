@@ -7505,6 +7505,39 @@ def on_extra_map_load(contents, selected_item):
     return grid, _EXTRA_MAP_SECTION_STYLE, ""
 
 
+def _explorer_host(env):
+    """Interface the Dash server listens on. ``PYAPS_EXPLORER_HOST`` wins; inside a JupyterHub pod (the browser reaches the
+    explorer only through the pod's own jupyter-server-proxy, behind the user's login) it is the loopback address, so no
+    other pod of the cluster can open an unauthenticated explorer; everywhere else it stays all interfaces ("::")."""
+    host = (env.get("PYAPS_EXPLORER_HOST") or "").strip()
+    if host:
+        return host
+    return "127.0.0.1" if _sess.JUPYTER_PROXY_PATH else "::"
+
+
+def _explorer_address_lines(port, env):
+    """The lines that tell the user which address to open. Dash itself prints ``http://:::8080/`` for the all-interfaces
+    host, which no browser can open."""
+    path = _sess.JUPYTER_PROXY_PATH
+    if path:
+        lines = []
+        if _sess.JUPYTER_PROXY_PORT != port:
+            lines.append(f">>> WARNING: the web path below was derived for port {_sess.JUPYTER_PROXY_PORT}, but the server listens on "
+                         f"{port} (--port must be on the command line, not in a call of explorer_worker(options)); start it again "
+                         "or set PYAPS_EXPLORER_URL_PREFIX.")
+        origin = (env.get("PYAPS_EXPLORER_PUBLIC_URL") or env.get("JUPYTERHUB_HOST") or "").strip().rstrip("/")
+        lines.append(">>> You are on a JupyterHub server: the explorer is published, behind your own login, "
+                     "by the server's built-in proxy. Open it in your normal browser, in the same address as your JupyterLab:")
+        if origin:
+            lines.append(f">>>     {origin}{path}")
+        else:
+            lines.append(f">>>     <the address of your JupyterLab, up to and including the host name>{path}")
+        lines.append(">>> (the page works in any tab of your own browser; there is no need to open a browser on the pod's desktop)")
+        return lines
+    return [f">>> Open in a browser on this machine: http://localhost:{port}{_sess.URL_PREFIX}  "
+            "(Dash's own line below prints the listening address, not an address to type)"]
+
+
 def explorer_worker(options=None):
     """CLI entry point: parse args, optionally load+route an initial
     dataset (L1 via --infiles/--infiles_list, L2 via --outpath/--headname
@@ -7535,10 +7568,13 @@ def explorer_worker(options=None):
         _route_and_load_l2(args.outpath, args.headname)
 
     print(f"PyAPS Explorer — starting Dash server on port {args.port}")
+    host = _explorer_host(os.environ)
+    for line in _explorer_address_lines(args.port, os.environ):
+        print(line, flush=True)
     # threaded=True so the log-poll interval can keep updating the browser
     # while a long Load callback (single-threaded Flask dev server
     # otherwise) is still running server-side.
-    app.run(debug=args.debug, port=args.port, host="::", threaded=True)
+    app.run(debug=args.debug, port=args.port, host=host, threaded=True)
 
 
 if __name__ == "__main__":

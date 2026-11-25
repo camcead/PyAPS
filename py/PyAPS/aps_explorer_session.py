@@ -69,6 +69,7 @@ from __future__ import annotations
 
 import contextvars
 import os
+import sys
 import threading
 import time
 import uuid
@@ -116,7 +117,50 @@ def _normalize_url_prefix(raw):
 # deployments sharing one host across several projects (e.g.
 # `hub.example.org/weave/`) — standalone/single-project usage leaves this
 # unset and gets the unprefixed `"/"` it always has.
-URL_PREFIX = _normalize_url_prefix(os.environ.get("PYAPS_EXPLORER_URL_PREFIX"))
+def _port_from_argv(argv, default=8080):
+    """The ``--port`` of the command line (``--port 8080`` or ``--port=8080``), else the explorer's own default.
+    Needed at import time (see JUPYTER_PROXY_PORT below), before argparse has run."""
+    argv = list(argv or [])
+    for i, a in enumerate(argv):
+        value = None
+        if a == "--port" and i + 1 < len(argv):
+            value = argv[i + 1]
+        elif a.startswith("--port="):
+            value = a.split("=", 1)[1]
+        if value is not None:
+            try:
+                return int(value)
+            except ValueError:
+                return default
+    return default
+
+
+def _jupyter_proxy_setup(env, argv):
+    """Running inside a JupyterHub single-user server (a pod of a hosted platform, any JupyterHub): nothing outside the pod can
+    reach port 8080, but the server's own ``jupyter-server-proxy`` publishes any pod port, behind the user's JupyterHub
+    login, at ``<service prefix>proxy/absolute/<port>/`` -- *absolute* mode keeps the whole path, so it is exactly what
+    Dash's ``url_base_pathname`` expects. Returns ``(url_prefix, port)``, or ``(None, None)`` when this is not a
+    JupyterHub server, when the user chose a prefix (``PYAPS_EXPLORER_URL_PREFIX``) or when the automatic proxy mode is
+    switched off (``PYAPS_EXPLORER_NO_JUPYTER_PROXY=1``)."""
+    if (env.get("PYAPS_EXPLORER_URL_PREFIX") or "").strip():
+        return None, None
+    if (env.get("PYAPS_EXPLORER_NO_JUPYTER_PROXY") or "").strip().lower() in ("1", "true", "yes", "on"):
+        return None, None
+    service_prefix = (env.get("JUPYTERHUB_SERVICE_PREFIX") or "").strip()
+    if not service_prefix.strip("/"):
+        return None, None
+    port = _port_from_argv(argv)
+    return _normalize_url_prefix(f"{service_prefix}/proxy/absolute/{port}"), port
+
+
+_JUPYTER_PREFIX, JUPYTER_PROXY_PORT = _jupyter_proxy_setup(os.environ, sys.argv[1:])
+
+# Inside a JupyterHub pod the prefix is derived from the pod's own JUPYTERHUB_SERVICE_PREFIX and the --port of the
+# command line (see _jupyter_proxy_setup); an explicit PYAPS_EXPLORER_URL_PREFIX always wins.
+URL_PREFIX = _JUPYTER_PREFIX or _normalize_url_prefix(os.environ.get("PYAPS_EXPLORER_URL_PREFIX"))
+
+# The path a user opens in the browser when the explorer runs inside a JupyterHub pod (None elsewhere).
+JUPYTER_PROXY_PATH = _JUPYTER_PREFIX
 
 SESSION_COOKIE_NAME = "pyaps_sid"
 SESSION_TTL_SECONDS = int(os.environ.get("PYAPS_EXPLORER_SESSION_TTL_SECONDS", 4 * 3600))

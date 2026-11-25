@@ -262,6 +262,7 @@ def test_url_prefix_wires_into_dash_app_and_stays_off_by_default():
 
     def _probe(url_prefix=None):
         env = os.environ.copy()
+        env.pop("JUPYTERHUB_SERVICE_PREFIX", None)  # a JupyterHub pod sets it; it would switch the proxy prefix on
         if url_prefix is None:
             env.pop("PYAPS_EXPLORER_URL_PREFIX", None)
         else:
@@ -344,3 +345,86 @@ def test_idle_kill_trigger_evicts_this_session_via_real_callback_dispatch(monkey
     })
     assert resp.status_code == 200
     assert sid not in sess._sessions
+
+
+# --------------------------------------------------------------------------- #
+# JupyterHub pod: the explorer is published by the server's own proxy
+# --------------------------------------------------------------------------- #
+
+def test_port_from_argv():
+    from PyAPS.aps_explorer_session import _port_from_argv
+
+    assert _port_from_argv([]) == 8080
+    assert _port_from_argv(["--outpath", "x", "--port", "9001"]) == 9001
+    assert _port_from_argv(["--port=9002"]) == 9002
+    assert _port_from_argv(["--port", "abc"]) == 8080
+    assert _port_from_argv(["--port"]) == 8080
+
+
+def test_jupyter_proxy_setup_in_a_jupyterhub_pod():
+    from PyAPS.aps_explorer_session import _jupyter_proxy_setup
+
+    env = {"JUPYTERHUB_SERVICE_PREFIX": "/user/jfalcon/"}
+    assert _jupyter_proxy_setup(env, ["--port", "8080"]) == ("/user/jfalcon/proxy/absolute/8080/", 8080)
+    assert _jupyter_proxy_setup(env, []) == ("/user/jfalcon/proxy/absolute/8080/", 8080)
+    # a hub that lives under a sub-path (a hub mounted under a sub-path)
+    env = {"JUPYTERHUB_SERVICE_PREFIX": "/jhub-imperial-v4/user/ab12/"}
+    assert _jupyter_proxy_setup(env, ["--port=8123"]) == ("/jhub-imperial-v4/user/ab12/proxy/absolute/8123/", 8123)
+
+
+def test_jupyter_proxy_setup_is_off_outside_a_pod_and_when_overridden():
+    from PyAPS.aps_explorer_session import _jupyter_proxy_setup
+
+    assert _jupyter_proxy_setup({}, []) == (None, None)
+    assert _jupyter_proxy_setup({"JUPYTERHUB_SERVICE_PREFIX": "/"}, []) == (None, None)
+    assert _jupyter_proxy_setup({"JUPYTERHUB_SERVICE_PREFIX": ""}, []) == (None, None)
+    pod = {"JUPYTERHUB_SERVICE_PREFIX": "/user/x/"}
+    assert _jupyter_proxy_setup({**pod, "PYAPS_EXPLORER_URL_PREFIX": "/weave/"}, []) == (None, None)  # explicit prefix wins
+    assert _jupyter_proxy_setup({**pod, "PYAPS_EXPLORER_NO_JUPYTER_PROXY": "1"}, []) == (None, None)
+
+
+def test_explorer_in_a_jupyterhub_pod_serves_under_the_proxy_path_on_loopback():
+    """Real subprocess (the prefix is read at import time): in a pod the app is mounted at <service prefix>proxy/absolute/<port>/
+    and listens on loopback only; outside a pod nothing changes."""
+    import os
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    pyaps_dir = Path(__file__).resolve().parent.parent / "py" / "PyAPS"
+    code = (
+        "from PyAPS import aps_explorer as ex\n"
+        "import os\n"
+        "print('PREFIX=' + ex.app.config.get('url_base_pathname'))\n"
+        "print('HOST=' + ex._explorer_host(os.environ))\n"
+        "print('LINES=' + ' | '.join(ex._explorer_address_lines(8123, os.environ)))\n"
+        "print('MISMATCH=' + ' | '.join(ex._explorer_address_lines(9999, os.environ)))\n"
+    )
+
+    def _probe(**extra):
+        env = os.environ.copy()
+        for k in ("JUPYTERHUB_SERVICE_PREFIX", "PYAPS_EXPLORER_URL_PREFIX", "PYAPS_EXPLORER_NO_JUPYTER_PROXY",
+                  "PYAPS_EXPLORER_HOST", "PYAPS_EXPLORER_PUBLIC_URL", "JUPYTERHUB_HOST"):
+            env.pop(k, None)
+        env.update(extra)
+        r = subprocess.run([sys.executable, "-c", code, "--port", "8123"], capture_output=True, text=True,
+                           cwd=str(pyaps_dir), timeout=60, env=env)
+        assert r.returncode == 0, r.stderr
+        return r.stdout
+
+    pod = _probe(JUPYTERHUB_SERVICE_PREFIX="/user/jfalcon/")
+    assert "PREFIX=/user/jfalcon/proxy/absolute/8123/" in pod  # the --port of the command line
+    assert "HOST=127.0.0.1" in pod
+    lines = pod.split("LINES=")[1].split("MISMATCH=")[0]
+    assert "/user/jfalcon/proxy/absolute/8123/" in lines and "WARNING" not in lines
+    assert "WARNING" in pod.split("MISMATCH=")[1]  # the server would listen on 9999, the path was derived for 8123
+
+    full = _probe(JUPYTERHUB_SERVICE_PREFIX="/user/jfalcon/", PYAPS_EXPLORER_PUBLIC_URL="https://hub.example.org/")
+    assert "https://hub.example.org/user/jfalcon/proxy/absolute/8123/" in full
+
+    assert "HOST=0.0.0.0" in _probe(JUPYTERHUB_SERVICE_PREFIX="/user/jfalcon/", PYAPS_EXPLORER_HOST="0.0.0.0")
+
+    plain = _probe()
+    assert "PREFIX=/\n" in plain
+    assert "HOST=::" in plain
+    assert "http://localhost:8123/" in plain
