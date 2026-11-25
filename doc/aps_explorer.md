@@ -22,8 +22,9 @@ main [README.md](../README.md#-aps_explorer--unified-l12-explorer).
 9. [Value tables and CSV export](#value-tables-and-csv-export)
 10. [The live log panel](#the-live-log-panel)
 11. [Server / multi-user deployment](#server--multi-user-deployment)
-12. [Environment variable reference](#environment-variable-reference)
-13. [Known limitations / experimental features](#known-limitations--experimental-features)
+12. [Running on a JupyterHub server](#running-on-a-jupyterhub-server)
+13. [Environment variable reference](#environment-variable-reference)
+14. [Known limitations / experimental features](#known-limitations--experimental-features)
 
 ---
 
@@ -331,12 +332,46 @@ sections for the full Docker/session-isolation/idle-timeout/weaveOR-handoff desi
 — reproduced here only as a environment-variable quick reference below, so this
 document alone is enough to look up what a given deployment flag does.
 
+## Running on a JupyterHub server
+
+On a JupyterHub server (a pod of a hosted analysis platform, or any JupyterHub whose single-user image has `jupyter-server-proxy`) port 8080 exists only
+inside the pod, so `http://localhost:8080/` in the browser of your own computer shows nothing ("can't connect"). The server's built-in
+proxy publishes any pod port behind your own JupyterHub login, and the explorer now detects this by itself. Nothing to configure:
+
+```bash
+python PyAPS/py/PyAPS/aps_explorer.py --outpath results/<folder>/ --headname <head> --port 8080
+```
+
+prints the address to open, in any tab of your normal browser, on the same host name as your JupyterLab:
+
+```
+<your JupyterLab address up to the host name>/user/<you>/proxy/absolute/8080/
+```
+
+(where a hub is mounted under a sub-path the path starts with that hub's own prefix; the printed line always has the right one).
+
+What happens: when `JUPYTERHUB_SERVICE_PREFIX` is set (JupyterHub sets it in every server) and `PYAPS_EXPLORER_URL_PREFIX` is not, the app is
+mounted at `<service prefix>proxy/absolute/<port>/` (the `--port` of the command line is used, default 8080), and it listens on the loopback
+address only, so no other pod can open it; the proxy and your login are the only door. Use a different `--port` for a second explorer.
+
+* `PYAPS_EXPLORER_PUBLIC_URL=https://<host>` (or JupyterHub's own `JUPYTERHUB_HOST`) makes the printed line a complete URL.
+* `PYAPS_EXPLORER_NO_JUPYTER_PROXY=1` switches the automatic mode off (plain `http://localhost:<port>/`, all interfaces, as before).
+* `PYAPS_EXPLORER_HOST` forces the listening interface in any mode.
+* A browser inside the pod's own desktop (noVNC) still works with `http://localhost:8080/` only when the proxy mode is off.
+* The Aladin panel fetches its sky images from the internet in *your* browser, not from the pod.
+* On a laptop or workstation of your own nothing changes: plain `http://localhost:8080/`.
+
+---
+
 ## Environment variable reference
 
 | Variable | Default | Effect |
 |---|---|---|
 | `PYAPS_EXPLORER_MULTI_SESSION` | off | Each browser gets its own isolated session (dataset, selection, log) instead of one shared global. Implied by `PYAPS_EXPLORER_REQUIRE_WEAVEOR_AUTH`. |
 | `PYAPS_EXPLORER_URL_PREFIX` | `/` (unset) | Mounts the whole app under a sub-path (e.g. `/weave/`) instead of the host root — for sharing one reverse-proxied host across several tools. `/healthz` always stays unprefixed. |
+| `PYAPS_EXPLORER_PUBLIC_URL` | unset | Host part (`https://host`) printed in front of the proxy path on a JupyterHub server; falls back to `JUPYTERHUB_HOST`. |
+| `PYAPS_EXPLORER_NO_JUPYTER_PROXY` | off | `1` switches off the automatic `proxy/absolute/<port>/` mode on a JupyterHub server. |
+| `PYAPS_EXPLORER_HOST` | `::` (`127.0.0.1` on a JupyterHub server) | Interface the server listens on. |
 | `PYAPS_EXPLORER_REQUIRE_WEAVEOR_AUTH` | off | Only a signed token from a trusted upstream app (e.g. weaveOR) may load a dataset; the loaded session is then locked to that one dataset for the rest of the visit. Requires `PYAPS_EXPLORER_WEAVEOR_SECRET`. |
 | `PYAPS_EXPLORER_WEAVEOR_SECRET` | — | HMAC secret shared with the token-issuing app (`itsdangerous.URLSafeTimedSerializer`). Server refuses to start under `REQUIRE_WEAVEOR_AUTH` without it. |
 | `PYAPS_EXPLORER_WEAVEOR_TOKEN_MAX_AGE` | `300` (seconds) | How long a minted handoff token stays valid before the explorer rejects it as expired. |
